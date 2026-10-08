@@ -1,0 +1,41 @@
+---
+title: "Architecture"
+description: "The pieces of the app and how they reach each machine"
+---
+
+```
+┌──────────────────────────────── App (SwiftUI, macOS + iOS) ─────────────────────────────────┐
+│ Views: Sidebar · TabBar · Strip · PaneCard (Terminal | Chat | Web | Plugin) · Floating ·    │
+│        StatusArea · Pills (macOS)                                                           │
+│ PaneViewRegistry: keeps terminal views, web pages and plugin cards alive                    │
+│ PluginRegistry + PluginHost: plugin manifests, one JavaScript VM per plugin card            │
+│ HostStore (one per machine): snapshot → stable @Observable objects; call(); streams        │
+└───────────────────────────────────────┬─────────────────────────────────────────────────────┘
+                                        │ Exec.run(argv) → stdin / stdout
+             ┌──────────────────────────┴──────────────────────────┐
+             │ macOS: ProcessExec(prefix)                           │ iOS: CitadelExec
+             │   this Mac: prefix = []                              │   one SSH connection per machine,
+             │   remote:   prefix = [ssh -F /dev/null … -S ctl, --] │   one exec channel per run
+             └──────────────────────────┬──────────────────────────┘
+                                        ▼
+   ┌──────────────────────────── on the machine ───────────────────────────┐
+   │ herdr remote-api-bridge             → herdr.sock (JSON, 1 request each)│
+   │ herdr terminal session control …    → live frames for one pane         │
+   │ tail -c +N -F <transcript>          → chat view                        │
+   │ git, cat, … (plugin exec)           → plugin data                      │
+   └────────────────────────────────────────────────────────────────────────┘
+```
+
+| Piece | Platform | Job |
+|---|---|---|
+| `HerdrKit` (Swift package) | both | `Exec`, `call()`, the event stream, snapshot decoding, the split-tree rebuild, the label parser, transcript parsers, the remote command envelope |
+| `ProcessExec` | macOS | `Process` with pipes; an argv prefix makes it local or remote |
+| `CitadelExec` | iOS | the Citadel SSH client, exec channels, a Secure Enclave key |
+| `HostStore` | both | one per machine: snapshot, events, streams, seen state |
+| `PaneViewRegistry` | both | owns terminal views, web pages and plugin cards, so scrolling never destroys them |
+| `PluginRegistry` | both | core plugins plus installed and linked plugins; manifests; consent |
+| `PluginHost` | both | one JavaScriptCore VM per plugin card; the bridge to the kit and the API |
+| Views | both | sidebar, tab bar, strip, cards, floating layer, chat, status, pills, sheets |
+
+`Exec` is the only protocol, with one implementation per platform. `HerdrKit`
+is a separate package so its single test target runs with `swift test`.

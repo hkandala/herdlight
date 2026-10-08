@@ -1,0 +1,78 @@
+---
+title: "State and restore"
+description: "Where plugin state lives and how a fresh app restores plugin panes from herdr"
+---
+
+**Where each piece of state lives:**
+| State | Example | Where | Seen by |
+|---|---|---|---|
+| the pane and its place in the layout | — | herdr pane | every device and the herdr TUI |
+| plugin, pane kind, instance id | `git-history#k3f9q2` (`/<pane>` only when the plugin has several) | the pane label | every device |
+| the argument: what the pane shows | `main`, `docs/DESIGN.md` | the pane label | every device, the TUI border |
+| bigger instance state | selected commit, filters, scroll anchor | a JSON file on the pane's machine, keyed by iid | every device that reaches the machine |
+| change signal | `hl_rev` | a herdr metadata token | every device (`pane.updated`) |
+| preferences | diff style | the app, per device | this device |
+| plugin code and consent | — | the app | this device |
+| in-memory UI state | hover, expanded rows | the JS heap | this card only |
+
+<Callout title="Rule for authors">
+If losing it on a reload would annoy the user, put it in
+`setArg` (small, defines the pane) or `useInstanceState` (bigger). Everything
+else is React state.
+</Callout>
+
+**The instance state file:**
+```
+$HOME/.local/state/herdlight/<herdr-session>/<plugin-id>/<iid>.json
+```
+A fixed path (not `XDG_STATE_HOME`), because the Mac and the iPhone reach the
+machine through different shells and must agree on one file. The app reads
+the machine's `$HOME` once on connect (`printf %s "$HOME"`) and always passes
+absolute paths.
+- On the pane's machine: next to the data, shared by Mac and iPhone, kept
+  across app reinstalls, no sync service.
+- Read with one `cat` when the card is built (a missing file means the
+  initial value).
+- Written debounced (500 ms), atomically over stdin
+  (`sh -c 'umask 077; mkdir -p "${1%/*}" && cat >"$1.tmp" && mv "$1.tmp" "$1"' sh <path>`),
+  at most 256 KiB, then a new `hl_rev` token tells other devices to re-read
+  it. Last writer wins.
+- The app also writes `<plugin-id>/_plugin.json` (title, source, version) once,
+  so a device without the plugin can suggest installing it.
+- **Cleanup:** at most once a day per machine and session (a `.gc` file holds
+  the last date), after a complete, non-empty snapshot, the first device to
+  connect deletes regular files named `<iid>.json` (matching
+  `^[a-z0-9]{6}\.json$`) that are older than 24 hours and whose iid is in no
+  current label.
+
+**Restore on a fresh app start (any device):**
+1. Connect each machine and read `session.snapshot`.
+2. Classify every pane by its label:
+   - `web:http(s)://…` → the web plugin, argument = the URL ([Web page](/docs/plugins/web-page) load rules
+     apply);
+   - matching the `hl:` grammar → (plugin, pane, iid, arg);
+   - otherwise → `agent` if herdr set `pane.agent`, else `terminal`.
+
+   Separately, every pane whose tab is labelled `hl:float` floats ([Floating panes](/docs/floating-panes)),
+   whatever its kind.
+3. Resolve the plugin in the registry (core, then a linked folder, then an
+   installed plugin):
+   - missing → a card with the plugin id and argument, **Show placeholder**
+     and **Close pane**; on macOS, if the machine has `_plugin.json` with an
+     `https` source, also **Install from ‹source›…**, marked "Suggested by
+     ‹machine›" and always through the consent sheet. The label
+     is never changed, so the pane comes back once the plugin is installed;
+   - unknown pane name, an `api` too new, or a required preference unset →
+     the matching message or the "Set up" view.
+4. Key the card `(machine, plugin, iid)`. If that card is alive (after a move
+   or restart), keep it and update its pane id, cwd and argument. If two panes
+   carry the same iid (a copied label), the pane with the lowest pane id keeps
+   that key; the others add their `terminal_id` to the key and share the same
+   state file.
+5. When the card is first shown: build its VM, inject the pane context, read
+   the state file if the plugin uses one, render.
+6. On every later snapshot: a changed argument re-renders; a changed `hl_rev`
+   re-reads the state file; a pane that is gone destroys the card.
+
+Nothing in these steps reads app storage except plugin code, consent and
+preferences.

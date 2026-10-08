@@ -1,0 +1,21 @@
+---
+title: "Pane card in chat view"
+description: "How an agent card looks in chat view"
+---
+
+```
+┌─ ✳ claude · fix-auth ─────────────────── chat|term  ⤢  ✕ ┐
+│  you        run the tests and fix what fails              │
+│  claude     Running the test suite.                       │
+│             ▸ Bash  npm test                    (tool)    │
+│             2 tests fail in auth.spec.ts. Fixing…         │
+│ ┌───────────────────────────────────────────────────────┐ │
+│ │ ▲ claude needs you                                     │ │ ← blocked panel
+│ │   Allow Bash(rm -rf dist)?  1 Yes  2 No                │ │   (screen text)
+│ │   [↑] [↓] [Enter] [Esc] [1] [2] [3]   Open terminal    │ │
+│ └───────────────────────────────────────────────────────┘ │
+│ ┌───────────────────────────────────────────────────┐  ↑  │
+│ │ message…                                          │     │ ← reply box
+│ └───────────────────────────────────────────────────┘     │
+└───────────────────────────────────────────────────────────┘
+```

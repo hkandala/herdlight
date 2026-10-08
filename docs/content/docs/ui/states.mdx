@@ -1,0 +1,24 @@
+---
+title: "States"
+description: "What the user sees in every connection, pane and error state"
+---
+
+| State | What the user sees |
+|---|---|
+| Connecting | a spinner on the machine page |
+| herdr missing / older than 0.9.3 | the install command / "herdr 0.9.3 or newer is needed" |
+| herdr newer than the app knows | a thin banner; the app keeps working |
+| herdr updated but not restarted | "Restart herdr on devbox" (terminal streams fail; the API works) |
+| herdr server not running | a **Start herdr** button |
+| SSH auth failed / host key changed | ssh's message in plain words; a changed key blocks and shows the fingerprint |
+| Local Network access denied | "Allow Local Network access for Herdlight in System Settings › Privacy & Security" |
+| Connection lost | cards grey out; reconnect with back-off; then a fresh snapshot |
+| Pane in use on another device | the content (watching) and "In use elsewhere · Take back" |
+| New tab or split | the pane picker; herdr is called only after a pick |
+| Agent did not start (10 s) | "Agent did not start" and the last screen lines |
+| Move refused by herdr | herdr's reason in words |
+| Web page failed | WebKit's error in the card |
+| Web address set by someone else | "Open ‹url›?" with an Open button ([Web page](/docs/plugins/web-page)) |
+| Plugin not installed on this device | the plugin id, the arg, **Show placeholder**, **Close pane** ([State and restore](/docs/plugins/state)) |
+| Plugin not responding | "‹title› is not responding · Reload" |
+| Full chat not available | the screen-text chat, with a tooltip that says why |

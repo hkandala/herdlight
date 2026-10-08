@@ -1,0 +1,92 @@
+---
+title: "Platform and code"
+description: "One codebase, dependencies, the strip, the tab bar and tests"
+---
+
+## One codebase
+
+- One Xcode project, one multiplatform SwiftUI app target (macOS, iPadOS,
+  iOS), and one local Swift package, `HerdrKit`.
+- Minimum OS: macOS 26 and iOS 26 (Liquid Glass and SwiftUI `WebView`; one
+  minimum means no fallbacks). Building needs Xcode 26.
+- **One main window** (`Window` on macOS, multiple scenes off on iPad), so two
+  windows never fight over control of the same panes. The pill panel is the
+  only other window, and it opens no terminal stream.
+- iPhone uses its own `NavigationStack` layout instead of a collapsed split
+  view.
+- macOS only: `ProcessExec`, the pill panel, the askpass script, the Local
+  Network preflight, scroll routing with `NSEvent`, the AppKit terminal
+  subclass, the Dock badge, the `Window` and `Settings` scenes. iOS only:
+  `CitadelExec`, the UIKit terminal subclass, the compact layout.
+- Signing: macOS has App Sandbox off and Hardened Runtime on, and ships as a
+  notarized Developer ID download (it starts `herdr` and `ssh`). iOS ships on
+  the App Store. Citadel is linked for iOS only.
+
+## Dependencies
+
+| Need | Choice | Why |
+|---|---|---|
+| Terminal drawing | `Lakr233/libghostty-spm`, exact pin | Metal, IME, one API on AppKit and UIKit, a built-in iOS key bar; used by bigtty and Heeler |
+| SSH on iOS | `orlandos-nl/Citadel` 0.12.1, exact pin | pure Swift; exec channels are enough (it depends on a swift-nio-ssh fork, so updates are reviewed) |
+| SSH on macOS | the system `/usr/bin/ssh` | the user's SSH setup works unchanged |
+| Plugin runtime | JavaScriptCore + React 19 + react-reconciler (in the prelude) | built into both OSes; measured fast enough without the JIT |
+| Web pages | SwiftUI `WebView` / `WebPage` | built in |
+| Markdown | `AttributedString(markdown:)` | built in |
+
+## Making the strip work
+
+1. **Terminals and web views swallow the swipe.** On macOS one `NSEvent`
+   monitor locks the axis at the start of each scroll gesture: a horizontal
+   gesture that starts in the strip (and not on a floating card) pages the
+   strip; anything else goes to the view under the pointer. On iOS the
+   terminal subclass yields its pan gesture when the motion is mostly
+   horizontal.
+2. **Lazy SwiftUI containers destroy views that scroll off screen.** The
+   PaneViewRegistry owns every terminal view, web page and plugin card. Each
+   SwiftUI wrapper makes its own container; the newest container adopts the
+   view, and a container removes it only if it still owns it. Stream lifetime
+   follows the HostStore, never whether a view is in a window. Off-screen
+   surfaces pause. At most about 24 live terminal surfaces, 6 web pages (2 on
+   iPhone) and 12 plugin VMs, least recently used first out; an evicted card
+   keeps its last image. Web page message handlers sit behind a weak proxy.
+3. **libghostty's default key bindings eat the app's shortcuts.** Every
+   surface gets `keybind = clear`, and keys go to the main menu first.
+
+If spike S1 fails, the strip becomes one AppKit or UIKit paging container
+(about 300 lines per platform) holding the cached views.
+
+## Tab bar and Liquid Glass
+
+- The tab bar is one `ToolbarItem` with `.sharedBackgroundVisibility(.hidden)`
+  (no double glass), holding a horizontal `ScrollView` and a
+  `GlassEffectContainer`.
+- One glass marker follows the strip's scroll offset
+  (`onScrollGeometryChange`). The lit tabs come from the same number: every
+  tab from `floor(x/w)` to `ceil((x+w)/w) − 1`. When the scroll stops, the
+  selection changes inside `withAnimation` and the marker morphs
+  (`glassEffectID`).
+- If the toolbar squeezes the item (spike S2), the window hides its title bar
+  and the tab bar sits at the top of the detail column with
+  `WindowDragGesture`.
+- Glass only on chrome (tab bar, sidebar, status area, menus). Pane cards,
+  floating cards and pills are opaque.
+
+## Other details
+
+- Drag and drop: a `Transferable` pane reference (machine id + pane id),
+  declared in the Info.plist. Tab capsules spring-load. During a drag, drop
+  zones sit above each card's surface. Drops on another machine are refused.
+- iOS key bar: libghostty-spm's `inputAccessoryItems`.
+- Plugin bridge: a frozen `__host` object per JSContext; every call checks the
+  card's permission and machine binding in Swift.
+
+## One test target
+
+Recorded herdr 0.9.3 JSON (snapshot, layouts, closed reasons), recorded
+plugin view trees and short transcript samples. It checks: decoding, the
+split-tree rebuild, the lit-tab maths, the label parser (`web:`, `hl:` with
+and without a pane name, an argument with spaces and `#`), the remote command
+envelope (hostile strings round-tripped through bash, zsh and fish), the
+plugin tree decode, the state-file write command, the state cleanup selection,
+the bridge refusing `exec` to another machine or without permission, and each
+transcript parser.

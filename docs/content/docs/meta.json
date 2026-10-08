@@ -1,0 +1,27 @@
+{
+  "title": "Herdlight",
+  "pages": [
+    "index",
+    "features",
+    "inspirations",
+    "---UI design---",
+    "...ui",
+    "---How it works---",
+    "architecture",
+    "talking-to-herdr",
+    "machines",
+    "layout",
+    "plugins",
+    "floating-panes",
+    "chat-view",
+    "status",
+    "data",
+    "platform",
+    "---Planning---",
+    "decisions",
+    "risks",
+    "build-order",
+    "---Reference---",
+    "...reference"
+  ]
+}

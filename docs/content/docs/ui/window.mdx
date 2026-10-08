@@ -1,0 +1,50 @@
+---
+title: "macOS window"
+description: "The sidebar, tab bar and strip of the main window"
+---
+
+```
+┌─────────────────────────┬────────────────────────────────────────────────────────────────┐
+│ ● ● ●              ◧    │  (>_ api)  (✳ fix-auth ◔)  (π docs ✓)  ([web] preview)   +  ⧉ 1 │ ← tab bar (glass)
+│ This Mac                │ ┌─ ✳ claude · fix-auth ──── chat|term  ⤢  ✕ ┐┌─ >_ zsh ───────┐ │
+│ ─────────────────────── │ │                                            ││ $ npm test     │ │
+│ ▾ api-server            │ │                                            ││ ✓ 42 passing   │ │
+│     ✳ claude  ◔ working │ │   live terminal                            │└────────────────┘ │
+│     π pi      ✓ finished│ │                                            │┌─ [web] localhost:3000 ┐
+│     [web] preview       │ │                                            ││                │ │
+│     Terminals (2)       │ │                                            ││  web page      │ │
+│ ▸ web-app        1 ▲    │ │                                            ││                │ │
+│ ▸ infra                 │ └────────────────────────────────────────────┘└────────────────┘ │
+│        ● ○ ○   +        │                                                                │
+│ ─────────────────────── │                                                                │
+│ 3 working · 1 needs you │                                                                │
+│ ▲ codex needs you       │                                                                │
+│ ✓ pi finished           │                                                                │
+└─────────────────────────┴────────────────────────────────────────────────────────────────┘
+  sidebar: swipe sideways = next machine        strip: swipe sideways = next tab
+```
+- **Sidebar** (the standard floating glass sidebar of macOS 26):
+  - Top: the machine's name. Middle: the machine pages, swiped sideways.
+  - Below them, fixed: page dots (one per machine, clickable) and `+` (add a
+    machine).
+  - Bottom, fixed: the status area ([Status area and notifications](/docs/status#status-area-and-notifications)).
+- **Machine page:** herdr's workspaces, in herdr's order.
+  - Expanding a workspace lists its agent panes (icon, name, status glyph and
+    word), its web and plugin panes, and one collapsible "Terminals (n)" row.
+  - A collapsed workspace shows how many of its agents need you.
+  - Clicking a workspace selects it in the app only ([Selection and "seen" are the app's own](/docs/layout#selection-and-seen-are-the-apps-own)).
+- **Tab bar** (top of the detail column, glass): one capsule per herdr tab.
+  - Each capsule shows the icon of the pane last selected in that tab (the
+    first pane if none), and the tab label with the folder part dimmed.
+  - Status glyphs: ◔ while an agent works, ✓ when one finished and you have
+    not seen it, ▲ when one needs you. Hover shows ×.
+  - `+` makes a new tab. `⧉ n` shows or hides this workspace's floating panes
+    ([Floating panes](/docs/ui/floating-panes)).
+- **Strip:** one page per tab, full width, paged.
+  - Inside a page, pane cards follow herdr's split tree. Drag a divider to
+    resize.
+  - Each card has a thin header: kind icon, title, the view switch
+    (chat|term on agents, plugin|term on plugins), zoom and close. On macOS
+    the header controls show on hover; on iOS they always show. Every card
+    action is also in the card's context menu and the menu bar.
+  - Cards without keyboard focus are slightly dimmed.

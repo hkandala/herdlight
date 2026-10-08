@@ -1,0 +1,62 @@
+---
+title: "Introduction"
+description: "What Herdlight is, the problem it solves and the principles behind it"
+---
+
+A native macOS and iOS app that gives [herdr](https://github.com/herdrdev/herdr)
+a modern interface. herdr stays the backend: it owns every workspace, tab,
+pane, terminal and agent. The app draws them, drives them, and keeps as
+little state of its own as it can.
+
+- Name: **Herdlight**. These pages are the design; there is no app code yet.
+- Targets: herdr 0.9.3 (protocol 22), macOS 26, iOS and iPadOS 26.
+- Evidence for every claim is in `resources/research/` and `resources/inspirations/` (see [Sources](/docs/reference/sources)).
+
+## The problem
+
+People run many coding agents (Claude Code, Codex, pi) at once, often on
+several machines. herdr keeps those agents alive in panes on each machine and
+knows when each one is working, blocked or done. But herdr's interface is a
+terminal UI: one machine at a time, keyboard-first, and nothing when you are
+away from the terminal or on your phone.
+
+## What we build
+
+One app for Mac, iPad and iPhone that shows every herdr machine at once:
+- a sidebar of machines and workspaces with every agent's status;
+- a strip of tabs you swipe through, with resizable panes;
+- panes for terminals, agents, web pages and plugins;
+- a chat view for any agent;
+- floating panes over the strip;
+- floating status pills on the Mac screen edge when you are in another app.
+
+## Principles
+
+1. **herdr is the source of truth.** If herdr can hold a piece of state, herdr
+   holds it. A fresh app on a new device rebuilds everything from herdr.
+2. **Use what exists.** herdr's API and CLI, OpenSSH, Apple's frameworks. No
+   daemon, relay or server of our own.
+3. **The simplest thing that works** (the "ponytail" rule). Every shortcut we
+   take on purpose is marked "Simpler choice" with the point at which to
+   revisit it.
+
+<Callout title="The first rule">
+  If herdr can hold a piece of state, herdr holds it. Everything the app keeps for itself is
+  listed in [Data: app vs herdr](/docs/data).
+</Callout>
+
+## Read the design
+
+<Cards>
+  <Card title="Features" href="/docs/features" description="Everything the app does, in one list" />
+  <Card title="Inspirations" href="/docs/inspirations" description="Cube, Rex, One and lessons from existing herdr clients" />
+  <Card title="UI design" href="/docs/ui/window" description="The window, swiping, cards, floating panes, pills, iPhone and iPad" />
+  <Card title="Architecture" href="/docs/architecture" description="The pieces of the app and how they reach each machine" />
+  <Card title="Talking to herdr" href="/docs/talking-to-herdr" description="Requests, events, the terminal plane and writes" />
+  <Card title="Machines and SSH" href="/docs/machines" description="ControlMaster on macOS, Citadel on iOS" />
+  <Card title="Pane kinds and plugins" href="/docs/plugins" description="Everything is a plugin: terminal, agent, web page and your own" />
+  <Card title="Chat view" href="/docs/chat-view" description="Agent transcripts, replies and the blocked panel" />
+  <Card title="Design decisions" href="/docs/decisions" description="Every decision, why, and what was rejected" />
+  <Card title="Reference" href="/docs/reference/glossary" description="Glossary, herdr calls and sources" />
+</Cards>
+

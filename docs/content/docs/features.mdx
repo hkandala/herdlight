@@ -1,0 +1,55 @@
+---
+title: "Features"
+description: "Everything Herdlight does, in one list"
+---
+
+The interactive mock-ups in `resources/design.html` show each of these.
+
+**Machines and workspaces**
+- Every herdr session on this Mac plus every SSH machine, all connected at
+  once.
+- A sidebar page per machine. Swipe the sidebar sideways to switch machines,
+  like Arc's spaces. The whole window follows.
+- Workspaces expand to show their agents, each with its agent icon and a
+  status glyph: **◔ working, ▲ needs you, ✓ finished**.
+- A status area at the bottom of the sidebar: a summary ("3 working · 1 needs
+  you · 2 finished") and a row per agent that needs you or has finished and
+  not been seen, across all machines.
+
+**Tabs and panes**
+- A strip of tabs: each herdr tab is one page. Swipe sideways through them.
+  The tab bar lights every tab whose page is visible and selects the tab when
+  the swipe stops.
+- Panes follow herdr's split layout. Drag a divider to resize.
+- Zoom a pane to fill the window, then return.
+- Drag a pane to swap it, split it into another tab, or move it to another
+  workspace.
+- **Floating panes:** a pane can float above the strip as a movable,
+  resizable card, then dock back into a tab.
+
+**Pane kinds (all are plugins)**
+- **Terminal**, **Agent** (any agent installed on that machine) and **Web
+  page** (any address, rendered natively next to your terminals).
+- **Git history**, **Diff** and **Markdown** are core plugins written in
+  TypeScript with the same API as yours.
+- **Your own plugins**, written in TypeScript and React with a component kit
+  that renders as native SwiftUI.
+
+**Agents**
+- Switch any pane between its terminal and a **chat view**: messages from the
+  agent's own transcript, a reply box, and buttons to answer a blocked
+  prompt.
+- Notifications and a Dock badge when an agent needs you or finishes.
+- **Floating pills (macOS):** while you work in another app, a small black
+  pill on the screen edge shows a glyph per agent. A blocked or finished
+  agent opens a small card with its output and a reply box. One click opens
+  the main window at that pane.
+
+**iPhone and iPad**
+- iPad uses the Mac layout.
+- iPhone shows one pane per page, opens agents in chat, and has a key bar for
+  terminals.
+
+**Look**
+- Dark only. An opaque near-black window, opaque pane cards, and Liquid
+  Glass on the tab bar and sidebar.

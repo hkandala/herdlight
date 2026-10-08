@@ -1,0 +1,43 @@
+---
+title: "Build order and spikes"
+description: "The spikes to run first and the order to build in"
+---
+
+0. **Spikes** (before real views):
+   - **S1 strip:** a paged SwiftUI `ScrollView` on macOS and iPad with 3 pages ×
+     3 libghostty surfaces, 1 web view and 1 plugin card. Pass: a sideways
+     swipe pages from anywhere; vertical scroll reaches the terminal; views
+     survive page changes and zoom; no dropped frames at 120 Hz; window and
+     sidebar resizes keep the page; iOS swipe-back on page 0 and the iPad
+     portrait sidebar behave.
+   - **S2 tab bar:** 12 capsules in a `ToolbarItem`, no overflow, no double
+     glass, the marker follows the scroll.
+   - **S3 ssh:** one prompt per machine with 8 parallel runs at connect; the
+     ControlPath works; the Local Network alert appears; the askpass script
+     works in a notarized build; killed children release control; a closed
+     chat frees its SSH session.
+   - **S4 Codex:** which process holds the rollout file open.
+   - **S5 pill:** typing in another app loses no key; the first click on a
+     peeked card only activates it; key buttons keep the app inactive; the
+     reply box takes focus, ⌘V and Enter; the keyboard returns after close;
+     transparent areas click through; the pill shows over full-screen apps and
+     every Space; Open activates the app at the pane; `.passive` notifications
+     land quietly; no idle wake-ups.
+   - **S6 plugins and floating:** JavaScriptCore in the Hardened Runtime
+     build; 12 live plugin cards plus 9 terminals in the strip hold frame
+     time; a floating card moves between the strip and the floating layer
+     without a reload; a scroll on a floating card never pages the strip.
+1. **Mac, this Mac:** `Exec`, `call()`, events, snapshot, sidebar, strip,
+   terminal streams, split, close, resize, zoom.
+2. **Mac, remote machines:** ControlMaster, askpass, machine pages, status
+   area, notifications.
+3. **Pane kinds and chat:** the plugin registry and picker; the web page with
+   `localhost` forwards; transcript and screen-text chat; floating panes.
+4. **Plugin system:** the plugin host and prelude; `List`, `Detail`,
+   `Markdown`, `ActionPanel`; then `Diff`, `Code`, `Form`; the Git history,
+   Diff and Markdown plugins; install and dev mode; the `hl-plugin` CLI.
+5. **Floating pills.**
+6. **iPadOS and iOS:** Citadel, the compact layout, the composer, the key bar.
+7. **Later:** iOS push, iOS `localhost` forwarding, iOS jump hosts, user
+   plugins on iOS, a `<WebView>` kit component, tab thumbnails and an overview
+   grid, more chat parsers, more windows.

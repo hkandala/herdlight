@@ -1,0 +1,59 @@
+---
+title: "Inspirations"
+description: "Cube, Rex, One and lessons from about 25 existing herdr clients"
+---
+
+Frame-by-frame write-ups: `resources/inspirations/INSPIRATIONS.md` (Cube, Rex) and
+`resources/inspirations/ONE.md` (One).
+
+## Cube Computer: a sidebar and a sideways strip
+
+![Cube: terminal and web page side by side](/inspirations/a-01-sidebar-terminal-and-web-page.jpg)
+![Cube: mid-swipe, two tabs lit](/inspirations/a-02-scrolling-web-into-studio-two-tabs-lit.jpg)
+
+Each tab is one page in a sideways strip. Content slides without resizing.
+Every tab whose page is visible is lit, so the tab bar works as a map of the
+strip. Web pages sit next to terminals as equals.
+
+## Superlogical Rex: a quiet terminal
+
+![Rex: finished badge on a background tab](/inspirations/b-04-background-tab-done-badge.jpg)
+![Rex: tab thumbnails](/inspirations/c-02-tab-peek-live-thumbnails.jpg)
+
+Capsule tabs with app icons. A tab shows when its program is working and when
+it has finished. Unfocused splits are dimmed. The chrome is minimal and dark.
+
+## One: a floating agent pill
+
+![One: the pill, its toolbar and a card](/inspirations/one-03-toolbar-expanded-inbox-card.jpg)
+![One: a card for a waiting agent](/inspirations/one-04-inbox-card-keyboard-hints.jpg)
+
+A Mac app built on herdr. A black notch-shaped pill on the right screen edge
+holds one dot per agent. Questions and finished work open in a card next to
+it.
+
+## What we take
+
+| From | We take |
+|---|---|
+| Cube | the sideways strip of tab pages; tabs lit while visible; web pages as panes; a sidebar tree with kind icons |
+| Rex | status inside the tab; × on hover; dimmed unfocused panes; glass on chrome only |
+| Arc | one sidebar page per machine, swiped sideways |
+| One | the edge pill with a glyph per agent; a card with the agent's output and a reply box |
+
+Rex shows the wallpaper through its window. We keep the window opaque, so the
+app is fully dark.
+
+## Lessons from existing herdr clients
+
+We studied about 25 herdr clients (`resources/research/repo-list.md`).
+| Lesson | Evidence |
+|---|---|
+| Clients that keep their own model of tabs or layout drift from herdr. | herdrm, paca, moo, allward. bigtty mirrors herdr and stays small. |
+| herdr's private client socket breaks on herdr upgrades. | whip, uHerdr and rai pin protocol 22. |
+| `herdr terminal session control` is the public way to stream one pane. | bigtty, paca, termote, pairfob. |
+| Chat views read the agent's own transcript file. | herdr-web-ui, collie, termote. |
+| Parsing approval prompts per agent costs a lot to maintain. | herdr-web-ui has 27 regex responders. |
+| Daemons on the host add install steps; SSH already does auth. | herdr-connect, pairfob, collie vs Heeler and herdr itself. |
+| Glass behind terminal text hurts reading. | paca removed it after two days. |
+| libghostty draws terminals better than SwiftTerm on iOS. | Heeler measured both. |

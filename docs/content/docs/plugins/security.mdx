@@ -1,0 +1,48 @@
+---
+title: "Plugin security"
+description: "VM binding, the exec permission, consent, caps and the watchdog"
+---
+
+- **One VM per card, bound to its pane's machine.** `exec` goes only to that
+  machine; the bridge functions take no machine or pane id, because the card
+  is bound when it is built. Cards share no memory. The app gives plugins no
+  network and no storage that spans machines.
+- **What `exec` means:** a plugin with `exec` can do anything you can do on
+  that machine, including network tools and processes that keep running after
+  the card closes. The app does not pretend otherwise; the consent sheet says
+  so.
+- **Plugin JavaScript runs only while a card is alive and on screen.**
+- **User-gesture rule, enforced in Swift:** `open(url)` (after a confirm
+  sheet) and `Clipboard.copy` work only while the app is dispatching a user's
+  click or key press to that card.
+- **No HTML and no DOM.** Repository content is drawn as text by native views.
+- **One permission, `exec`.** Without it a plugin can render, read its
+  argument, the snapshot and preferences, and keep instance state (the app
+  does that file I/O with fixed commands). Finer rules ("only `git`") would
+  not hold (`git -c alias.x='!sh'` runs anything), so none are offered.
+- **Consent at install**, per device, keyed by plugin id and source. The sheet
+  is headed by the plugin id and source URL (a plugin chooses its own title,
+  so the title alone could imitate another), then shows the commit and, in
+  plain words: "‹Title› can run any
+  command as you on the machine of every ‹Title› pane you open, including
+  ones another device or person created. It can use the network from there,
+  leave programs running, type into panes and prompt agents. On This Mac that
+  includes your files, SSH keys and the app's connections to your other
+  machines." Text from a machine is shown with control and direction-override
+  characters removed.
+- Again on an update that adds a permission.
+- **This Mac gets one more confirm**, on a plugin's first `exec` there,
+  remembered per plugin id and source, and revocable.
+- Core plugins ask nothing. Settings lists every plugin with its source,
+  commit, permissions and answers, with Disable and Remove.
+- The argument and machine content are untrusted: they reach a machine only
+  as argv inside the envelope. `exec` has no shell option.
+- **A machine can write labels**, so it can open any *installed* plugin on
+  itself. That gives it only what the plugin does on that same machine.
+- **Caps:** view tree 4 MB, exec output 4 MiB per stream, state 256 KiB,
+  argument 1024 characters.
+- **Watchdog:** a call into a plugin that runs longer than 3 s marks the card
+  "not responding · Reload". JavaScriptCore has no public way to stop a
+  running script, so a hung VM is abandoned (it keeps one core busy until the
+  app quits) and the plugin is disabled after two hangs. Simpler choice: move
+  to QuickJS, which can interrupt scripts, if this ever matters.

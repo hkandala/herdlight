@@ -1,0 +1,25 @@
+---
+title: "Risks and known limits"
+description: "Known risks, their effect and the plan for each"
+---
+
+| Risk | Effect | Plan |
+|---|---|---|
+| A SwiftUI strip with many Metal surfaces | jank, lost gestures | spike S1; fallback is a paging container |
+| The toolbar squeezes the tab bar | tabs overflow | spike S2; fallback is a hidden title bar |
+| herdr updated but not restarted | terminal streams fail; the API works | "Restart herdr" message |
+| Pane order in `layouts[]` is not a documented contract | wrong tree | leaf-count check, then `layout.export` |
+| Bridge cost per call | 18–130 ms plus network | hidden by the debounce; direct socket if a profile says so |
+| herdr does not report PTY columns | a phone watcher uses a fixed size | ask herdr for the field if needed |
+| A herdr TUI on the same tab | shared ratios; our control pins the PTY size | accepted |
+| `pane.swap` marks the tab seen in herdr | TUI users lose a done marker | accepted; swap only follows a drag |
+| Transcript formats change | full chat breaks for one agent | lenient parsers; screen text and terminal still work |
+| iOS drops connections in the background | no live updates | reconnect and snapshot on return; push later |
+| A hung plugin script | one CPU core busy until the app quits | the card is abandoned and the plugin disabled after two hangs; QuickJS if it matters |
+| A malicious plugin the user installed | anything the user can do on machines where its panes open, including network use from there | consent sheet in plain words; This Mac confirm; source shown and pinned to a commit |
+| Labels written by a hostile machine | a web page or plugin card opening by itself | web addresses need a click; plugins act only on that machine |
+| DNS rebinding against loopback forwards | a page reaches a forwarded dev server by another name | per-machine loopback rules; accepted residual risk |
+| The pill panel's focus behaviour | the reply box may not take keys, or a click may not open the app | spike S5 |
+| Web page memory (120–200 MB each) | memory growth | caps of 6 on Mac and 2 on iPhone; evict on memory pressure |
+| libghostty-spm and Citadel are third-party builds | updates lag; supply chain | exact pins; reviewed updates; SwiftTerm as a fallback renderer |
+| A local forward port is open to other local users | another account could reach the dev server | accepted for a single-user Mac |

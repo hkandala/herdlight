@@ -1,0 +1,28 @@
+---
+title: "Glossary"
+description: "The words these docs use"
+---
+
+| Word | Meaning |
+|---|---|
+| herdr TUI | herdr's own text interface, run in a terminal app |
+| machine | one herdr server the app talks to: this Mac (one per herdr session), or a machine over SSH |
+| machine page | one machine's page in the sidebar; pages swipe sideways |
+| strip / tab page | the main area that pages sideways / one tab's page in it |
+| pane card | how the app draws one herdr pane: a header plus content |
+| floating card | a pane card drawn above the strip, from the workspace's `hl:float` tab |
+| pill / card / peek | the floating status capsule on the Mac screen edge / the small window for one agent next to it / a card that slides out by itself without taking the keyboard |
+| PTY | the pseudo-terminal a shell runs in; it has one size |
+| frame | one message of ANSI bytes from `terminal session` |
+| control / observe | the two stream kinds: control types and resizes; observe only watches |
+| split tree | herdr's layout: each split cuts a rectangle in two by a ratio |
+| ControlMaster | one shared SSH connection that later `ssh` commands reuse |
+| envelope | the base64 wrapper every remote command travels in |
+| `terminal_id` / `pane_id` | herdr's id of a terminal process / of a pane slot; the pane id changes on a move to another workspace, the terminal id on a herdr cold restart |
+| `completion_seq` | herdr's sequence number of an agent's last finished turn; null while it works; restarts at 0 with herdr |
+| plugin / core plugin | a pane kind / one that ships with the app (terminal, agent, web, git history, diff, Markdown) |
+| kit | the React components plugins use, drawn as native SwiftUI |
+| iid | a plugin pane's instance id, kept in its label |
+| `hl_rev` | a herdr metadata token the app changes to tell other devices to refresh |
+| askpass | a small program `ssh` runs to ask for a password |
+| `MaxSessions` | OpenSSH's limit of sessions on one connection (10 by default) |

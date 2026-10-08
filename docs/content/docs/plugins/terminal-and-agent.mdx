@@ -1,0 +1,29 @@
+---
+title: "Terminal and agent"
+description: "The two native core plugins that run in herdr panes"
+---
+
+## Terminal
+
+`pane.split` or `tab.create`. herdr starts the user's shell; the card draws
+the frame stream ([Terminal plane](/docs/talking-to-herdr#terminal-plane)).
+
+## Agent
+
+A pane where herdr detected an agent (`pane.agent` is set, for example
+`claude`, `codex`, `pi`).
+- **Picker:** the `integration.list` entries with `available: true` (the
+  command is on the herdr server's `PATH`), read once on connect. The kind is
+  the entry's `label`. Simpler choice: agents without a herdr integration are
+  not listed; start them from a terminal and herdr still detects them.
+- **Start:** split or new tab, then
+  `agent.start {name: "<kind>-<4 random [a-z0-9]>", kind, pane_id}`.
+  - `name` must match `[a-z][a-z0-9_-]{0,31}` and be unique on the machine.
+  - A new shell may not be ready: herdr returns `agent_pane_busy`, and the app
+    retries every 250 ms for up to 5 s.
+  - `agent.start` types the command and returns at once. If no agent appears
+    within 10 s, the card shows "Agent did not start" and the last screen
+    lines.
+- **Icon:** a bundled image per herdr agent id (uHerdr's MIT set); unknown
+  agents get the SF Symbol `sparkles`.
+- **View:** terminal by default on Mac and iPad, chat on iPhone.

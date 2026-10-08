@@ -1,0 +1,22 @@
+---
+title: "herdr calls"
+description: "Every herdr call and command the app uses, and the ones it never uses"
+---
+
+```
+ping · session.snapshot · events.subscribe (long-lived) · integration.list
+workspace.create | close | rename | move
+tab.create | close | rename | move
+pane.split | close | rename | swap | move | resize | send_input | read | process_info | report_metadata
+layout.set_split_ratio · layout.export (fallback)
+agent.start | prompt | send_keys
+
+herdr --session S remote-api-bridge [--check]
+herdr --session S terminal session control|observe <terminal_id> --cols C --rows R [--takeover]
+herdr session list --json                              (macOS)
+herdr machine list --json | add | rename | remove      (macOS; add runs in a terminal card)
+herdr --session S server                               (started with nohup, on request)
+```
+Never used: `pane.focus`, `tab.focus`, `workspace.focus`, `agent.focus`,
+`pane.zoom`, herdr popups, herdr plugin panes (`plugin.pane.open`), herdr's
+private client socket.

@@ -1,0 +1,57 @@
+---
+title: "Plugin UI"
+description: "TypeScript and React rendered as native SwiftUI through the component kit"
+---
+
+Plugins are TypeScript and React, written against our component kit
+(`@herdlight/api`), in the Raycast style. The kit renders as real SwiftUI.
+
+**How it works:**
+```
+plugin.tsx ──esbuild──▶ dist/<pane>.js
+                         │ evaluated in a JSContext (one per card), after the prelude
+                         ▼   (React 19 + a ~60-line react-reconciler host config + the API runtime)
+              React commit ──▶ JSON view tree ──▶ Swift decodes ──▶ SwiftUI components
+              SwiftUI event ──▶ __dispatch(nodeId, args) ──▶ React handler
+```
+- Each plugin card gets its own `JSVirtualMachine`, `JSContext` and serial
+  queue. JavaScriptCore is built into macOS and iOS.
+- Measured: React 19 with the reconciler runs in plain JavaScriptCore. One
+  card costs about 3 MB. A 500-row list update takes about 2 ms, even with the
+  JIT off (as on iOS). A web view costs 50 MB empty and 120–200 MB in use.
+- The context has no DOM, network, file system or `require`; it has only
+  what the app injects. Repository text is drawn by native views as text, so
+  it can never become script.
+
+**Options we compared:**
+| Option | Pros | Cons |
+|---|---|---|
+| **React → JSON → native SwiftUI** (chosen; Raycast 1.x's model) | truly native (lists, text selection, VoiceOver, keyboard); ~3 MB per card; the JS itself can reach only what the app injects; one look | plugins get only our components; DOM and Node npm packages do not work; we version the component set |
+| React in a web view with a CSS kit | any npm package; least work | 120–200 MB per card; looks like an imitation; HTML from repositories can become script |
+| React Native embedded | React to native | two forks to keep in step, a large dependency, still needs our kit |
+| Native Swift plugins | fully native | impossible on iOS; a signing exception on macOS; runs inside our process with our SSH connections |
+| Apple ExtensionKit | sandboxed native views | iOS hosts only extensions inside our own app; each author ships an app |
+
+<Callout title="The kit, not the DOM">
+Because plugins target a component set, not a DOM, the renderer can change
+later without breaking them.
+</Callout>
+
+**Components (v1)**, with Raycast's prop names where they match:
+| Component | Drawn as |
+|---|---|
+| `List`, `List.Section`, `List.Item` (`title`, `subtitle`, `icon`, `accessories`, `detail`), `List.EmptyView` | SwiftUI `List` with selection; search when `searchBarPlaceholder` is set; a detail split when `isShowingDetail` |
+| `Detail` (`markdown`, `metadata`) | Markdown blocks plus a metadata grid |
+| `Markdown` | the chat view's Markdown renderer; no HTML; remote images show alt text until clicked |
+| `Diff` (`patch`, `mode: unified \| split`) | a native unified-diff parser with monospaced lines in the terminal palette |
+| `Code` (`text`, `tokens?`) | monospaced, selectable, scrolls sideways; optional pre-coloured spans |
+| `Form` with `TextField`, `TextArea`, `Dropdown`, `Checkbox` | SwiftUI `Form`; the native side owns typing and sends `onChange` |
+| `ActionPanel`, `Action` (`title`, `icon`, `shortcut`, `confirm`, `onAction`), `Action.CopyToClipboard`, `Action.OpenURL`, `Action.Push` | the card's header menu, row context menus and a ⌘K popover; the first action is Return, the second ⌘Return |
+| `Icon` (SF Symbols or plugin assets), `Color` (the app's palette and ANSI names) | native images and colours; no arbitrary hex |
+| `isLoading` on any view | a thin progress bar under the card header |
+
+- Plugins cannot claim the app's shortcuts ([Swiping](/docs/ui/swiping)) or ⌘[, which is Back inside
+  a plugin card.
+- Simpler choice: a `<WebView>` component for custom drawing (a commit graph,
+  charts) comes when a plugin needs it. It would load the plugin's own files
+  with no API and no network.

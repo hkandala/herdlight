@@ -1,0 +1,24 @@
+---
+title: "Add a machine"
+description: "The add-machine sheet on macOS and iOS"
+---
+
+```
+┌─ Add machine ──────────────────────────────┐
+│ SSH target   [ devbox                    ] │   devbox, me@10.0.0.5, a Tailscale name
+│ Session      [ default                   ] │   herdr session name (optional)
+│ Label        [ Dev box                   ] │
+│ (iOS) Public key  ecdsa-sha2-nistp256 AAA… [Copy]
+│                              [Cancel] [Add]│
+└────────────────────────────────────────────┘
+```
+- macOS opens a terminal card on This Mac and types `herdr machine add
+  <target> [--label L] [--remote-session S]` into it. herdr asks there about
+  unknown host keys, passwords and installing itself on the machine. When
+  `herdr machine list --json` shows the new machine, the card closes. A
+  failure stays visible in the card.
+- iOS saves the machine, connects, and runs the checks in [Checks on connect](/docs/machines#checks-on-connect).
+- macOS uses `herdr machine rename|remove`. The swipe order is This Mac's
+  sessions first, then herdr's machine list. iOS can rename, reorder and
+  remove in the app.
+- Removing a machine never touches herdr on that machine.

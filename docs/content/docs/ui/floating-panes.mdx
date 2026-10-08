@@ -1,0 +1,28 @@
+---
+title: "Floating panes"
+description: "Cards that float above the strip"
+---
+
+```
+┌─────────────┬──────────────────────────────────────────────────────────────┐
+│ sidebar     │  (>_ api) (✳ fix-auth) (π docs)               +   ⧉ 2       │
+│             │ ┌─ ✳ claude ───────────────────┐┌─ >_ zsh ───────────────┐  │
+│             │ │                ┌─ >_ scratch ─────────── ⤓ ⤢ ✕ ┐       │  │
+│             │ │                │ $ git log --oneline           │       │  │ ← floating card:
+│             │ │                │ a1b2c3 fix auth               │       │  │   drag the header,
+│             │ │                │                               │◢      │  │   resize the corner
+│             │ └────────────────└───────────────────────────────┘───────┘  │
+└─────────────┴──────────────────────────────────────────────────────────────┘
+```
+- Any pane (terminal, agent, web page, plugin) can float above the strip of
+  its workspace. A floating card has the normal header plus **Dock** (⤓),
+  which moves it into the selected tab.
+- Drag the header to move the card, or onto a tab capsule or card edge to
+  dock it there. Drag the corner to resize. A click brings a card to the
+  front.
+- Layers, bottom to top: strip, zoom layer, floating cards.
+- ⌥⌘F or the `⧉ n` button shows or hides the workspace's floating panes.
+  With none, it opens the new-pane picker; Return makes a floating scratch
+  terminal.
+- Hiding never closes: the process keeps running in herdr.
+- iPhone: floating panes show as one more tab, "Floating".

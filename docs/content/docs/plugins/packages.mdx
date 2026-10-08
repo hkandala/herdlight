@@ -1,0 +1,73 @@
+---
+title: "Packages, install and updates"
+description: "The manifest, the build tool, install, dev mode, updates and the card lifecycle"
+---
+
+**Manifest:** a normal `package.json` with one `herdlight` field.
+```jsonc
+{
+  "name": "git-history",                       // plugin id: ^[a-z0-9][a-z0-9._-]{0,63}$
+  "version": "0.3.0",
+  "repository": "https://github.com/me/hl-git-history",
+  "herdlight": {
+    "api": 1,                                  // highest API version used
+    "title": "Git history",
+    "icon": "arrow.triangle.branch",           // SF Symbol, or an asset path
+    "platforms": ["macos", "ios"],
+    "permissions": ["exec"],                   // v1 has exactly one permission
+    "panes": [
+      { "name": "history", "title": "Git history", "entry": "src/history.tsx",
+        "arg": { "title": "Ref or path", "placeholder": "HEAD", "required": false } }
+    ],
+    "preferences": [
+      { "name": "maxCommits", "type": "textfield", "title": "Commits to load", "default": "500" }
+    ]
+  }
+}
+```
+- One plugin can declare several pane kinds. Reserved ids (the core plugins
+  and markers): `terminal`, `agent`, `web`, `float`, `git-history`, `diff`,
+  `markdown`.
+- An id resolves in this order: core, then a linked folder, then an installed
+  plugin. One install per id.
+- `arg.required` makes the picker ask for the argument before creating the
+  pane. Otherwise the plugin starts empty and can call `setArg`.
+- Preference types: `textfield`, `password` (Keychain), `checkbox`,
+  `dropdown`.
+
+**Build tool:** `hl-plugin build` validates the manifest and runs esbuild
+once per pane entry (`dist/<pane>.js`, with React and the API as globals the
+app provides). `hl-plugin dev` rebuilds on change and streams the plugin's
+logs.
+
+**Where plugins live:** in the app, not on machines:
+`~/Library/Application Support/Herdlight/plugins/<id>/` with
+`package.json`, `dist/`, `assets/` and a source record (URL, ref, commit).
+- **Install from a git URL** (Settings › Plugins › Add): shallow clone,
+  require `package.json` and a built `dist/` (the app never runs npm or node),
+  validate, show the consent sheet ([Plugin security](/docs/plugins/security)), move into place.
+- **Link a local folder (dev mode):** the app loads straight from the folder,
+  watches `dist/` and reloads that plugin's cards on change. Cards come back
+  in place because their argument and state live outside JavaScript ([State and restore](/docs/plugins/state)).
+  Dev plugins get Safari Web Inspector and a "DEV" badge.
+- **Updates:** at most once a day the app checks the remote ref and shows
+  "Update available"; the user presses Update. An update that adds a
+  permission asks for consent again.
+- **API version:** the app ships React and the API runtime. A plugin whose
+  `api` is newer than the app shows "needs a newer Herdlight". API changes
+  within a version are additive.
+
+**Card lifecycle:**
+1. A plugin pane enters the selected tab (or the shown floating layer): the
+   card is created, keyed by `(machine, plugin, instance id)`.
+2. The app creates the VM, injects the bridge, evaluates the prelude and the
+   plugin's pane entry, and renders it inside a native navigation stack.
+3. When the card leaves the screen, its queue is suspended (timers, events and
+   `exec` pause; the last tree stays drawn). It resumes on return.
+4. At most 12 live plugin VMs, least recently used first out, and fewer on a
+   memory warning. An evicted card keeps an image of its last tree.
+5. When the pane leaves the snapshot, the card is destroyed.
+
+**Preferences** are per device, keyed by plugin id and source: values in
+`UserDefaults`, passwords in the Keychain, a form generated from the manifest in Settings and in the card's
+menu. A required preference with no value shows a "Set up ‹title›" view.

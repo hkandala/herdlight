@@ -1,0 +1,64 @@
+---
+title: "Web page"
+description: "A native web view in a placeholder herdr pane"
+---
+
+herdr cannot draw a web page, so a placeholder herdr pane holds the place in
+the layout and the app draws a native web view in its rectangle.
+
+**The marker is the pane label:** `web:http://localhost:3000/dashboard`. The
+label is the only pane field that has no length limit and survives moves and
+herdr restarts (tested on 0.9.3). Metadata tokens are capped at 80 characters
+and lost on restart; titles, process arguments and environment are lost or
+invisible.
+
+**Create:**
+1. The user types an address. A bare `host:port` gets `http://`. Only `http`
+   and `https` are accepted.
+2. `pane.split` or `tab.create`, then `pane.rename {label: "web:<url>"}`.
+3. `pane.send_input` types the placeholder, inside the envelope ([The primitive](/docs/talking-to-herdr#the-primitive)):
+   ```sh
+    clear; exec sh -c 'eval "$(printf %s "$1" | base64 -d)"' sh <BASE64>
+   ```
+   It decodes to `printf 'web page: %s\n(shown by Herdlight)\n' '<url>';
+   stty raw -echo; exec cat >/dev/null`. The leading space keeps it out of
+   shell history; `stty raw` makes Ctrl-C and Ctrl-D plain bytes, so a herdr
+   TUI user cannot end the pane by accident.
+4. `pane.report_metadata {source: "user:herdlight", tokens: {hl_rev:
+   "<time>"}}`. A rename sends no event; a token change sends `pane.updated`,
+   so other devices see the new pane at once. The same call follows every
+   rename.
+
+**Draw:** SwiftUI `WebView` with a `WebPage`, kept in the PaneViewRegistry so
+scrolling away does not reload it. The header shows the page title, Back,
+Reload, Open in browser and Edit address. Navigation stays inside the card
+(like an iframe); the label keeps the address the user typed.
+
+<Callout type="warn" title="A label set by someone else needs a click">
+Any process on a machine (a
+prompt-injected agent, a script) can rename a pane to `web:<url>`. So a page
+loads by itself only if this device created or edited that label, or the user
+approved that origin for this machine before. Otherwise the card shows "Open
+‹url›?". Approved origins are saved per machine.
+</Callout>
+
+**Remote `localhost`:** on a remote machine, `localhost:3000` means that
+machine. WebKit never sends loopback through a proxy, so on macOS the app
+forwards the port on the machine's ControlMaster:
+`ssh -F /dev/null -S <ctl> -O forward -L 127.0.0.1:<L>:localhost:<P> <target>`, with `<L>` a
+free port on the Mac that differs from `<P>`, and loads `127.0.0.1:<L>`.
+- The Mac's own `localhost:<P>` is never taken over.
+- A navigation decider adds forwards for other remote loopback ports the page
+  links to. `ssh -O cancel` removes a forward when its last card closes.
+- Each machine's web cards get a content rule that blocks loopback addresses
+  except that machine's own forwards.
+- Simpler choice: the page's origin changes, so a page that hard-codes an
+  absolute `localhost:<P>` URL breaks. iOS loads addresses from the phone's
+  network until it gets its own forwarding (later).
+
+**Other rules:** one `WKWebsiteDataStore` per machine (logins persist,
+machines stay apart); page dialogs show as a sheet on the card, labelled with
+the origin; plain `http` needs `NSAllowsArbitraryLoadsInWebContent` and
+`NSAllowsLocalNetworking`. After a herdr restart the pane returns as a plain
+shell with its label, so the page still draws; the card menu has **Restore
+placeholder**. If the placeholder process is killed, herdr closes the pane.

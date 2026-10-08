@@ -1,0 +1,32 @@
+---
+title: "Everything is a plugin"
+description: "One registry, one manifest shape and one picker for every pane kind"
+---
+
+Every pane kind comes from one plugin registry, with one manifest shape and
+one picker. Some plugins are native code inside the app; the rest are
+TypeScript and React.
+
+| Plugin | Kind | UI | JavaScript | How herdr marks the pane |
+|---|---|---|---|---|
+| `terminal` | core | native terminal (libghostty) | none | none (the default) |
+| `agent` | core | native terminal + chat view ([Chat view](/docs/chat-view)) | none | none (herdr sets `pane.agent`) |
+| `web` | core | native web view | none (only the page's own) | label `web:<url>` |
+| `git-history`, `diff`, `markdown` | core | the kit ([Plugin UI](/docs/plugins/plugin-ui)) | yes, the public API | label `hl:…` ([Labels and instance ids](/docs/plugins/labels)) |
+| your plugins | installed | the kit | yes, the public API | label `hl:…` |
+
+- Core native plugins have a manifest in the app bundle with a `native` field
+  (`terminal`, `agent`, `web`) instead of a JS entry. The picker reads their
+  title, icon and argument prompt like any plugin. A terminal costs no
+  JavaScript.
+- Core plugins ship with the app. The three JS core plugins use exactly the
+  public API and are the SDK's reference code.
+- herdr's own TUI plugins are not part of this system. A pane that a herdr
+  plugin opened shows as a terminal, because it is one.
+
+The picker, opened by `+`, a split, or a new floating pane:
+```
+New pane on devbox
+  Terminal · Agent ▸ · Web page · Git history · Diff · Markdown · <installed plugins>
+```
+The app calls herdr only after the user picks.

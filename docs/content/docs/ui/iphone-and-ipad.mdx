@@ -1,0 +1,28 @@
+---
+title: "iPhone and iPad"
+description: "One pane per page on iPhone, the Mac layout on iPad"
+---
+
+```
+┌───────────────────────┐        ┌───────────────────────┐
+│ ‹ devbox · api-server │        │ ‹ devbox · api-server │
+│ (✳ claude)(>_ zsh) |… │        │ (✳ claude)(>_ zsh) |… │ ← one chip per pane, tabs split by |
+├───────────────────────┤        ├───────────────────────┤
+│ ✳ claude  [chat] term │        │ >_ zsh   chat [term]  │
+│ you: run the tests    │        │ $ npm test            │
+│ claude: 42 passing    │        │ ✓ 42 passing          │
+│ ▸ Bash  npm test      │        │ $ ▌                   │
+│ ┌───────────────────┐ │        │                       │
+│ │ message…        ↑ │ │        │ esc ctrl tab ↑ ↓ ← →  │ ← key bar (terminal only)
+│ └───────────────────┘ │        │                       │
+└───────────────────────┘        └───────────────────────┘
+```
+- iPhone shows one pane per page, in reading order through each tab's split
+  tree. This is a drawing choice; nothing changes in herdr.
+- Agent panes open in chat. Chat needs no terminal stream, so the Mac keeps
+  control of the terminal.
+- A terminal view watches the pane while another device controls it ([Terminal plane](/docs/talking-to-herdr#terminal-plane)).
+  The first key press takes control.
+- Tapping the title opens the machine and workspace switcher. The status area
+  is a bar under the navigation bar.
+- iPad in regular width uses the Mac layout.
