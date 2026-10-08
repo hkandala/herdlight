@@ -45,20 +45,13 @@ const Chips = ({ items }: { items: ReactNode[] }) => (
 );
 
 /** The app, the two Exec implementations, and what runs on each machine. */
-export function Architecture() {
+export function Architecture({ caption }: { caption?: ReactNode }) {
   return (
     <figure className="hl not-prose">
       <div className="arch">
         <div className="layer app">
           <h5>App · SwiftUI · macOS + iOS</h5>
-          <Chips items={['Sidebar', 'TabBar', 'Strip', 'PaneCard: Terminal · Chat · Web · Plugin', 'Floating layer', 'StatusArea', 'Pills (macOS)']} />
-          <Chips
-            items={[
-              <>PaneViewRegistry <small>keeps terminal views, web pages and plugin cards alive</small></>,
-              <>PluginRegistry + PluginHost <small>manifests; one JS VM per plugin card</small></>,
-              <>HostStore × machines <small>snapshot → stable @Observable objects; call(); streams</small></>,
-            ]}
-          />
+          <Chips items={[<>HostStore × machines <small>call(), the event stream, terminal streams</small></>]} />
         </div>
         <div className="down">
           ↓ <code>Exec.run(argv)</code> → stdin / stdout
@@ -86,6 +79,7 @@ export function Architecture() {
           />
         </div>
       </div>
+      <Cap>{caption}</Cap>
     </figure>
   );
 }
@@ -98,17 +92,17 @@ export function Ownership() {
         <div className="st">
           <b>Mac controls</b>
           <br />
-          <span>types and resizes; the phone watches or uses chat</span>
+          <span>opens as control, types and resizes; iPhone and iPad open as observe, or use chat</span>
         </div>
         <div className="arrows">
           first key press, paste or tap in the card
           <br />
-          on the phone or iPad (<code>--takeover</code>) →
+          on iPhone or iPad (<code>--takeover</code>) →
           <br />
-          <br />← first key press on the Mac, or Take back
+          <br />← first key press, paste or click on the Mac, or Take back
         </div>
         <div className="st">
-          <b>Phone controls</b>
+          <b>iPhone or iPad controls</b>
           <br />
           <span>the Mac watches: &quot;In use elsewhere · Take back&quot;</span>
         </div>

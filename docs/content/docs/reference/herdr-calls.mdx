@@ -3,20 +3,38 @@ title: "herdr calls"
 description: "Every herdr call and command the app uses, and the ones it never uses"
 ---
 
-```
-ping · session.snapshot · events.subscribe (long-lived) · integration.list
-workspace.create | close | rename | move
-tab.create | close | rename | move
-pane.split | close | rename | swap | move | resize | send_input | read | process_info | report_metadata
-layout.set_split_ratio · layout.export (fallback)
-agent.start | prompt | send_keys
+## API calls
 
+| Call | Used for | Page |
+|---|---|---|
+| `ping` | version check, liveness every 30 s, after a timeout | [Events](/docs/talking-to-herdr#events) |
+| `session.snapshot` | all state, read after events | [Reconcile](/docs/talking-to-herdr#reconcile) |
+| `events.subscribe` (long-lived) | "read the snapshot again" | [Events](/docs/talking-to-herdr#events) |
+| `integration.list` | the agent picker | [Agent](/docs/plugins/terminal-and-agent#agent) |
+| `workspace.create` \| `close` \| `rename` \| `move` | sidebar actions | [Writes](/docs/talking-to-herdr#writes-are-herdr-calls) |
+| `tab.create` \| `close` \| `rename` \| `move` | tab bar actions, floating tab | [Writes](/docs/talking-to-herdr#writes-are-herdr-calls) |
+| `pane.split` \| `close` \| `swap` \| `move` \| `resize` | split, close, drag, float, dock | [Writes](/docs/talking-to-herdr#writes-are-herdr-calls) |
+| `pane.rename` \| `report_metadata` | web and plugin labels, `hl_rev` | [Labels](/docs/plugins/labels) |
+| `pane.send_input` | the placeholder, screen-text replies | [Web page](/docs/plugins/web-page) |
+| `pane.read` | screen-text chat, blocked panel, VoiceOver, swipe previews | [Chat view](/docs/chat-view) |
+| `pane.process_info` | close check, placeholder check, Codex transcript | [Writes](/docs/talking-to-herdr#writes-are-herdr-calls) |
+| `layout.set_split_ratio` | divider drag, double-click, ⌃⌘= | [Layout](/docs/layout) |
+| `layout.export` | fallback when the leaf count is wrong | [Rebuilding the tree](/docs/layout#rebuilding-the-tree) |
+| `agent.start` \| `prompt` \| `send_keys` | start an agent, reply, key buttons | [Chat view](/docs/chat-view#sending-and-answering) |
+
+## Commands
+
+```sh
 herdr --session S remote-api-bridge [--check]
-herdr --session S terminal session control|observe <terminal_id> --cols C --rows R [--takeover]
-herdr session list --json                              (macOS)
-herdr machine list --json | add | rename | remove      (macOS; add runs in a terminal card)
-herdr --session S server                               (started with nohup, on request)
+herdr --session S terminal session control|observe <terminal_id> \
+    --cols C --rows R [--takeover]
+herdr session list --json                           # macOS
+herdr machine list --json | add | rename | remove   # macOS; add runs in a terminal card
+herdr --session S server                            # remote machines only, with nohup, on request
 ```
-Never used: `pane.focus`, `tab.focus`, `workspace.focus`, `agent.focus`,
-`pane.zoom`, herdr popups, herdr plugin panes (`plugin.pane.open`), herdr's
-private client socket.
+
+## Never used
+
+`pane.focus`, `tab.focus`, `workspace.focus`, `agent.focus`, `pane.zoom`,
+herdr popups, herdr plugin panes (`plugin.pane.open`), herdr's private client
+socket.

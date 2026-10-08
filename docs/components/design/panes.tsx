@@ -6,7 +6,7 @@ export type Icon = [IconKind, string];
 
 export const Ico = ({ icon: [k, t] }: { icon: Icon }) => <span className={`ico ${k}`}>{t}</span>;
 
-/** Terminal text with colour spans (trusted, static strings). */
+/** Terminal text with color spans (trusted, static strings). */
 export const Term = ({ body }: { body: string }) => (
   <div className="term" dangerouslySetInnerHTML={{ __html: body }} />
 );
@@ -97,24 +97,32 @@ export const Web = ({ title }: { title: string }) => (
   </div>
 );
 
-export const AgentChat = () => (
-  <div className="chat">
-    <div className="msg u">
-      <div className="who">you</div>
-      <span className="txt">fix the failing auth tests</span>
+const CHATS = {
+  claude: ['fix the failing auth tests', <>Two tests fail in <code>auth.spec.ts</code>. The token check runs before the null guard.</>, '▸ Bash npm test · ▸ Edit src/auth.ts', 'Fixed. 42 passing ✓'],
+  pi: ['write the API guide', <>Reading <code>src/routes/</code> to list the endpoints.</>, '▸ read src/routes/users.ts · ▸ write docs/api.md', 'Wrote docs/api.md (214 lines). Covered auth, pagination and errors.'],
+} as const;
+
+export const AgentChat = ({ agent = 'claude' }: { agent?: keyof typeof CHATS }) => {
+  const [ask, first, tools, last] = CHATS[agent];
+  return (
+    <div className="chat">
+      <div className="msg u">
+        <div className="who">you</div>
+        <span className="txt">{ask}</span>
+      </div>
+      <div className="msg">
+        <div className="who">{agent}</div>
+        {first}
+      </div>
+      <div className="tool">{tools}</div>
+      <div className="msg">
+        <div className="who">{agent}</div>
+        {last}
+      </div>
+      <div className="composer">message…</div>
     </div>
-    <div className="msg">
-      <div className="who">claude</div>
-      Two tests fail in <code>auth.spec.ts</code>. The token check runs before the null guard.
-    </div>
-    <div className="tool">▸ Bash npm test · ▸ Edit src/auth.ts</div>
-    <div className="msg">
-      <div className="who">claude</div>
-      Fixed. 42 passing ✓
-    </div>
-    <div className="composer">message…</div>
-  </div>
-);
+  );
+};
 
 export const DiffBody = () => (
   <div className="diff">

@@ -110,6 +110,7 @@ Key strings for `send_keys` look like `enter`, `esc`, `ctrl+c`, `alt+x`, `shift+
  "scroll":{"offset_from_bottom":0,"max_offset_from_bottom":0,"viewport_rows":40},"revision":1}
 // agent (AgentInfo) adds: "screen_detection_skipped":true,"state_change_seq":55,"completion_seq":55
 ```
+Note: the `AgentInfo` values above come from a different, idle agent (`w7:p1`). herdr sets `completion_seq` only when an agent goes from working or blocked to idle, and clears it to null on every other status change (`src/app/actions.rs` ~1756), so a working agent has `completion_seq: null`.
 Other optional PaneInfo fields (`src/api/schema/panes.rs:449`): `label`, `title`, `display_agent`, `state_labels`, `tokens`, `restore_error`. `revision` is a metadata revision: it went from 0 to 1 after `report_metadata`. It is not an output counter.
 
 Layout snapshot (`pane.layout`, also in `snapshot.layouts[]`, `layout.updated`). Rects are in **terminal cells**:

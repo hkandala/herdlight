@@ -6,7 +6,8 @@ description: "TypeScript and React rendered as native SwiftUI through the compon
 Plugins are TypeScript and React, written against our component kit
 (`@herdlight/api`), in the Raycast style. The kit renders as real SwiftUI.
 
-**How it works:**
+## How it works
+
 <Flow
   rows={[
     [['plugin.tsx', 'React + @herdlight/api'], ['esbuild', 'dist/<pane>.js'], ['JSContext per card', 'after the prelude: React 19 + a ~60-line reconciler + the API runtime'], ['JSON view tree', 'each React commit'], ['SwiftUI kit', 'Swift decodes: List, Detail, Diff, Form…']],
@@ -24,7 +25,8 @@ Plugins are TypeScript and React, written against our component kit
   what the app injects. Repository text is drawn by native views as text, so
   it can never become script.
 
-**Options we compared:**
+## Options we compared
+
 | Option | Pros | Cons |
 |---|---|---|
 | **React → JSON → native SwiftUI** (chosen; Raycast 1.x's model) | truly native (lists, text selection, VoiceOver, keyboard); ~3 MB per card; the JS itself can reach only what the app injects; one look | plugins get only our components; DOM and Node npm packages do not work; we version the component set |
@@ -38,21 +40,25 @@ Because plugins target a component set, not a DOM, the renderer can change
 later without breaking them.
 </Callout>
 
-**Components (v1)**, with Raycast's prop names where they match:
+## Components (v1)
+
+Raycast's prop names are used where they match.
+
 | Component | Drawn as |
 |---|---|
 | `List`, `List.Section`, `List.Item` (`title`, `subtitle`, `icon`, `accessories`, `detail`), `List.EmptyView` | SwiftUI `List` with selection; search when `searchBarPlaceholder` is set; a detail split when `isShowingDetail` |
 | `Detail` (`markdown`, `metadata`) | Markdown blocks plus a metadata grid |
 | `Markdown` | the chat view's Markdown renderer; no HTML; remote images show alt text until clicked |
 | `Diff` (`patch`, `mode: unified \| split`) | a native unified-diff parser with monospaced lines in the terminal palette |
-| `Code` (`text`, `tokens?`) | monospaced, selectable, scrolls sideways; optional pre-coloured spans |
+| `Code` (`text`, `tokens?`) | monospaced, selectable, scrolls sideways; optional pre-colored spans |
 | `Form` with `TextField`, `TextArea`, `Dropdown`, `Checkbox` | SwiftUI `Form`; the native side owns typing and sends `onChange` |
 | `ActionPanel`, `Action` (`title`, `icon`, `shortcut`, `confirm`, `onAction`), `Action.CopyToClipboard`, `Action.OpenURL`, `Action.Push` | the card's header menu, row context menus and a ⌘K popover; the first action is Return, the second ⌘Return |
-| `Icon` (SF Symbols or plugin assets), `Color` (the app's palette and ANSI names) | native images and colours; no arbitrary hex |
+| `Icon` (SF Symbols or plugin assets), `Color` (the app's palette and ANSI names) | native images and colors; no arbitrary hex |
 | `isLoading` on any view | a thin progress bar under the card header |
 
-- Plugins cannot claim the app's shortcuts ([Swiping](/docs/ui/swiping)) or ⌘[, which is Back inside
-  a plugin card.
-- Simpler choice: a `<WebView>` component for custom drawing (a commit graph,
-  charts) comes when a plugin needs it. It would load the plugin's own files
-  with no API and no network.
+- Plugins cannot claim the app's shortcuts
+  ([Keyboard shortcuts](/docs/ui/theme-and-accessibility#keyboard-shortcuts))
+  or ⌘[, which is Back inside a plugin card.
+- Simpler choice: no `<WebView>` component for custom drawing (a commit
+  graph, charts) in v1. Revisit when a plugin needs it. It would load the
+  plugin's own files with no API and no network.

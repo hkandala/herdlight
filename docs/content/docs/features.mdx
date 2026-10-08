@@ -3,56 +3,68 @@ title: "Features"
 description: "Everything Herdlight does, in one list"
 ---
 
-Try the main window below. Each part has its own page under UI design, and the
-[interactive overview](/overview/index.html) shows every screen on one page.
+Try the main window below. Each part has its own page under UI design. The
+[interactive overview](/overview/index.html) has mock-ups of the main screens
+on one page.
 
 <MacWindow />
 
-**Machines and workspaces**
-- Every herdr session on this Mac plus every SSH machine, all connected at
-  once.
+## Machines and workspaces
+
+- Every running herdr session on this Mac, plus every SSH machine, all
+  connected at once. The Mac app needs herdr installed on the Mac.
 - A sidebar page per machine. Swipe the sidebar sideways to switch machines,
   like Arc's spaces. The whole window follows.
 - Workspaces expand to show their agents, each with its agent icon and a
   status glyph: **◔ working, ▲ needs you, ✓ finished**.
-- A status area at the bottom of the sidebar: a summary ("3 working · 1 needs
-  you · 2 finished") and a row per agent that needs you or has finished and
+- A status area at the bottom of the sidebar: a summary ("1 working · 1 needs
+  you · 1 finished") and a row per agent that needs you or has finished and
   not been seen, across all machines.
 
-**Tabs and panes**
+## Tabs and panes
+
 - A strip of tabs: each herdr tab is one page. Swipe sideways through them.
   The tab bar lights every tab whose page is visible and selects the tab when
-  the swipe stops.
-- Panes follow herdr's split layout. Drag a divider to resize.
+  the swipe stops. The window title follows the selected tab.
+- Panes follow herdr's split layout. Drag a divider to resize it, or
+  double-click it to reset it to half. ⌃⌘= makes all splits equal.
 - Zoom a pane to fill the window, then return.
 - Drag a pane to swap it, split it into another tab, or move it to another
   workspace.
-- **Floating panes:** a pane can float above the strip as a movable,
-  resizable card, then dock back into a tab.
+- Floating panes: a pane can float above the strip as a movable, resizable
+  card, then dock back into a tab.
 
-**Pane kinds (all are plugins)**
-- **Terminal**, **Agent** (any agent installed on that machine) and **Web
-  page** (any address, rendered natively next to your terminals).
+## Pane kinds (all are plugins)
+
+- **Terminal**, **Agent** (any agent that has a herdr integration and is on
+  that machine's `PATH`) and **Web page** (any address, drawn natively next to
+  your terminals).
 - **Git history**, **Diff** and **Markdown** are core plugins written in
   TypeScript with the same API as yours.
 - **Your own plugins**, written in TypeScript and React with a component kit
-  that renders as native SwiftUI.
+  that draws native SwiftUI.
 
-**Agents**
-- Switch any pane between its terminal and a **chat view**: messages from the
-  agent's own transcript, a reply box, and buttons to answer a blocked
-  prompt.
-- Notifications and a Dock badge when an agent needs you or finishes.
-- **Floating pills (macOS):** while you work in another app, a small black
-  pill on the screen edge shows a glyph per agent. A blocked or finished
-  agent opens a small card with its output and a reply box. One click opens
-  the main window at that pane.
+## Agents
 
-**iPhone and iPad**
-- iPad uses the Mac layout.
+- Switch any agent or terminal pane between its terminal and a **chat view**.
+  Agents show messages from their own transcript, or the screen text if there
+  is no transcript. Terminals show the screen text. The chat view has a reply
+  box and buttons to answer a blocked prompt.
+- Notifications when an agent needs you or finishes. The Dock badge shows the
+  number of agents that need you.
+- Floating pills (macOS): while you work in another app, a small black pill on
+  the screen edge shows a glyph per agent. A blocked or finished agent opens a
+  small pill card with its output and a reply box. One click opens the main
+  window at that pane.
+
+## iPhone and iPad
+
+- iPad in regular width uses the Mac layout. In compact width (Slide Over,
+  narrow Split View) it uses the iPhone layout.
 - iPhone shows one pane per page, opens agents in chat, and has a key bar for
   terminals.
 
-**Look**
-- Dark only. An opaque near-black window, opaque pane cards, and Liquid
-  Glass on the tab bar and sidebar.
+## Look
+
+- Dark only. An opaque near-black window, opaque pane cards, and Liquid Glass
+  on the tab bar and sidebar.

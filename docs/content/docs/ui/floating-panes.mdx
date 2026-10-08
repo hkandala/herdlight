@@ -6,14 +6,18 @@ description: "Cards that float above the strip"
 <MacWindow floating caption={<><b>Try:</b> drag the scratch card by its header, resize it from its corner, and press <b>⧉ 1</b> to hide or show it.</>} />
 
 - Any pane (terminal, agent, web page, plugin) can float above the strip of
-  its workspace. A floating card has the normal header plus **Dock** (⤓),
-  which moves it into the selected tab.
+  its workspace. A floating card has the normal header plus **Dock** (⤓).
+  Dock moves the pane into the selected tab as a right split, with the same
+  call as a drop on that tab's capsule.
 - Drag the header to move the card, or onto a tab capsule or card edge to
   dock it there. Drag the corner to resize. A click brings a card to the
   front.
-- Layers, bottom to top: strip, zoom layer, floating cards.
+- Layers, bottom to top: strip, floating cards, zoom layer. While a card is
+  zoomed, the floating cards are hidden.
 - ⌥⌘F or the `⧉ n` button shows or hides the workspace's floating panes.
-  With none, it opens the new-pane picker; Return makes a floating scratch
+  With none, it opens the new-pane picker. Return makes a floating scratch
   terminal.
 - Hiding never closes: the process keeps running in herdr.
 - iPhone: floating panes show as one more tab, "Floating".
+
+How it works: [Floating panes in herdr](/docs/floating-panes).

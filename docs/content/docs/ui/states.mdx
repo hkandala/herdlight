@@ -5,20 +5,31 @@ description: "What the user sees in every connection, pane and error state"
 
 | State | What the user sees |
 |---|---|
+| herdr not installed on This Mac (macOS) | how to install herdr; remote machines cannot be added or shown until it is installed |
 | Connecting | a spinner on the machine page |
-| herdr missing / older than 0.9.3 | the install command / "herdr 0.9.3 or newer is needed" |
+| herdr missing on a remote machine | the install command |
+| herdr older than 0.9.3 | "herdr 0.9.3 or newer is needed" |
 | herdr newer than the app knows | a thin banner; the app keeps working |
-| herdr updated but not restarted | "Restart herdr on devbox" (terminal streams fail; the API works) |
-| herdr server not running | a **Start herdr** button |
-| SSH auth failed / host key changed | ssh's message in plain words; a changed key blocks and shows the fingerprint |
+| herdr updated but not restarted | "Restart herdr on ‹machine›" (terminal streams fail; the API works) |
+| herdr server not running on This Mac | "herdr is not running" and the command to run in a terminal (`herdr server`, or open herdr), with a Copy button |
+| herdr server not running on a remote machine | a **Start herdr** button |
+| SSH auth failed | ssh's message in plain words |
+| Host key changed | the connection is blocked; the new fingerprint is shown |
+| SSH connection lost | cards gray out; reconnect with back-off; then a fresh snapshot |
+| Request timed out (10 s) | "‹machine› did not answer · Retry" in the card or sheet; the app checks the machine with `ping` |
+| No SSH session left on the connection | the card shows its last image and **Retry** |
 | Local Network access denied | "Allow Local Network access for Herdlight in System Settings › Privacy & Security" |
-| Connection lost | cards grey out; reconnect with back-off; then a fresh snapshot |
 | Pane in use on another device | the content (watching) and "In use elsewhere · Take back" |
+| Close a pane that runs a program | "Close ‹title›? ‹program› is running." (a pane that runs only its shell closes at once) |
+| Close a tab or workspace | always asks, with the pane count |
 | New tab or split | the pane picker; herdr is called only after a pick |
 | Agent did not start (10 s) | "Agent did not start" and the last screen lines |
 | Move refused by herdr | herdr's reason in words |
 | Web page failed | WebKit's error in the card |
-| Web address set by someone else | "Open ‹url›?" with an Open button ([Web page](/docs/plugins/web-page)) |
-| Plugin not installed on this device | the plugin id, the arg, **Show placeholder**, **Close pane** ([State and restore](/docs/plugins/state)) |
+| Web address set by someone else | "Open ‹url›?" with an Open button ([Web page](/docs/plugins/web-page#a-label-set-elsewhere-needs-a-click)) |
+| Plugin not installed on this device | the plugin id, the argument, **Show placeholder** (switch the card to the pane's terminal) and **Close pane**; on macOS also **Install from ‹source›…** when the machine suggests it ([State and restore](/docs/plugins/state)) |
 | Plugin not responding | "‹title› is not responding · Reload" |
 | Full chat not available | the screen-text chat, with a tooltip that says why |
+
+How it works: [Checks on connect](/docs/machines#checks-on-connect),
+[How a stream ends](/docs/talking-to-herdr#how-a-stream-ends).

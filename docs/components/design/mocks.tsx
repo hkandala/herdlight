@@ -50,7 +50,7 @@ export function ChatCard({ caption }: { caption?: React.ReactNode }) {
 
 const Chips = ({ on }: { on: number }) => (
   <div className="chipsrow">
-    {['✳ claude', '>_ zsh', '|', 'π docs'].map((c, i) =>
+    {['✳ claude', '>_ zsh', '>_ logs', '|', 'π pi'].map((c, i) =>
       c === '|' ? (
         <span key={c} className="sep">
           |
@@ -70,7 +70,7 @@ export function Phones({ caption }: { caption?: React.ReactNode }) {
     <figure className="hl not-prose">
       <div className="phones">
         <div className="phone">
-          <div className="nb">‹ devbox · api-server</div>
+          <div className="nb">‹ MacBook · api-server</div>
           <Chips on={0} />
           <Pane icon={['claude', '✳']} title="claude" ctl={<Seg a="chat" b="term" on={0} />}>
             <div className="chat">
@@ -90,7 +90,7 @@ export function Phones({ caption }: { caption?: React.ReactNode }) {
           </Pane>
         </div>
         <div className="phone">
-          <div className="nb">‹ devbox · api-server</div>
+          <div className="nb">‹ MacBook · api-server</div>
           <Chips on={1} />
           <Pane icon={['sh', '>_']} title="zsh" ctl={<Seg a="chat" b="term" on={1} />}>
             <Term body={`<span class="g">$</span> npm test\n<span class="g">✓</span> 42 passing\n<span class="g">$</span> ▌`} />
@@ -107,9 +107,9 @@ const PICK: [Icon, string, string][] = [
   [['sh', '>_'], 'Terminal', 'core'],
   [['claude', '✳'], 'Agent', 'claude · codex · pi ▸'],
   [['web', '◍'], 'Web page', 'core'],
-  [['codex', '⑂'], 'Git history', 'core plugin'],
-  [['codex', '±'], 'Diff', 'core plugin'],
-  [['pi', '¶'], 'Markdown', 'core plugin'],
+  [['codex', '⑂'], 'Git history', 'core'],
+  [['codex', '±'], 'Diff', 'core'],
+  [['pi', '¶'], 'Markdown', 'core'],
   [['sh', '▦'], 'Kanban', 'installed'],
 ];
 
@@ -182,26 +182,9 @@ export function DropZones({ caption }: { caption?: React.ReactNode }) {
         <div className="dz-card">
           <div className="dz l">split left</div>
           <div className="dz r">split right</div>
-          <div className="dz t">split up</div>
-          <div className="dz b">split down</div>
+          <div className="dz t">split top</div>
+          <div className="dz b">split bottom</div>
           <div className="dz c">swap</div>
-        </div>
-        <div className="dz-list">
-          <div>
-            <i className="c" /> centre, same tab: swap the two panes
-          </div>
-          <div>
-            <i /> edge, another tab: split there
-          </div>
-          <div>
-            <Ico icon={['sh', '>_']} /> a tab capsule: move into that tab
-          </div>
-          <div>
-            <Ico icon={['codex', '▸']} /> sidebar workspace or empty space: new tab or workspace
-          </div>
-          <div>
-            <Ico icon={['codex', '⧉']} /> the ⧉ button: float the pane
-          </div>
         </div>
       </div>
       <Cap>{caption}</Cap>

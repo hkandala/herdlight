@@ -1,16 +1,18 @@
 ---
-title: "Floating panes"
+title: "Floating panes in herdr"
 description: "Where floating panes live in herdr, the calls, and how the app shows them"
 ---
 
 ## Where they live
 
-A floating pane is a normal herdr pane in a tab labelled exactly `hl:float`,
-one such tab per workspace. Every pane in that tab floats.
+A floating pane is a normal herdr pane in a tab labeled exactly `hl:float`.
+Every pane in that tab floats. The app creates at most one such tab per
+workspace. If two exist, the panes in both float, and new floating panes go
+to the first.
 
 | Option | Verdict |
 |---|---|
-| **a tab labelled `hl:float`** | **chosen**: one marker per workspace; any pane kind can float; herdr keeps the tab, its panes and labels across restarts; `pane.move` keeps the terminal; every device and the herdr TUI agree |
+| **a tab labeled `hl:float`** | **chosen**: one marker per workspace; any pane kind can float; herdr keeps the tab, its panes and labels across restarts; `pane.move` keeps the terminal; every device and the herdr TUI agree |
 | herdr's popup | rejected: one per server, no pane id, not in the snapshot, not saved, modal on herdr TUI screens |
 | a pane label marker | rejected: the label already holds `web:`/`hl:` or the user's own label |
 | a metadata token | rejected: lost on restart |
@@ -18,50 +20,57 @@ one such tab per workspace. Every pane in that tab floats.
 
 - herdr TUI users see one more tab, "hl:float", with the floating panes as
   splits. That is where they live, and they can use them there.
-- If two devices both create a floating tab, both tabs float. If a TUI user
-  renames it, its panes show as docked.
+- If a TUI user renames the tab, its panes show as docked.
 
 ## herdr calls
 
 | User action | herdr call (all with `focus:false`) |
 |---|---|
 | New floating pane, no floating tab yet | `tab.create {workspace_id, cwd, label:"hl:float"}`, then the pane kind's create steps |
-| New floating pane, floating tab exists | `pane.split {target_pane_id: <a pane in it>, direction:"right"}`, then the kind's steps |
+| New floating pane, floating tab exists | `pane.split` on the largest pane in that tab, alternating `right` and `down`, then the kind's steps; if herdr refuses, the app shows herdr's reason |
 | Float a docked pane | `pane.move {pane_id, destination:{type:"tab", tab_id:<floating tab>, split:"right"}}`, or with no floating tab `pane.move {pane_id, destination:{type:"new_tab", workspace_id, label:"hl:float"}}` |
-| Dock a floating pane | the normal moves of [Writes are herdr calls](/docs/talking-to-herdr#writes-are-herdr-calls) |
-| Close | `pane.close` |
+| Dock a floating pane | the normal moves of [Writes are herdr calls](/docs/talking-to-herdr#writes-are-herdr-calls); the **Dock** button does the same as a drop on the selected tab's capsule: `pane.move {pane_id, destination:{type:"tab", tab_id, split:"right"}}` |
+| Close | `pane.close`; asks first unless the pane runs only its shell |
 
-Tested on 0.9.3: `new_tab` with a label creates the tab and moves the pane in
-one call without moving herdr's focus; moving the last pane out closes the
-tab; the tab and its label come back after a cold restart.
+Tested on 0.9.3:
+- `new_tab` with a label creates the tab and moves the pane in one call,
+  without moving herdr's focus.
+- Moving the last pane out closes the tab.
+- The tab and its label come back after a cold restart.
 
 ## How the app shows them
 
-- On macOS and iPad: cards drawn inside the main window, above the strip and
-  the zoom layer ([Floating panes](/docs/ui/floating-panes)). Not a separate window, because two windows that
-  stream terminals would fight over control of the same panes.
+- On macOS and iPad: cards drawn inside the main window, above the strip
+  ([Floating panes](/docs/ui/floating-panes)). Not a separate window, because
+  two windows that stream terminals would fight over control of the same
+  panes.
 - The floating tab is not a tab page: it is left out of the tab bar, the
-  strip, ⌘1…9 and the lit-tab maths.
+  strip, ⌘1…9 and the lit-tab math.
 - The app ignores that tab's split tree; each pane is its own card.
 - Card position, size, shown or hidden, and stacking order are the app's own,
   in memory. After an app restart the floating panes are hidden, with their
-  count on `⧉ n`, and open at default positions (centred, 70% × 75% of the
+  count on `⧉ n`, and open at default positions (centered, 70% × 75% of the
   strip, each next card 24 pt down and right).
 - When a drag or resize ends, the card sends `terminal.resize`.
 - A scroll that starts on a floating card goes to that card, never the strip.
 - Floating agents appear under their workspace in the sidebar with a ⧉ mark.
-  Clicking the row, a status row, a notification or a pill's Open shows the
+  Clicking the row, a status row, a notification or a pill card's **Open in
+  app** shows the
   floating panes and focuses that card.
 - On iPhone the floating tab shows as one more tab, "Floating".
 
 ## Rules
 
-- The one control rule ([Terminal plane](/docs/talking-to-herdr#terminal-plane)) applies: a shown floating card streams like the
-  selected tab's cards; a hidden one releases its stream.
-- Zooming a floating card draws it in the zoom layer; unzooming returns it to
-  its floating frame.
+- The one control rule
+  ([One controller per pane](/docs/talking-to-herdr#one-controller-per-pane))
+  applies. A shown floating card streams like the selected tab's cards. A
+  hidden one releases its stream.
+- Zooming a floating card draws it in the zoom layer, and the other floating
+  cards are hidden. Unzooming returns it to its floating frame.
 - Moving a pane between the strip and the floating layer keeps its
   registry entry, so its view moves without a reload.
 - herdr's own popups are not shown: no public call reveals one. If herdr adds
   a popup field to the snapshot, the app can stream it by terminal id in
   about 40 lines.
+
+What it looks like: [Floating panes](/docs/ui/floating-panes).

@@ -1,0 +1,65 @@
+---
+title: "Theme and accessibility"
+description: "Dark theme, status colors, VoiceOver, keyboard paths, text size and the keyboard shortcuts"
+---
+
+## Theme
+
+- Dark only. The window background is opaque near-black (`#0e0f12`), so no
+  wallpaper color shows through. Pane cards are opaque dark. The sidebar and
+  tab bar use dark-tinted glass.
+- Terminals use a dark palette. Web pages are told `prefers-color-scheme:
+  dark`. iOS uses the same look.
+- The status glyphs, words and colors are the same everywhere (sidebar, tabs,
+  status area, pills, notifications):
+
+  | Glyph | Word | Color | herdr status |
+  |---|---|---|---|
+  | ◔ | working | blue | `working` |
+  | ▲ | needs you | amber | `blocked` |
+  | ✓ | finished | green | finished and not yet seen by this device |
+
+  Idle agents show no glyph. The ◔ glyph does not animate, so the tab bar,
+  sidebar and pills do not redraw all the time.
+
+## Accessibility
+
+- Status is always a glyph plus a word, never color alone. VoiceOver reads,
+  for example, "codex, needs you, infra".
+- A terminal card gives VoiceOver its screen text. The app reads it with
+  `pane.read {source:"visible", format:"text"}` when VoiceOver asks for it.
+  New output is announced politely (it does not interrupt speech).
+- Keyboard focus moves in this order: sidebar, tab bar, cards (left to right,
+  then top to bottom), floating cards. ⌥⌘→ and ⌥⌘← move to the next or
+  previous element. A terminal keeps Tab for itself.
+- Every card action can be reached from the keyboard with ⌘K. Every swipe has
+  a keyboard path, a menu path and a button. Hover controls are also in
+  context menus and the menu bar.
+- On iOS, the app's chrome and the chat view follow Dynamic Type.
+- The terminal font size follows the app's text size setting.
+- Reduce Motion turns off the glass morph, page animations and the pill's
+  slide. Reduce Transparency is handled by the system glass.
+
+## Keyboard shortcuts
+
+| Keys | Action |
+|---|---|
+| ⌃⌥1 … ⌃⌥9 | switch machines |
+| ⌘1 … ⌘9 | switch tabs |
+| ⇧⌘[ and ⇧⌘] | previous and next tab |
+| ⌘T | new tab |
+| ⌘D | split |
+| ⌘W | close the pane (asks first unless the pane runs only its shell) |
+| ⇧⌘W | close the window |
+| ⇧⌘↩ | zoom or unzoom the card |
+| ⌥⌘F | show or hide floating panes |
+| ⌘K | the card's actions |
+| ⌃⌘ + arrow | move the nearest divider |
+| ⌃⌘= | make every split in the tab equal |
+| ⌥⌘← and ⌥⌘→ | move keyboard focus |
+| ⌘[ | Back, inside a plugin card |
+
+Plugins cannot claim these keys.
+
+How it works: [Platform and code](/docs/platform),
+[Status area and notifications](/docs/status#status-area-and-notifications).

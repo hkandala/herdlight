@@ -5,11 +5,11 @@ description: "Moving panes by dragging their header"
 
 Drag a card by its header:
 
-<DropZones />
+<DropZones caption="Center: a card in the same tab only. Edges: a card in another tab." />
 
 | Drop on | Result |
 |---|---|
-| the centre of a card in the same tab | swap the two panes |
+| the center of a card in the same tab | swap the two panes |
 | an edge of a card in another tab | split there |
 | a tab capsule (hold to page to it) | move into that tab |
 | a workspace in the sidebar | new tab in that workspace |
@@ -19,3 +19,5 @@ Drag a card by its header:
 - The card menu has the same moves (**Move to ▸**, **Float**). That is the
   only path on iPhone.
 - A pane cannot move to another machine. Inside one tab only swap is offered.
+
+How it works: [Writes are herdr calls](/docs/talking-to-herdr#writes-are-herdr-calls).

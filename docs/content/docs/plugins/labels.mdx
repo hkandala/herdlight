@@ -3,8 +3,9 @@ title: "Labels and instance ids"
 description: "How a plugin pane is stored in herdr: label, placeholder and instance id"
 ---
 
-**Label format:**
-```
+## Label format
+
+```text
 label     = "web:" url
           | "hl:" plugin-id [ "/" pane-name ] "#" iid [ " " arg ]
 plugin-id = [a-z0-9][a-z0-9._-]{0,63}
@@ -12,46 +13,56 @@ pane-name = [a-z0-9][a-z0-9-]{0,31}
 iid       = [a-z0-9]{6}
 arg       = the rest: no control characters, at most 1024 characters
 ```
+
 Examples, as a herdr TUI user sees them in the pane border:
-```
+
+```text
 hl:git-history#k3f9q2 main
 hl:markdown#q2m0zd docs/DESIGN.md
 hl:diff#a81xw0 base=main
 hl:kanban/board#7tt1qe
 web:http://localhost:3000/dashboard
 ```
+
 - A plugin with one pane kind omits `/<pane-name>`. A label without a pane
-  name opens the plugin's first pane kind in its manifest.
+  name opens the first pane kind in the plugin's manifest.
 - The `hl:` prefix keeps a user's own label (`todo: fix login`) from turning
   into a plugin.
 - The argument goes last, so the useful part is what a TUI user reads. herdr
   trims labels, and `setArg` trims too.
 - Labels travel in every snapshot to every device, so the argument stays
-  small (under ~200 characters advised). Bigger state goes to a file ([State and restore](/docs/plugins/state)).
+  small (under ~200 characters advised). Bigger state goes to a file
+  ([State and restore](/docs/plugins/state)).
 
-**Instance id (`iid`):** `pane_id` changes when a pane moves to another
-workspace, and `terminal_id` changes when herdr cold-restarts. The label is
-the only stable carrier, so the instance id lives in it. The device that
-creates the pane generates 6 characters of `[a-z0-9]`, checked against the
-snapshot. It never changes. Plugin cards are keyed by `(machine, plugin, iid)`,
-so they survive moves and restarts without reloading.
+## Instance id
 
-**Create:**
+`pane_id` changes when a pane moves to another workspace, and `terminal_id`
+changes on a herdr cold restart. The label is the only stable carrier, so the
+instance id (`iid`) lives in it.
+- The device that creates the pane generates 6 characters of `[a-z0-9]`,
+  checked against the snapshot. It never changes.
+- Plugin cards are keyed by `(machine, plugin, iid)`, so they survive moves
+  and restarts without reloading.
+
+## Create
+
 1. Picker → argument prompt if required → generate the iid.
 2. `pane.split {…, cwd: <source pane's cwd>}` or `tab.create`. A diff split
    from an agent's pane opens in that agent's repository.
 3. `pane.rename {label: "hl:<plugin>[/<pane>]#<iid> <arg>"}`.
-4. `pane.send_input` types the placeholder inside the envelope. It prints the
-   title, the `hl:<plugin>#<iid>` marker, the argument and the state file
-   path, then runs `stty raw -echo; exec cat >/dev/null`.
-5. `pane.report_metadata` with a new `hl_rev` token, so other devices see the
+4. `pane.report_metadata` with a new `hl_rev` token, so other devices see the
    pane at once.
+5. The placeholder. On the next snapshot the app checks with
+   `pane.process_info` that the pane's foreground process is its shell. Only
+   then does `pane.send_input` type the placeholder inside the envelope. It
+   prints the title, the `hl:<plugin>[/<pane>]#<iid>` marker, the argument and
+   the state file path, then runs `stty raw -echo; exec cat >/dev/null`.
 
 <Callout title="The label is the truth">
-The placeholder carries nothing the app relies on; the label is the truth.
-It exists so that herdr keeps a slot that moves and resizes like any pane,
-herdr TUI users and devices without the plugin see what the pane is, and
-Ctrl-C cannot end it. After a herdr restart the pane returns as a plain shell
-with its label; the card works anyway, and its menu offers **Restore
-placeholder**. The app never types into a shell by itself.
+The placeholder is cosmetic, and the app relies on nothing in it. It shows
+herdr TUI users and devices without the plugin what the pane is, and Ctrl-C
+cannot end it. After a herdr restart the pane returns as a plain shell with
+its label. The card works anyway, and its menu offers **Restore placeholder**
+(type the placeholder command into the shell again). Apart from the
+placeholder, the app never types into a shell by itself.
 </Callout>

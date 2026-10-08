@@ -3,14 +3,22 @@ title: "iPhone and iPad"
 description: "One pane per page on iPhone, the Mac layout on iPad"
 ---
 
-<Phones caption="One chip per pane, tabs split by |. Left: an agent in chat. Right: a terminal with the key bar (terminal only)." />
+<Phones caption="One chip per pane, tabs split by |. Left: an agent in chat. Right: a terminal with the key bar (terminals only)." />
 
 - iPhone shows one pane per page, in reading order through each tab's split
-  tree. This is a drawing choice; nothing changes in herdr.
-- Agent panes open in chat. Chat needs no terminal stream, so the Mac keeps
-  control of the terminal.
-- A terminal view watches the pane while another device controls it ([Terminal plane](/docs/talking-to-herdr#terminal-plane)).
-  The first key press takes control.
+  tree. This is a drawing choice. Nothing changes in herdr.
+- iPad in regular width uses the Mac layout. In compact width (Slide Over,
+  narrow Split View) it uses the iPhone layout.
+- Agent panes open in chat on iPhone. Chat needs no terminal stream, so the
+  Mac keeps control of the terminal.
+- iPhone and iPad open a terminal as a watcher. The first key press, paste or
+  tap in the card, or **Take back**, takes control. A watcher stays a watcher
+  until its user acts.
+- When the app goes to the background, it lets go of its terminals. It
+  reconnects and reads herdr's state again when it comes back.
 - Tapping the title opens the machine and workspace switcher. The status area
   is a bar under the navigation bar.
-- iPad in regular width uses the Mac layout.
+
+How it works: [One controller per pane](/docs/talking-to-herdr#one-controller-per-pane),
+[Watching on a narrow screen](/docs/talking-to-herdr#watching-on-a-narrow-screen),
+[iOS connections](/docs/machines#ios).

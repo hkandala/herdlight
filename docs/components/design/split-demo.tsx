@@ -2,12 +2,14 @@
 import { useRef, useState } from 'react';
 
 const clamp = (v: number) => Math.min(0.9, Math.max(0.1, v));
+const callFor = (s: 0 | 1, ratio: number) =>
+  `layout.set_split_ratio {\n  "tab_id":"w1:t1",\n  "path":${s === 0 ? '[]' : '[true]'},\n  "ratio":${ratio.toFixed(2)}\n}`;
 
 /** herdr's flat layout, the rebuilt tree, and a canvas whose dividers drag. */
 export function SplitDemo() {
   const [r, setR] = useState<[number, number]>([0.55, 0.5]);
   const [drag, setDrag] = useState<0 | 1 | null>(null);
-  const [call, setCall] = useState('drag a divider…');
+  const [call, setCall] = useState(`// sent on release, for example:\n${callFor(0, 0.55)}`);
   const canvas = useRef<HTMLDivElement>(null);
   const [r0, r1] = r;
 
@@ -25,12 +27,15 @@ export function SplitDemo() {
       removeEventListener('pointermove', move);
       removeEventListener('pointerup', up);
       setDrag(null);
-      setCall(
-        `layout.set_split_ratio {\n  "tab_id":"w1:t1",\n  "path":${s === 0 ? '[]' : '[true]'},\n  "ratio":${last[s].toFixed(2)}\n}`,
-      );
+      setCall(callFor(s, last[s]));
     };
     addEventListener('pointermove', move);
     addEventListener('pointerup', up);
+  };
+
+  const reset = (s: 0 | 1) => {
+    setR((cur) => (s === 0 ? [0.5, cur[1]] : [cur[0], 0.5]));
+    setCall(callFor(s, 0.5));
   };
 
   const pc = (v: number) => `${v * 100}%`;
@@ -56,7 +61,8 @@ export function SplitDemo() {
    ├─ p3
    └─ p2`}</pre>
           <div className="sd-label" style={{ marginTop: 8 }}>
-            The id encodes the path: <code>root</code>, then <code>0</code> = first child, <code>1</code> = second.
+            <code>split_&lt;n&gt;_&lt;path&gt;</code>: <code>n</code> = place in <code>splits[]</code>; <code>path</code> ={' '}
+            <code>root</code>, or one digit per step (<code>0</code> = first child, <code>1</code> = second).
           </div>
         </div>
         <div className="wide">
@@ -87,11 +93,13 @@ export function SplitDemo() {
                 className={`sd-div v${drag === 0 ? ' drag' : ''}`}
                 style={{ left: `calc(${pc(r0)} - 4px)`, top: 0, width: 8, height: '100%' }}
                 onPointerDown={start(0)}
+                onDoubleClick={() => reset(0)}
               />
               <div
                 className={`sd-div h${drag === 1 ? ' drag' : ''}`}
                 style={{ left: pc(r0), top: `calc(${pc(r1)} - 4px)`, width: pc(1 - r0), height: 8 }}
                 onPointerDown={start(1)}
+                onDoubleClick={() => reset(1)}
               />
             </div>
             <pre className="sd-code">{call}</pre>
@@ -99,7 +107,7 @@ export function SplitDemo() {
         </div>
       </div>
       <figcaption className="cap">
-        <b>Try:</b>{" "}drag a divider. The view moves at once; the ratio goes to herdr only on release.
+        <b>Try:</b>{" "}drag a divider. The view moves at once; the ratio goes to herdr only on release. Double-click a divider to reset it to 0.5.
       </figcaption>
     </figure>
   );

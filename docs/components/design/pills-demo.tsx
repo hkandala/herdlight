@@ -7,12 +7,12 @@ type Agent = { id: string; icon: Icon; name: string; ws: string; host: string; s
 
 const START: Agent[] = [
   { id: 'claude', icon: ['claude', '✳'], name: 'claude', ws: 'api-server', host: 'This Mac', st: 'work' },
-  { id: 'pi', icon: ['pi', 'π'], name: 'pi', ws: 'docs', host: 'This Mac', st: 'work' },
-  { id: 'codex', icon: ['codex', '>_'], name: 'codex', ws: 'infra', host: 'devbox', st: 'work' },
+  { id: 'pi', icon: ['pi', 'π'], name: 'pi', ws: 'api-server', host: 'This Mac', st: 'done' },
+  { id: 'codex', icon: ['codex', '>_'], name: 'codex', ws: 'infra', host: 'devbox', st: 'blk' },
   { id: 'opencode', icon: ['sh', '◇'], name: 'opencode', ws: 'ml-pipeline', host: 'devbox', st: 'idle' },
 ];
 const word: Record<St, string> = { work: 'working', blk: 'needs you', done: 'finished', idle: 'idle' };
-const glyph: Record<St, string> = { work: '', blk: '▲', done: '✓', idle: '' };
+const glyph: Record<St, string> = { work: '◔', blk: '▲', done: '✓', idle: '' };
 const status: Record<St, string> = {
   work: '◔ Working',
   blk: '▲ Needs you: waiting for an answer',
@@ -26,10 +26,15 @@ const Dot = ({ st, title }: { st: St; title?: string }) => (
   </span>
 );
 
-const PROMPT = `? Allow command? terraform apply
+const ASK: Record<string, string> = { codex: 'terraform apply', claude: 'Bash(rm -rf dist)' };
+const prompt = (a: Agent) => `? Allow command? ${ASK[a.id] ?? 'npm publish'}
   1. Yes
   2. Yes, and don't ask again
-  3. No, tell codex what to do`;
+  3. No, tell ${a.name} what to do`;
+const CHAT: Record<string, [string, string, string]> = {
+  claude: ['fix the failing auth tests', 'Running the test suite… 40 passing, 2 failing.', 'Fixed. 42 passing.'],
+  pi: ['write the API guide', 'Reading src/routes/ to list the endpoints.', 'Wrote docs/api.md (214 lines). Covered auth, pagination and errors.'],
+};
 
 /** The body of one agent's pill card. Used live in the demo and on its own. */
 export function PillCardBody({
@@ -58,7 +63,7 @@ export function PillCardBody({
       <div className="sub">{status[a.st]}</div>
       {a.st === 'blk' ? (
         <>
-          <div className="scr">{PROMPT}</div>
+          <div className="scr">{prompt(a)}</div>
           <div className="opts">
             {['1', '2', '3', '↑', '↓', 'Enter', 'Esc'].map((k) => (
               <button key={k} onClick={() => onKey?.(k)}>
@@ -70,12 +75,10 @@ export function PillCardBody({
       ) : (
         <div className="scr prose-ish">
           <span style={{ color: '#8fd3ff' }}>you:</span>{' '}
-          {a.id === 'pi' ? 'write the API guide' : 'fix the failing auth tests'}
+          {(CHAT[a.id] ?? CHAT.claude)[0]}
           <br />
           <span style={{ color: '#9fe6b2' }}>{a.name}:</span>{' '}
-          {a.st === 'done'
-            ? 'Wrote docs/api.md (214 lines). Covered auth, pagination and errors.'
-            : 'Running the test suite… 40 passing, 2 failing.'}
+          {(CHAT[a.id] ?? CHAT.claude)[a.st === 'done' ? 2 : 1]}
         </div>
       )}
       <div className="reply">Reply to {a.name}…</div>
@@ -199,8 +202,8 @@ export function PillsDemo() {
           {card && <PillCardBody a={card} onKey={send} onClose={close} msg={msg} />}
         </div>
         <div className="ctrls">
-          <button onClick={() => simulate('codex', 'blk')}>Simulate: codex needs you</button>
-          <button onClick={() => simulate('pi', 'done')}>Simulate: pi finished</button>
+          <button onClick={() => simulate('claude', 'blk')}>Simulate: claude needs you</button>
+          <button onClick={() => simulate('claude', 'done')}>Simulate: claude finished</button>
           <button
             onClick={() => {
               setAgents(START);

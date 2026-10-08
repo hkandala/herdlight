@@ -5,25 +5,37 @@ description: "The split tree, drawing and resizing, zoom, PTY size, selection an
 
 ## What herdr returns
 
-Each herdr tab is a split tree: every split has a direction (`right` or
-`down`) and a ratio. herdr stores it across restarts.
+Each herdr tab is a split tree. Every split has a direction (`right` or
+`down`) and a ratio. herdr stores the tree across restarts.
 `session.snapshot.layouts[]` gives each tab's layout as a flat list:
+
 ```json
 {"tab_id":"w1:t1","area":{"width":120,"height":40},
- "panes":[{"pane_id":"w1:p1","rect":{…}},{"pane_id":"w1:p3","rect":{…}},{"pane_id":"w1:p2","rect":{…}}],
- "splits":[{"id":"split_0_root","direction":"right","ratio":0.3},
-           {"id":"split_1_0","direction":"down","ratio":0.5}]}
+ "panes":[{"pane_id":"w1:p1","rect":{…}},
+          {"pane_id":"w1:p3","rect":{…}},
+          {"pane_id":"w1:p2","rect":{…}}],
+ "splits":[{"id":"split_0_root","direction":"right","ratio":0.55},
+           {"id":"split_1_1","direction":"down","ratio":0.5}]}
 ```
-- A split's `id` encodes its path from the root: `root`, then one digit per
-  step (`0` = first child, `1` = second).
+
+- A split's `id` is `split_<n>_<path>`, as herdr writes it:
+  - `<n>` is the split's place in `splits[]`, counted from 0. The list is
+    depth-first, with a parent before its children.
+  - `<path>` is `root` for the root split. For every other split it has one
+    digit per step from the root: `0` = first child, `1` = second child.
+  - Example: `split_1_1` is the second split in the list, and it is the root's
+    second child. A split under its first child would be `split_2_10`.
 - `panes[]` is in depth-first order, first child before second.
+- For `layout.set_split_ratio`, `path` is `<path>` as booleans (`0` → `false`,
+  `1` → `true`). The root is `[]`.
 
 ## Rebuilding the tree
 
-```
+```text
 build(path) = split at path exists ? Split(dir, ratio, build(path+0), build(path+1))
                                    : Leaf(next pane from panes[])
 ```
+
 - About 15 lines. If the leaf count does not equal `panes.count`, the app
   falls back to `layout.export {tab_id}` (the same tree, nested). The order is
   depth-first in herdr's source but not a documented contract, hence the
@@ -34,19 +46,22 @@ build(path) = split at path exists ? Split(dir, ratio, build(path+0), build(path
 <SplitDemo />
 
 - A tab page is the size of the strip. Each split divides its rectangle by the
-  ratio, with a fixed gap between cards. herdr's cell rectangles are not used
-  for drawing.
+  ratio, with a fixed 8 pt gap between cards. The gap is the divider. herdr's
+  cell rectangles are not used for drawing.
 - Each terminal card tells herdr its own size in cells, so the PTY fits the
   card.
 - Dragging a divider moves the split in the view at once (8 pt hit area,
-  resize cursor). On release the app sends `layout.set_split_ratio`; `path`
-  is the split's id read as booleans. The ratio stays within herdr's 0.1–0.9.
+  resize cursor). On release the app sends `layout.set_split_ratio`. The
+  ratio stays within herdr's 0.1–0.9.
+- Double-clicking a divider sets its ratio to 0.5.
+- ⌃⌘= makes the splits of the tab equal. Each split gets the ratio "leaves on
+  its first side ÷ all leaves under it", so every pane gets the same share.
 - Resizing works on the split tree only. To put a pane elsewhere, move it.
 
 ## Zoom is the app's own
 
-- One `zoomed` card per window, in memory.
-- herdr's `pane.zoom` is not used: it moves herdr's focus, marks the whole tab
+- One zoomed card, in memory.
+- herdr's `pane.zoom` is not used. It moves herdr's focus, marks the whole tab
   seen, and makes herdr refuse moves into or out of that tab.
 - If a herdr TUI user zoomed a tab, the app ignores that flag and draws the
   full layout. A move into that tab returns `zoomed_tab`, which the app shows.
@@ -56,8 +71,8 @@ build(path) = split at path exists ? Split(dir, ratio, build(path+0), build(path
 - While our `control` stream is attached, herdr locks that PTY to our size
   and ignores herdr TUI layout resizes. After release the PTY keeps our size
   until a herdr TUI lays the tab out again.
-- herdr's layout rectangles never show the PTY size; the frame's `width` and
-  `height` do.
+- herdr's layout rectangles never show the PTY size. A `control` frame's
+  `width` and `height` do.
 
 ## Selection and "seen" are the app's own
 
@@ -68,9 +83,17 @@ build(path) = split at path exists ? Split(dir, ratio, build(path+0), build(path
   `workspace.focus`, `agent.focus`). Each of them moves every attached herdr
   TUI to that tab and marks the tab seen (herdr source, and seen in our
   tests). A herdr TUI may be open next to the app, and it must not jump.
-- So the app tracks "seen" itself, in memory, per agent:
+- So the app tracks "seen" itself, in memory, per agent, from
+  `completion_seq`:
+  - herdr gives every agent status change a number from one counter per
+    server. When an agent finishes (working or blocked → idle),
+    `completion_seq` is the number of that change. At the agent's next status
+    change, for example when it starts working again, herdr sets it back to
+    null.
   - The first time the app sees an agent, it records the agent's current
     `completion_seq` as seen, so old finishes do not flood the status area.
   - Viewing the agent's pane records the current value.
+  - Each device keeps its own seen values. Seeing an agent on one device does
+    not clear it on another.
   - Simpler choice: finishes that happen while the app is closed are not
-    shown.
+    shown. Revisit when users ask for a list of finishes they missed.

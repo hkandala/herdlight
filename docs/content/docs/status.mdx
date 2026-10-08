@@ -6,67 +6,95 @@ description: "The status area, notifications and how the floating pills work"
 ## Status area and notifications
 
 - **Status area** (bottom of the sidebar, fixed, all machines): a summary row
-  ("3 working · 1 needs you · 2 finished"; click to list the working agents)
-  and one row per agent that needs you or has finished and not been seen. Clicking a row
-  selects that machine, workspace, tab and pane.
+  ("1 working · 1 needs you · 1 finished"; click it to list the working
+  agents) and one row per agent that needs you or has finished and not been
+  seen. Clicking a row selects that machine, workspace, tab and pane.
 - Sidebar rows, tab capsules, the status area and the pills all read
   `agent_status` and `completion_seq` from the snapshot. No extra calls.
 - **"Finished, not seen"** = `completion_seq` in `snapshot.agents[]` is not
-  null and differs from the value the app recorded as seen ([Selection and "seen" are the app's own](/docs/layout#selection-and-seen-are-the-apps-own)). It is not a
-  "greater than" test, because the number restarts at 0 when herdr restarts.
-  herdr's own `done` status is not used, because herdr goes straight to
-  `idle` when a herdr TUI is already looking at that tab.
-- **Notifications**, made by the app from snapshot changes:
-  - status becomes `blocked`: "codex needs you · infra";
-  - `completion_seq` changes to a new non-null value: "pi finished ·
-    api-server", unless the user is looking at that pane;
-  - the first snapshot after connecting never notifies;
-  - the id is `"<machine>|<terminal_id>"`, so a newer notification replaces
-    the older one, and it is removed when the pane is seen.
-- **macOS:** `UNUserNotificationCenter` (its delegate is set at launch, so a
-  click that starts the app is not lost) and a Dock badge with the number of
-  blocked agents. While the pill is on screen, notifications are posted as
-  `.passive` (Notification Center, no banner), unless VoiceOver or Switch
+  null and differs from the value this device recorded as seen
+  ([Selection and "seen" are the app's own](/docs/layout#selection-and-seen-are-the-apps-own)).
+  - It is not a "greater than" test, because the counter restarts at 0 when
+    herdr restarts.
+  - herdr sets `completion_seq` back to null at the agent's next status
+    change. So an unseen finish clears when the agent starts working again,
+    and the agent then shows ◔.
+  - herdr's own `done` status is not used, because herdr goes straight to
+    `idle` when a herdr TUI is already looking at that tab.
+
+### Notifications
+
+The app makes notifications itself, from snapshot changes:
+- The status becomes `blocked`: "codex needs you · infra".
+- `completion_seq` changes to a new non-null value: "pi finished ·
+  api-server", unless the user is looking at that pane.
+- The first snapshot after app launch never notifies. After a reconnect,
+  changes against the last known state do notify.
+- The id is `"<machine>|<terminal_id>"`, so a newer notification replaces
+  the older one. It is removed when the pane is seen.
+
+### macOS
+
+- `UNUserNotificationCenter`. Its delegate is set at launch, so a click that
+  starts the app is not lost.
+- The Dock badge shows the number of agents that need you.
+- While the pill is on screen, notifications are posted as `.passive`
+  (Notification Center, no banner). The exception is when VoiceOver or Switch
   Control is on, because those users cannot reach the pill.
-- **iOS:** the same while the app is open or within its ~30 s background
-  time. Push notifications need an always-on relay holding Apple's push key
-  (Heeler's design: a herdr hook on each machine posts to a small relay);
-  they come later.
+
+### iOS
+
+- The same notifications, while the app is open or within its ~30 s
+  background time.
+- Push notifications need an always-on relay that holds Apple's push key
+  (Heeler's design: a herdr hook on each machine posts to a small relay).
+  They come later.
 
 ## Floating pills: how they work (macOS)
 
-The look and behaviour are in [Floating pills (macOS)](/docs/ui/pills).
-- **When:** shown whenever the app is not active, hidden when it becomes
-  active. Two notifications drive it, plus screen changes for placement.
-  Nothing polls; the only timer is the peek's 8 s shrink. It appears on the
-  screen under the pointer. A setting turns the pill off.
+The look and behavior are in [Floating pills (macOS)](/docs/ui/pills).
+
+- **When:** the pill shows whenever the app is not active, and hides when it
+  becomes active. Two notifications drive it, plus screen changes for
+  placement. Nothing polls. The only timer is the peek's 8 s shrink. It
+  appears on the screen under the pointer. A setting turns the pill off.
 - **One AppKit `NSPanel` hosting SwiftUI.** No SwiftUI scene can do this:
   `UtilityWindow` hides when the app is inactive, and a floating `Window`
   activates the app when clicked.
 - One fixed-size transparent panel on the right edge holds the pill, list and
-  card, so it never resizes. Transparent parts let clicks through.
-- Settings: style mask `[.borderless, .nonactivatingPanel]` set in `init`;
-  `level = .floating`; collection behaviour `[.canJoinAllSpaces, .stationary,
-  .ignoresCycle, .fullScreenAuxiliary, .canJoinAllApplications]`;
-  `hidesOnDeactivate = false`; `canHide = false`; `becomesKeyOnlyIfNeeded =
-  false`; `hasShadow = false`; clear background; `ignoresMouseEvents` never
-  assigned (left unset, transparent pixels pass clicks through).
-- **Keyboard:** a borderless panel cannot become key by default, so
-  `PillPanel` overrides `canBecomeKey` to return true only while a card is
-  open and has been clicked.
-- **First click:** `PillPanel.sendEvent` catches a mouse-down inside a card
-  that is not key, makes the panel key, and swallows the event. A pill, a
+  pill card, so it never resizes. Transparent parts let clicks through.
+- **Panel settings:**
+  ```swift
+  // in init
+  styleMask = [.borderless, .nonactivatingPanel]
+  level = .floating
+  collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle,
+                        .fullScreenAuxiliary, .canJoinAllApplications]
+  hidesOnDeactivate = false
+  canHide = false
+  becomesKeyOnlyIfNeeded = false
+  hasShadow = false
+  backgroundColor = .clear
+  // ignoresMouseEvents is never set: transparent pixels pass clicks through
+  ```
+- **Keyboard:** a borderless panel cannot become key by default. So
+  `PillPanel` overrides `canBecomeKey` to return true only while a pill card
+  is open and has been clicked.
+- **First click:** `PillPanel.sendEvent` catches a mouse-down inside a pill
+  card that is not key, makes the panel key, and swallows the event. A pill, a
   list or a peek never takes a keystroke from the app the user is typing in.
-- After the card closes or a reply is sent, the panel orders out and back in,
-  which hands the keyboard back.
+- After the pill card closes or a reply is sent, the panel orders out and
+  back in, which hands the keyboard back.
 - An `NSTrackingArea` with `.activeAlways` tells the peek that the pointer is
   over it (SwiftUI hover is unreliable in an inactive app).
-- **Same data and rules:** glyphs and cards read the HostStore snapshot. The
-  card is the chat view, so it never opens a terminal stream, and its key
-  buttons use the key guard ([Sending and answering](/docs/chat-view#sending-and-answering)). Peeking or opening a card does not mark
-  an agent seen; Mark seen, a reply or Open does.
+- **Same data and rules:** glyphs and pill cards read the HostStore snapshot.
+  The pill card is the chat view, so it never opens a terminal stream. Its key
+  buttons use the key guard
+  ([Sending and answering](/docs/chat-view#sending-and-answering)). Peeking
+  or opening a pill card does not mark an agent seen. **Mark seen**, a reply
+  or **Open in app** does.
 - **Accessibility:** each glyph and row has a label ("codex, needs you,
-  infra") and an Open action. The pill is never the only path; the status
+  infra") and an Open action. The pill is never the only path. The status
   area, notifications and the Dock badge remain.
 - Simpler choices: no dragging, no notch placement, no global hotkey, no
-  per-workspace pills.
+  per-workspace pills. Revisit each one when users ask for it.

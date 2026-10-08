@@ -1,34 +1,57 @@
 ---
 title: "Floating pills (macOS)"
-description: "The status pill on the Mac screen edge, its list and its card"
+description: "The status pill on the Mac screen edge, its list and its pill card"
 ---
 
 <PillsDemo />
 
-The card of a blocked agent, as a peek opens it:
+The pill card of a blocked agent, as a peek opens it:
 
 <PillCard state="blk" />
 
-- **Pill:** a black notch-shaped tab on the right screen edge, vertically
-  centred, away from the top-right banners and the Dock. One status glyph
-  per agent across all machines, in a stable order (machine, then
-  workspace). Idle agents get no glyph. With nothing running it shows one
-  grey dot. Past 10 agents the last glyph reads "+n".
-- **One pill, a glyph per agent**, not a pill per agent: ten agents would be
-  ten capsules down the screen edge. The list groups agents by workspace.
-- **List (click the pill):** agents grouped by machine and workspace, with
-  icon, name, workspace, glyph and status word. Rows never reorder.
-- **Card (click a glyph or row):** the compact chat view ([Chat view](/docs/chat-view)) for that
-  agent: the last messages (or screen text), live while the agent works. A
-  blocked agent shows its prompt and the blocked panel's key buttons. A
-  reply box, **Mark seen**, **Open in app** (selects the pane and brings the
-  main window forward, reopening it if it was closed) and **✕**.
-- **Peek:** when an agent becomes blocked or finishes while you are away, its
-  card slides out by itself without taking the keyboard. If the pointer does
-  not enter it, it shrinks back after 8 s. A "Peek" switch in the pill's menu
-  turns this off.
-- **Keys:** the first click on a card that is not active only activates it,
-  so a click meant for something else never answers a prompt. Then Esc
-  closes the card and ⌘↩ opens the app.
-- **Look:** opaque near-black. No glass, because glass renders flat in an
-  inactive app, and the pill only shows while the app is inactive.
+## Pill
+
+- A black notch-shaped tab on the right screen edge, vertically centered,
+  away from the top-right banners and the Dock.
+- One status glyph per agent across all machines (◔ ▲ ✓), in a stable order:
+  machine, then workspace. Idle agents get no glyph. With nothing running it
+  shows one gray dot.
+- If more than 10 agents are not idle, the pill shows 9 glyphs and a tenth
+  that reads "+n". n is the number of agents that are not shown.
+- One pill with a glyph per agent, not a pill per agent: ten agents would be
+  ten capsules down the screen edge.
+
+## List
+
+Click the pill. Agents are grouped by machine and workspace, with icon, name,
+workspace, glyph and status word. Rows never reorder.
+
+## Pill card
+
+Click a glyph or a row. The pill card is the compact
+[chat view](/docs/chat-view) for that agent:
+- the last messages (or screen text), live while the agent works;
+- for a blocked agent, its prompt and the blocked panel's key buttons;
+- a reply box, **Mark seen**, **Open in app** and **✕**. **Open in app**
+  selects the pane and brings the main window forward. It opens the window
+  again if it was closed.
+
+## Peek
+
+When an agent becomes blocked or finishes while you are in another app, its
+pill card slides out by itself without taking the keyboard. If the pointer
+does not enter it, it shrinks back after 8 s. A "Peek" switch in the pill's
+context menu (secondary click) turns this off.
+
+## Keys
+
+The first click on a pill card that is not active only activates it, so a
+click meant for something else never answers a prompt. Then Esc closes the
+card and ⌘↩ opens the app.
+
+## Look
+
+Opaque near-black. No glass, because glass renders flat in an inactive app,
+and the pill only shows while the app is inactive.
+
+How it works: [Floating pills: how they work](/docs/status#floating-pills-how-they-work-macos).

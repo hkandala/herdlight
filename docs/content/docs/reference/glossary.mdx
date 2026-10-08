@@ -6,23 +6,43 @@ description: "The words these docs use"
 | Word | Meaning |
 |---|---|
 | herdr TUI | herdr's own text interface, run in a terminal app |
-| machine | one herdr server the app talks to: this Mac (one per herdr session), or a machine over SSH |
+| session | a named herdr server on a host (`default` unless named) |
+| machine | one herdr session that the app connects to: one entry in the machine list, one sidebar page. Sessions on one host share one SSH connection and its channel budget |
+| host | the computer a machine runs on |
+| This Mac | the `default` herdr session on the Mac the app runs on. Other local sessions are "This Mac · ‹session›" |
+| `HostStore` | the app's live model of one machine |
 | machine page | one machine's page in the sidebar; pages swipe sideways |
 | strip / tab page | the main area that pages sideways / one tab's page in it |
+| tab capsule | one tab in the tab bar |
+| lit tab | a tab whose page is visible in the strip |
 | pane card | how the app draws one herdr pane: a header plus content |
 | floating card | a pane card drawn above the strip, from the workspace's `hl:float` tab |
-| pill / card / peek | the floating status capsule on the Mac screen edge / the small window for one agent next to it / a card that slides out by itself without taking the keyboard |
+| pill / pill card / peek | the floating status capsule on the Mac screen edge / the small window for one agent next to it / a pill card that slides out by itself without taking the keyboard |
+| status area | the fixed list of agents that need you or finished, at the bottom of the sidebar |
+| status glyph, status word | ◔ working (blue), ▲ needs you (amber), ✓ finished (green) |
+| seen | this device has shown the agent's last finish to the user |
 | PTY | the pseudo-terminal a shell runs in; it has one size |
 | frame | one message of ANSI bytes from `terminal session` |
 | control / observe | the two stream kinds: control types and resizes; observe only watches |
+| control plane / terminal plane | requests and events (the bridge) / terminal streams (`terminal session`) |
 | split tree | herdr's layout: each split cuts a rectangle in two by a ratio |
+| split id | `split_<n>_<path>`: n = place in `splits[]`; path = `root` or one digit per step (0 = first child, 1 = second) |
 | ControlMaster | one shared SSH connection that later `ssh` commands reuse |
 | envelope | the base64 wrapper every remote command travels in |
-| `terminal_id` / `pane_id` | herdr's id of a terminal process / of a pane slot; the pane id changes on a move to another workspace, the terminal id on a herdr cold restart |
-| `completion_seq` | herdr's sequence number of an agent's last finished turn; null while it works; restarts at 0 with herdr |
+| `terminal_id` / `pane_id` | herdr's id of a terminal process / of a pane slot; the pane id changes on a move to another workspace, the terminal id on a cold restart |
+| cold restart / live update | the herdr server stops, its terminals end, and it starts again / a new herdr server takes over the running terminals, which keep running |
+| `completion_seq` | the number of an agent's last finish (working or blocked → idle), from one counter per herdr server. herdr sets it back to null at the agent's next status change. It restarts at 0 when herdr restarts |
+| blocked panel | the bottom of an agent's screen and key buttons, shown in chat when it needs you |
+| key guard | the check that the prompt is unchanged before a key button sends |
+| screen-text chat | a chat view that shows the pane's visible text |
+| chat tail | the long-lived `tail -F` that reads a transcript |
 | plugin / core plugin | a pane kind / one that ships with the app (terminal, agent, web, git history, diff, Markdown) |
+| placeholder | the quiet command a web or plugin pane runs in herdr; cosmetic, the label is the truth |
 | kit | the React components plugins use, drawn as native SwiftUI |
+| prelude | the JavaScript the app loads before a plugin: React and the API runtime |
 | iid | a plugin pane's instance id, kept in its label |
 | `hl_rev` | a herdr metadata token the app changes to tell other devices to refresh |
 | askpass | a small program `ssh` runs to ask for a password |
 | `MaxSessions` | OpenSSH's limit of sessions on one connection (10 by default) |
+| spike | a small test build that answers one risky question first |
+| Simpler choice | a shortcut taken on purpose, with when to revisit it |

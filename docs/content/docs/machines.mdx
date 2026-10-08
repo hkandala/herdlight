@@ -1,47 +1,62 @@
 ---
 title: "Machines and SSH"
-description: "macOS and iOS connections, the channel budget and checks on connect"
+description: "What a machine is, macOS and iOS connections, the channel budget and checks on connect"
 ---
+
+## What a machine is
+
+- A **machine** is one herdr session that the app connects to. It is one
+  entry in the machine list and has one sidebar page.
+- A **host** is the computer a machine runs on. Two sessions on one host
+  share one SSH connection (ControlMaster), its channel budget, and nothing
+  else: each session has its own events, streams and plugin state cleanup.
+- On this Mac, each running herdr session is a machine. The `default`
+  session is "This Mac". Another session is named "This Mac · ‹session›".
 
 ## macOS
 
+- **The Mac app requires herdr installed on this Mac.** The machine list and
+  `herdr machine add` run through it. Without it, the app shows how to install
+  herdr, and remote machines cannot be added or shown.
 - **The machine list is herdr's.**
   - This Mac: `herdr session list --json`. The `default` session always shows
-    (even when stopped, so Start herdr can reach it); other sessions show
-    while they run.
+    (even when it is stopped, so the app can say how to start it). Other
+    sessions show while they run.
   - Remote: the enabled entries of `herdr machine list --json`
     (`{id, label, target, session, enabled}`).
   - Machines added in the app also show in the herdr TUI, and the other way
     round.
 - **SSH is the system `ssh`.** The user's `~/.ssh/config`, agent, keys,
   `ProxyJump`, YubiKey and Tailscale SSH work unchanged.
-- **One ControlMaster per machine,** started on purpose, once:
-  ```
+- **One ControlMaster per host,** started on purpose, once:
+  ```sh
   ssh -M -N -f -o ControlPersist=10m -o ServerAliveInterval=20 \
       -o ForwardAgent=no -o ForwardX11=no -o ClearAllForwardings=yes \
       -S ~/Library/Caches/hl/<h8> <target>
-  ssh -S ~/Library/Caches/hl/<h8> -O check <target>        # wait until this succeeds
+  ssh -S ~/Library/Caches/hl/<h8> -O check <target>   # wait until this succeeds
   ```
   - Later runs use `-F /dev/null -o ControlMaster=no -o BatchMode=yes
     -o ProxyCommand=/usr/bin/false -S ~/Library/Caches/hl/<h8>`. Without a
-    master they fail at once instead of opening their own connection (and
-    prompting again), and they send none of the user's configured forwards
-    to the master.
-  - Starting the master first means one password, OTP or key prompt per
-    machine. With `ControlMaster=auto`, parallel first calls each prompt.
-  - `<h8>` is 8 hex characters of a hash of the machine id. The folder is per
-    user, mode 0700, with no spaces, and the path stays under the 104-byte
-    socket limit even with ssh's 17-character temporary suffix.
+    master they fail at once instead of opening their own connection and
+    prompting again. They send none of the user's configured forwards to the
+    master.
+  - Starting the master first means one password, OTP or key prompt per host.
+    With `ControlMaster=auto`, parallel first calls each prompt.
+  - `<h8>` is 8 hex characters of a hash of the SSH target. The folder is per
+    user, mode 0700, with no spaces. The path stays under the 104-byte socket
+    limit for user names up to 50 characters, with ssh's 17-character
+    temporary suffix.
   - Forwarding is off, so a machine cannot reach the Mac's SSH agent or ports
     through the app's long-lived connection. The app's own `-O forward` calls
     still work.
   - `-O check` only asks whether the master process lives. After a wake or a
-    network change the app sends `ping` with a 5 s timeout; on timeout it runs
-    `ssh -O exit`, starts the master again and reopens the streams.
+    network change the app sends `ping` with a 5 s timeout. On a timeout it
+    runs `ssh -O exit`, starts the master again and opens the streams again.
+  - On quit the app runs `ssh -S <ctl> -O exit <target>` for each master.
 - **Password and OTP prompts:** `SSH_ASKPASS` points at a one-file script in
   the app's `Contents/Resources`, with `SSH_ASKPASS_REQUIRE=force`. It shows
   an `osascript` dialog with the prompt passed as an argument (never pasted
-  into the script), and hides the answer only for password, passphrase or PIN
+  into the script). It hides the answer only for password, passphrase or PIN
   prompts.
 - **Local Network privacy (macOS 15+):** an `ssh` started by the app counts as
   the app. The app declares `NSLocalNetworkUsageDescription`, resolves the
@@ -51,11 +66,12 @@ description: "macOS and iOS connections, the channel budget and checks on connec
 
 ## iOS
 
-- One Citadel SSH connection per machine, with exec channels on it.
-- The key is a Secure Enclave P-256 key (`ecdsa-sha2-nistp256`); it cannot
+- One Citadel SSH connection per host, with exec channels on it.
+- The key is a Secure Enclave P-256 key (`ecdsa-sha2-nistp256`). It cannot
   leave the device. The add-machine sheet shows its public line to copy into
   `authorized_keys`.
-- Host keys are pinned on first connect; a changed key blocks the connection.
+- The first connect shows the host key's SHA256 fingerprint and asks. After
+  that the key is pinned, and a changed key blocks the connection.
 - The machine list is saved in `UserDefaults`.
 - The phone reaches the Mac like any SSH machine: turn on System Settings ›
   General › Sharing › Remote Login, then add the Mac by its Tailscale or LAN
@@ -63,9 +79,12 @@ description: "macOS and iOS connections, the channel budget and checks on connec
 - Reachability is the user's network (LAN or Tailscale). There is no relay.
   Jump hosts come later (Citadel has `jump(to:)`).
 - Citadel has no keepalive, so the 30 s `ping` finds dead links.
-- In the background iOS gives about 30 s. The app holds its connections with
-  `beginBackgroundTask`, closes them when that ends, and reconnects and
-  re-reads the snapshot on return.
+- When the app goes to the background, it releases its terminal streams. iOS
+  then gives about 30 s. The app holds its other connections with
+  `beginBackgroundTask`, closes them when that time ends, and reconnects and
+  reads the snapshot again on return.
+- [Spike S7](/docs/build-order#s7-ios-transport) tests Citadel's exec
+  channels before the iOS work starts.
 
 ## All machines at once
 
@@ -76,20 +95,39 @@ description: "macOS and iOS connections, the channel budget and checks on connec
 
 ## Channel budget
 
-OpenSSH allows 10 sessions per connection by default (`MaxSessions`). Per
-machine the app reserves 1 session for the event stream and 3 for short calls
-and `ping`, so control never starves. Terminal streams, chat tails and plugin
-`exec` calls share the other 6, in this order: the focused card, the other
-cards of the selected tab, shown floating cards, chat tails, plugin calls. A
-card that gets no session shows its last image and a Retry button.
+- OpenSSH allows 10 sessions per connection by default (`MaxSessions`). The
+  budget is per SSH connection, so sessions on one host share it.
+- For each machine on the connection, the app reserves 1 session for the
+  event stream. It also reserves 3 sessions per connection for short calls
+  and `ping`, so control never starves. (This Mac uses no SSH, so it has no
+  budget.)
+- Short calls are bridge requests (`call()`) and the app's own one-shot
+  commands: state file read and write, transcript lookup, cleanup.
+- Terminal streams, chat tails and plugin `exec` calls share the rest, in
+  this order: the focused card, the other cards of the selected tab, shown
+  floating cards, chat tails, plugin calls.
+- A card that gets no session shows its last image and a **Retry** button. If
+  the server refuses a session ("open failed"), the app lowers that
+  connection's limit by one.
 
 ## Checks on connect
 
-1. Resolve the herdr path and run `remote-api-bridge --check` ([Finding herdr on a machine](/docs/talking-to-herdr#finding-herdr-on-a-machine)). If herdr
-   is missing, show the install command.
-2. `ping` and check the version.
-3. Server not running: **Start herdr** runs
-   `sh -c 'nohup <herdr> --session S server </dev/null >/dev/null 2>&1 &'` and
-   polls `ping` for up to 5 s.
-4. `integration.list` once, for the agent picker ([Agent](/docs/plugins/terminal-and-agent#agent)).
+1. Find the herdr path and run `remote-api-bridge --check`
+   ([Finding herdr on a machine](/docs/talking-to-herdr#finding-herdr-on-a-machine)).
+   If herdr is missing, show the install command.
+2. `ping`. If the server is not running:
+   - **This Mac:** the app does not start herdr. It shows the command to run
+     in a terminal (`herdr server`, or open herdr), with a Copy button, and
+     polls `ping`. A server that the app started would make the app the
+     "responsible process" for every agent. macOS privacy prompts would then
+     name Herdlight, and the server would share the app's process group.
+   - **A remote machine:** a **Start herdr** button runs
+     `sh -c 'nohup <herdr> --session S server </dev/null >/dev/null 2>&1 &'`
+     over SSH and polls `ping` for up to 5 s.
+3. Check the version from the `ping` reply.
+4. `integration.list` once, for the agent picker
+   ([Agent](/docs/plugins/terminal-and-agent#agent)).
 5. `session.snapshot`, then open the event stream.
+
+What it looks like: [Add a machine](/docs/ui/add-a-machine),
+[States](/docs/ui/states).

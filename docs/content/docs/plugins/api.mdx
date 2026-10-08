@@ -5,25 +5,57 @@ description: "The whole plugin API and how the core plugins use it"
 
 ```ts
 export function usePane(): {
-  machine: { id: string; label: string };  // exec goes only here
-  paneId: string;                           // changes on a cross-workspace move; do not store it
-  cwd: string; arg: string; iid: string;
+  machine: { id: string; label: string }; // exec goes only here
+  paneId: string;                          // changes on a cross-workspace move; do not store it
+  cwd: string;
+  arg: string;
+  iid: string;
   plugin: { id: string; version: string; pane: string };
-  device: "macos" | "ios"; apiVersion: number; isDevelopment: boolean;
+  device: "macos" | "ios";
+  apiVersion: number;
+  isDevelopment: boolean;
 };
-export function exec(argv: string[], opts?: { cwd?: string; stdin?: string; timeoutMs?: number }):
-  Promise<{ code: number; stdout: string; stderr: string; truncated: boolean }>;   // needs "exec"
+
+// needs the "exec" permission
+export function exec(
+  argv: string[],
+  opts?: { cwd?: string; stdin?: string; timeoutMs?: number },
+): Promise<{ code: number; stdout: string; stderr: string; truncated: boolean }>;
+
 export function setArg(arg: string): Promise<void>;
-export function useInstanceState<T>(initial: T): [T, (next: T | ((p: T) => T)) => void, { loading: boolean }];
+
+export function useInstanceState<T>(
+  initial: T,
+): [T, (next: T | ((p: T) => T)) => void, { loading: boolean }];
+
 export function useSnapshot(): HerdrSnapshot | undefined;
+
 export function getPreferenceValues<T>(): T;
-export function showToast(t: { style?: "success" | "failure" | "animated"; title: string; message?: string }): Promise<Toast>;
-export function open(url: string): Promise<boolean>;        // http(s) only, after a confirm sheet
+
+export function showToast(t: {
+  style?: "success" | "failure" | "animated";
+  title: string;
+  message?: string;
+}): Promise<Toast>;
+
+// http(s) only, after a confirm sheet
+export function open(url: string): Promise<boolean>;
+
 export const Clipboard: { copy(text: string): Promise<void> };
+
 export function useNavigation(): { push(view: ReactNode): void; pop(): void };
-export function usePromise<T>(fn: () => Promise<T>, deps?: any[]): { data?: T; error?: Error; isLoading: boolean; revalidate(): void };
-export function useExec(argv: string[], opts?: { cwd?: string; parse?: (out: string) => any; refreshOnSnapshot?: boolean }): ReturnType<typeof usePromise>;
+
+export function usePromise<T>(
+  fn: () => Promise<T>,
+  deps?: any[],
+): { data?: T; error?: Error; isLoading: boolean; revalidate(): void };
+
+export function useExec(
+  argv: string[],
+  opts?: { cwd?: string; parse?: (out: string) => any; refreshOnSnapshot?: boolean },
+): ReturnType<typeof usePromise>;
 ```
+
 | API | Why | How |
 |---|---|---|
 | `exec` | every data need is on the pane's machine: `git`, `cat`, `gh`, `rg`, and the herdr CLI (read panes, prompt an agent) | runs on **that card's machine only**, through the envelope; `argv[0] === "herdr"` becomes the resolved herdr path with `--session`; default cwd is the pane's cwd; 30 s timeout, 4 MiB per stream; one queue per machine, 2 at a time; paused while the card is off screen |
@@ -43,8 +75,10 @@ outside panes (sidebar, status area, pills), one plugin opening another,
 clipboard read, file pickers.
 
 How the JS core plugins use it:
-- **Diff:** argument `base=main`; `useExec(["git","diff","--no-color",base], {refreshOnSnapshot:true})`; `<Diff>` per file in a `List`; an action "Send
-  comment to agent" opens a `Form`, then `exec(["herdr","agent","prompt",…])`.
+- **Diff:** argument `base=main`.
+  `useExec(["git","diff","--no-color",base], {refreshOnSnapshot:true})`, then
+  `<Diff>` per file in a `List`. An action "Send comment to agent" opens a
+  `Form`, then `exec(["herdr","agent","prompt",…])`.
 - **Markdown:** argument = a file path; `exec(["cat",path])` →
   `<Detail markdown>`; the reading position in `useInstanceState`.
 - **Git history:** `useExec(["git","log",…])` → a `List` of commits with a

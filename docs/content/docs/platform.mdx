@@ -19,14 +19,14 @@ description: "One codebase, dependencies, the strip, the tab bar and tests"
   subclass, the Dock badge, the `Window` and `Settings` scenes. iOS only:
   `CitadelExec`, the UIKit terminal subclass, the compact layout.
 - Signing: macOS has App Sandbox off and Hardened Runtime on, and ships as a
-  notarized Developer ID download (it starts `herdr` and `ssh`). iOS ships on
-  the App Store. Citadel is linked for iOS only.
+  notarized Developer ID download (it runs the `herdr` CLI and `ssh`). iOS
+  ships on the App Store. Citadel is linked for iOS only.
 
 ## Dependencies
 
 | Need | Choice | Why |
 |---|---|---|
-| Terminal drawing | `Lakr233/libghostty-spm`, exact pin | Metal, IME, one API on AppKit and UIKit, a built-in iOS key bar; used by bigtty and Heeler |
+| Terminal drawing | `Lakr233/libghostty-spm`, exact pin, plus uHerdr's `suppressesTerminalResponses` patch (a vendored wrapper; upstreamed if accepted) | Metal, IME, one API on AppKit and UIKit, a built-in iOS key bar; used by bigtty and Heeler. The patch stops libghostty from answering terminal queries that herdr already answered |
 | SSH on iOS | `orlandos-nl/Citadel` 0.12.1, exact pin | pure Swift; exec channels are enough (it depends on a swift-nio-ssh fork, so updates are reviewed) |
 | SSH on macOS | the system `/usr/bin/ssh` | the user's SSH setup works unchanged |
 | Plugin runtime | JavaScriptCore + React 19 + react-reconciler (in the prelude) | built into both OSes; measured fast enough without the JIT |
@@ -46,13 +46,14 @@ description: "One codebase, dependencies, the strip, the tab bar and tests"
    SwiftUI wrapper makes its own container; the newest container adopts the
    view, and a container removes it only if it still owns it. Stream lifetime
    follows the HostStore, never whether a view is in a window. Off-screen
-   surfaces pause. At most about 24 live terminal surfaces, 6 web pages (2 on
+   surfaces stop drawing but keep reading their stream (herdr drops a watcher
+   that reads nothing for 30 s). At most about 24 live terminal surfaces, 6 web pages (2 on
    iPhone) and 12 plugin VMs, least recently used first out; an evicted card
    keeps its last image. Web page message handlers sit behind a weak proxy.
 3. **libghostty's default key bindings eat the app's shortcuts.** Every
    surface gets `keybind = clear`, and keys go to the main menu first.
 
-If spike S1 fails, the strip becomes one AppKit or UIKit paging container
+If [spike S1](/docs/build-order#s1-strip) fails, the strip becomes one AppKit or UIKit paging container
 (about 300 lines per platform) holding the cached views.
 
 ## Tab bar and Liquid Glass
@@ -65,9 +66,17 @@ If spike S1 fails, the strip becomes one AppKit or UIKit paging container
   tab from `floor(x/w)` to `ceil((x+w)/w) − 1`. When the scroll stops, the
   selection changes inside `withAnimation` and the marker morphs
   (`glassEffectID`).
-- If the toolbar squeezes the item (spike S2), the window hides its title bar
-  and the tab bar sits at the top of the detail column with
-  `WindowDragGesture`.
+- If the toolbar squeezes the item ([spike S2](/docs/build-order#s2-tab-bar)),
+  the window hides its title bar and the tab bar sits at the top of the
+  detail column with `WindowDragGesture`.
+- Each capsule has one status slot: × on hover, else ▲, else ✓, else ◔. The
+  ◔ glyph is static, so the bar does not redraw while agents work.
+- The window title (`navigationTitle`) is the selected tab's label.
+- Reference for this Rex-like behavior:
+  [gorex](https://github.com/hkandala/herdlight/blob/main/resources/research/gorex.md)
+  (capsule tabs, the status slot order, the static working glyph, the window
+  title). gorex is not a reference for the glass API: it draws everything with
+  its own Metal renderer and uses no Apple glass, so spike S2 stays open.
 - Glass only on chrome (tab bar, sidebar, status area, menus). Pane cards,
   floating cards and pills are opaque.
 
@@ -84,9 +93,13 @@ If spike S1 fails, the strip becomes one AppKit or UIKit paging container
 
 Recorded herdr 0.9.3 JSON (snapshot, layouts, closed reasons), recorded
 plugin view trees and short transcript samples. It checks: decoding, the
-split-tree rebuild, the lit-tab maths, the label parser (`web:`, `hl:` with
+split-tree rebuild, the lit-tab math, the snapshot pacing (debounce, maximum
+wait, one read in flight, trailing read), the equal-splits ratios, the label parser (`web:`, `hl:` with
 and without a pane name, an argument with spaces and `#`), the remote command
 envelope (hostile strings round-tripped through bash, zsh and fish), the
 plugin tree decode, the state-file write command, the state cleanup selection,
 the bridge refusing `exec` to another machine or without permission, and each
 transcript parser.
+
+What it looks like: [Main window](/docs/ui/window),
+[Theme and accessibility](/docs/ui/theme-and-accessibility).

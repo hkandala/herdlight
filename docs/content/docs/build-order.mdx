@@ -3,41 +3,80 @@ title: "Build order and spikes"
 description: "The spikes to run first and the order to build in"
 ---
 
-0. **Spikes** (before real views):
-   - **S1 strip:** a paged SwiftUI `ScrollView` on macOS and iPad with 3 pages ×
-     3 libghostty surfaces, 1 web view and 1 plugin card. Pass: a sideways
-     swipe pages from anywhere; vertical scroll reaches the terminal; views
-     survive page changes and zoom; no dropped frames at 120 Hz; window and
-     sidebar resizes keep the page; iOS swipe-back on page 0 and the iPad
-     portrait sidebar behave.
-   - **S2 tab bar:** 12 capsules in a `ToolbarItem`, no overflow, no double
-     glass, the marker follows the scroll.
-   - **S3 ssh:** one prompt per machine with 8 parallel runs at connect; the
-     ControlPath works; the Local Network alert appears; the askpass script
-     works in a notarized build; killed children release control; a closed
-     chat frees its SSH session.
-   - **S4 Codex:** which process holds the rollout file open.
-   - **S5 pill:** typing in another app loses no key; the first click on a
-     peeked card only activates it; key buttons keep the app inactive; the
-     reply box takes focus, ⌘V and Enter; the keyboard returns after close;
-     transparent areas click through; the pill shows over full-screen apps and
-     every Space; Open activates the app at the pane; `.passive` notifications
-     land quietly; no idle wake-ups.
-   - **S6 plugins and floating:** JavaScriptCore in the Hardened Runtime
-     build; 12 live plugin cards plus 9 terminals in the strip hold frame
-     time; a floating card moves between the strip and the floating layer
-     without a reload; a scroll on a floating card never pages the strip.
-1. **Mac, this Mac:** `Exec`, `call()`, events, snapshot, sidebar, strip,
-   terminal streams, split, close, resize, zoom.
-2. **Mac, remote machines:** ControlMaster, askpass, machine pages, status
-   area, notifications.
-3. **Pane kinds and chat:** the plugin registry and picker; the web page with
-   `localhost` forwards; transcript and screen-text chat; floating panes.
-4. **Plugin system:** the plugin host and prelude; `List`, `Detail`,
-   `Markdown`, `ActionPanel`; then `Diff`, `Code`, `Form`; the Git history,
-   Diff and Markdown plugins; install and dev mode; the `hl-plugin` CLI.
-5. **Floating pills.**
-6. **iPadOS and iOS:** Citadel, the compact layout, the composer, the key bar.
-7. **Later:** iOS push, iOS `localhost` forwarding, iOS jump hosts, user
-   plugins on iOS, a `<WebView>` kit component, tab thumbnails and an overview
-   grid, more chat parsers, more windows.
+## Spikes
+
+Run these before building real views. Each one has pass criteria.
+
+### S1 strip
+
+A paged SwiftUI `ScrollView` on macOS and iPad with 3 pages × 3 libghostty
+surfaces, 1 web view and 1 plugin card. Pass:
+- a sideways swipe pages from anywhere; vertical scroll reaches the terminal;
+- views survive page changes and zoom; no dropped frames at 120 Hz;
+- window and sidebar resizes keep the page;
+- iOS swipe-back on page 0 and the iPad portrait sidebar behave;
+- with the patched libghostty build, `printf '\e[c'`, `printf '\e[6n'` and an
+  OSC 11 color query in a pane produce no second reply;
+- IME composition and dead keys reach `terminal.input`.
+
+### S2 tab bar
+
+12 capsules in a `ToolbarItem`: no overflow, no double glass, the marker
+follows the scroll. gorex does not answer this, because it uses no Apple glass
+API.
+
+### S3 ssh
+
+- One prompt per host with 8 parallel runs at connect.
+- The ControlPath works; the Local Network alert appears.
+- The askpass script works in a notarized build.
+- Killed children release control; a closed chat frees its SSH session.
+- A macOS privacy prompt raised inside a pane never names Herdlight.
+
+### S4 Codex
+
+Which process holds the rollout file open.
+
+### S5 pill
+
+- Typing in another app loses no key.
+- The first click on a peeked pill card only activates it. Key buttons keep
+  the app inactive.
+- The reply box takes focus, ⌘V and Enter. The keyboard returns after close.
+- Transparent areas click through. The pill shows over full-screen apps and
+  on every Space.
+- **Open in app** activates the app at the pane. `.passive` notifications land
+  quietly. No idle wake-ups.
+
+### S6 plugins and floating
+
+- JavaScriptCore runs in the Hardened Runtime build.
+- 12 live plugin cards plus 9 terminals in the strip hold frame time.
+- A floating card moves between the strip and the floating layer without a
+  reload.
+- A scroll on a floating card never pages the strip.
+
+### S7 iOS transport
+
+Citadel exec channels, before any iOS work. Pass:
+- `call()` writes stdin and then closes it while the channel stays open for
+  the reply (herdrup writes stdin only inside `withExec`, and Heeler dropped
+  Citadel);
+- a long-lived channel streams stdin and stdout (`terminal session control`
+  and the event stream);
+- closing a channel ends the remote command, and the server frees the session;
+- a Secure Enclave P-256 key authenticates; 8 parallel channels work.
+
+## Build order
+
+| Step | What |
+|---|---|
+| 0 | Spikes S1–S7 |
+| 1 | **This Mac:** `Exec`, `call()`, events and snapshot pacing, sidebar, strip, terminal streams, split, close, resize, zoom |
+| 2 | **Remote machines (Mac):** ControlMaster, askpass, machine pages, status area, notifications |
+| 2b | **Thin iOS slice:** Citadel connect, snapshot, sidebar, one terminal stream |
+| 3 | **Pane kinds, chat and floating panes:** the plugin registry and picker; the web page with `localhost` forwards; transcript and screen-text chat; floating panes |
+| 4 | **Plugin system:** the plugin host and prelude; `List`, `Detail`, `Markdown`, `ActionPanel`; then `Diff`, `Code`, `Form`; the Git history, Diff and Markdown plugins; install and dev mode; the `hl-plugin` CLI |
+| 5 | **Floating pills (macOS)** |
+| 6 | **Full iPadOS and iOS:** the compact layout, the reply box, the key bar, background handling, accessibility on iOS |
+| 7 | **Later:** iOS push, iOS `localhost` forwarding, iOS jump hosts, user plugins on iOS, a `<WebView>` kit component, tab thumbnails and an overview grid, more chat parsers, several main windows |

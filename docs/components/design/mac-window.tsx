@@ -23,36 +23,43 @@ type Leaf = {
 };
 type Split = { dir: 'row' | 'col'; kids: Node[]; w?: number };
 type Node = Leaf | Split;
-type Tab = { label: string; icon: Icon; badge?: string; layout: Node };
-type Agent = [Icon, string, string, string];
-type Host = { name: string; ws: { n: string; sel?: boolean; badge?: string; ag?: Agent[] }[]; tabs: Tab[] };
+type St = 'w' | 'b' | 'd'; // ◔ working · ▲ needs you · ✓ finished
+type Tab = { label: string; icon: Icon; badge?: St; layout: Node };
+type Agent = [Icon, string, string, St | ''];
+type Host = { name: string; ws: { n: string; sel?: boolean; ag?: Agent[] }[]; tabs: Tab[] };
 
+const GLYPH: Record<St, string> = { w: '◔', b: '▲', d: '✓' };
 const p = (kind: Leaf['kind'], title: string, icon: Icon, o: Partial<Leaf> = {}): Leaf => ({ kind, title, icon, ...o });
 const CL: Icon = ['claude', '✳'], SH: Icon = ['sh', '>_'], PI: Icon = ['pi', 'π'], WEB: Icon = ['web', '◍'];
-const CX: Icon = ['codex', '>_'];
+const CX: Icon = ['codex', '>_'], DF: Icon = ['codex', '±'], GH: Icon = ['codex', '⑂'];
 
+// One pane lives in one tab. The sidebar, tab glyphs, status area and the pills demo tell the same story:
+// claude works, pi finished (not seen), codex needs you.
 const HOSTS: Host[] = [
   {
     name: 'This Mac',
     ws: [
-      { n: 'api-server', sel: true, ag: [[CL, 'claude', '◔ working', 'w'], [PI, 'pi', '✓ finished', 'd'], [WEB, 'preview', '', ''], [SH, 'Terminals (2)', '', '']] },
-      { n: 'web-app', badge: '1 ▲' },
+      {
+        n: 'api-server',
+        sel: true,
+        ag: [[CL, 'claude', '◔ working', 'w'], [PI, 'pi', '✓ finished', 'd'], [WEB, 'Dashboard', '', ''], [DF, 'Diff', '', ''], [GH, 'Git history', '', ''], [SH, 'Terminals (4)', '', '']],
+      },
+      { n: 'web-app' },
       { n: 'infra' },
     ],
     tabs: [
-      { label: 'api', icon: SH, layout: { dir: 'row', kids: [p('term', 'claude · fix-auth', CL, { body: T.claude, w: 1.4 }), { dir: 'col', kids: [p('term', 'zsh', SH, { body: T.zsh, dim: true }), p('web', 'localhost:3000', WEB, { dim: true })] }] } },
-      { label: 'fix-auth', icon: CL, layout: p('chat', 'claude · fix-auth', CL) },
-      { label: 'docs', icon: PI, badge: '◔', layout: { dir: 'row', kids: [p('term', 'pi · docs', PI, { body: T.pi }), p('term', 'logs', SH, { body: T.logs, dim: true })] } },
+      { label: 'fix-auth', icon: CL, badge: 'w', layout: { dir: 'row', kids: [p('term', 'claude · fix-auth', CL, { body: T.claude, w: 1.4 }), { dir: 'col', kids: [p('term', 'zsh', SH, { body: T.zsh, dim: true }), p('term', 'logs', SH, { body: T.logs, dim: true })] }] } },
+      { label: 'docs', icon: PI, badge: 'd', layout: p('chat', 'pi · docs', PI) },
       { label: 'preview', icon: WEB, layout: p('web', 'Dashboard · localhost:3000', WEB) },
-      { label: 'diff', icon: ['codex', '±'], layout: { dir: 'row', kids: [p('diff', 'Diff · base=main', ['codex', '±'], { w: 1.5 }), p('term', 'claude · fix-auth', CL, { body: T.claude, dim: true })] } },
-      { label: 'history', icon: ['codex', '⑂'], layout: p('hist', 'Git history · main', ['codex', '⑂']) },
+      { label: 'diff', icon: DF, layout: { dir: 'row', kids: [p('diff', 'Diff · base=main', DF, { w: 1.5 }), p('term', 'npm test', SH, { body: T.zsh, dim: true })] } },
+      { label: 'history', icon: GH, layout: p('hist', 'Git history · main', GH) },
     ],
   },
   {
     name: 'devbox',
-    ws: [{ n: 'infra', sel: true, ag: [[CX, 'codex', '▲ needs you', 'b'], [SH, 'Terminals (1)', '', '']] }, { n: 'ml-pipeline' }],
+    ws: [{ n: 'infra', sel: true, ag: [[CX, 'codex', '▲ needs you', 'b'], [WEB, 'staging.internal', '', ''], [SH, 'Terminals (1)', '', '']] }, { n: 'ml-pipeline' }],
     tabs: [
-      { label: 'terraform', icon: CX, badge: '▲', layout: { dir: 'row', kids: [p('term', 'codex · migrate', CX, { body: T.codex, w: 1.3 }), p('term', 'zsh', SH, { body: T.zsh, dim: true })] } },
+      { label: 'terraform', icon: CX, badge: 'b', layout: { dir: 'row', kids: [p('term', 'codex · migrate', CX, { body: T.codex, w: 1.3 }), p('term', 'zsh', SH, { body: T.zsh, dim: true })] } },
       { label: 'staging', icon: WEB, layout: p('web', 'staging.internal', WEB) },
     ],
   },
@@ -97,7 +104,7 @@ function RenderNode({ n }: { n: Node }) {
     <Pane icon={n.icon} title={n.title} ctl={<Ctl n={n} />} dim={n.dim} style={{ flex: n.w ?? 1 }}>
       {n.kind === 'term' && <Term body={n.body!} />}
       {n.kind === 'web' && <Web title={n.title.includes('staging') ? 'Staging' : 'Dashboard'} />}
-      {n.kind === 'chat' && <AgentChat />}
+      {n.kind === 'chat' && <AgentChat agent={n.icon[0] === 'pi' ? 'pi' : 'claude'} />}
       {n.kind === 'diff' && <DiffBody />}
       {n.kind === 'hist' && <HistBody />}
     </Pane>
@@ -195,7 +202,6 @@ export function MacWindow({ floating = false, caption = tryIt }: { floating?: bo
                       <span>
                         {w.ag ? '▾' : '▸'} {w.n}
                       </span>
-                      <span style={{ color: '#ffb340', fontWeight: 500 }}>{w.badge}</span>
                     </div>
                     {w.ag?.map(([ic, name, st, c]) => (
                       <div className="ag" key={name}>
@@ -223,9 +229,9 @@ export function MacWindow({ floating = false, caption = tryIt }: { floating?: bo
             </span>
           </div>
           <div className="status">
-            <div className="sum">2 working · 1 needs you · 1 finished</div>
-            <div>▲ codex needs you · devbox/infra</div>
-            <div>✓ pi finished · This Mac/api-server</div>
+            <div className="sum">1 working · 1 needs you · 1 finished</div>
+            <div><span className="st b">▲</span> codex needs you · devbox/infra</div>
+            <div><span className="st d">✓</span> pi finished · This Mac/api-server</div>
           </div>
         </aside>
         <div className="main">
@@ -240,11 +246,8 @@ export function MacWindow({ floating = false, caption = tryIt }: { floating?: bo
                 >
                   <Ico icon={t.icon} />
                   <span>{t.label}</span>
-                  {t.badge && (
-                    <span className="badge" style={{ color: t.badge === '▲' ? '#ffb340' : '#8fd3ff' }}>
-                      {t.badge}
-                    </span>
-                  )}
+                  {t.badge && <span className={`badge ${t.badge}`}>{GLYPH[t.badge]}</span>}
+                  <span className="x">×</span>
                 </div>
               ))}
             </div>
@@ -268,7 +271,7 @@ export function MacWindow({ floating = false, caption = tryIt }: { floating?: bo
             <div className="ph fhead" onPointerDown={startDrag}>
               <Ico icon={['sh', '>_']} /> scratch
               <span className="ctl">
-                <span title="Dock">⤓</span> ⤢{' '}
+                <Seg a="chat" b="term" on={1} /> <span title="Dock">⤓</span> ⤢{' '}
                 <span className="x" onClick={() => setFloat(false)}>
                   ✕
                 </span>

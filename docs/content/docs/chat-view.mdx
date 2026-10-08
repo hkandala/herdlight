@@ -16,33 +16,41 @@ transcript: `agent_session` on the pane.
 | Claude Code | `kind:"id"` | `~/.claude/projects/*/<id>.jsonl` |
 | Codex | `kind:"id"` (a hint only) | the `rollout-*.jsonl` file the pane's codex process holds open |
 
-- **Codex:** its hook runs in a shared daemon, so herdr's id can point at
+### Codex and missing integrations
+
+- Codex's hook runs in a shared daemon, so herdr's id can point at
   another pane's thread. The app checks the pane's foreground processes for an
   open rollout file (`lsof -p <pid> -Fn`, or `/proc/<pid>/fd` on Linux). If
   none is found, the pane uses the screen-text chat.
-- **Claude Code and Codex** report `agent_session` only when herdr's
-  integration is installed. If it is missing, a tooltip says "run `herdr
-  integration install <agent>` on ‹machine›".
-- **Read:** the app finds the file once, then runs one long-lived
-  `tail -c +<offset> -F <file>` on the machine (wrapped so a closed channel
-  ends it). New lines arrive as the agent writes them. On open it reads the
-  last ~256 KB. Simpler choice: no older history in v1.
+- Claude Code and Codex report `agent_session` only when herdr's
+  integration is installed. If it is missing, a tooltip tells the user to run
+  `herdr integration install <agent>` on ‹machine›.
+
+### Read and parse
+
+- **Read:** the app finds the file once. Then it runs one long-lived
+  `tail -c +<offset> -F <file>` on the machine (the chat tail), wrapped so a
+  closed channel ends it. New lines arrive as the agent writes them.
+- On open it reads the last 256 KiB and drops the first partial line. Simpler
+  choice: no older history in v1. Revisit when users ask for history older
+  than the last 256 KiB.
 - **Parse:** a small, lenient parser per agent turns lines into messages:
   user text, assistant text (Markdown), thinking (collapsed), tool calls and
   results (one collapsed row each), images. Unknown lines are skipped.
-- **Markdown:** `AttributedString(markdown:, options: .init(interpretedSyntax:
-  .full))`, split into blocks; code blocks are monospaced and scroll sideways.
+- **Markdown:** `AttributedString(markdown:)` with the `.full` syntax option,
+  split into blocks. Code blocks are monospaced and scroll sideways.
   The plugin kit's `Markdown` uses the same renderer.
 - **Session changes** (`/new`, `/resume`) do not always send an event, so
   while a chat view is open the app re-checks `agent_session` on each
   snapshot and after each send, and restarts the tail when it changes.
-- **Known limits:** pi transcripts are trees and are read in file order;
-  custom `CLAUDE_CONFIG_DIR` and `CODEX_HOME` are not followed in v1.
+- **Known limits:** pi transcripts are trees and are read in file order.
+  Custom `CLAUDE_CONFIG_DIR` and `CODEX_HOME` are not followed in v1.
 
-## Screen-text chat for every other pane
+## Screen-text chat
 
 - Agents without a parser, agents without `agent_session`, and plain
-  terminals get a "screen text" view, so any pane can switch.
+  terminals get a "screen text" view. So every agent pane and every terminal
+  pane can switch to chat. Web and plugin panes have no chat view.
 - It shows `pane.read {source:"visible", format:"text"}` as monospaced text,
   re-read every 1 s while shown and once 300 ms after each send.
 - The reply box sends `agent.prompt` to agents and `pane.send_input {text,
@@ -66,14 +74,18 @@ transcript: `agent_session` on the pane.
 - **Key guard:** while the panel is shown, its text is re-read on every
   snapshot change for that pane. On a click the app reads it once more and
   sends the key only if the agent is still blocked **and** the text is
-  unchanged; otherwise it shows "Prompt changed, not sent". The prompt may
+  unchanged. Otherwise it shows "Prompt changed, not sent". The prompt may
   have been answered on another device. A spinner tick can cause a false
   "changed", which is the safe failure.
 
 ## Switching views
 
-- The chat|term switch is a segmented control in the card header, not a
+- Agent and terminal cards have a chat|term switch. It is a segmented control in the card header, not a
   swipe, because sideways swipes belong to the strip.
 - The choice is kept in memory per pane. The Mac and the phone can show the
   same pane differently.
-- While the chat view is shown, that pane's terminal stream is closed.
+- While the chat view is shown, that pane's terminal stream is closed (after
+  `terminal.release`).
+
+What it looks like: [Pane card in chat view](/docs/ui/window#pane-card-in-chat-view),
+[Floating pills](/docs/ui/pills).

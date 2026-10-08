@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://herdlight.dev'),
+  metadataBase: new URL('https://herdlight.vercel.app'),
   title: { template: `%s | ${appName}`, default: appName },
 };
 

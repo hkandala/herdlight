@@ -11,40 +11,50 @@ protocol Exec {
     func run(_ argv: [String]) async throws -> Channel
 }
 ```
-- **This Mac:** `Process`. A GUI app does not get the shell's environment, so
+
+- **This Mac:** `Process`. A GUI app does not get the shell's environment. So
   at launch the app reads `PATH`, `SSH_AUTH_SOCK`, `XDG_CONFIG_HOME` and
   `XDG_STATE_HOME` once with `$SHELL -lic` (stdin from `/dev/null`, 3 s
   timeout, output parsed after a unique marker). On failure it uses
   `$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`. `HERDR_*`
   variables are removed from child processes.
-- **A remote machine on macOS:** the same `Process` with the prefix
-  `/usr/bin/ssh -F /dev/null -o ControlMaster=no -o BatchMode=yes -o ProxyCommand=/usr/bin/false -S <ctl> <target> --`
-  ([macOS](/docs/machines#macos)).
-- **iOS:** one Citadel connection per machine; each run is an exec channel.
+- **A remote machine on macOS:** the same `Process` with this prefix
+  ([macOS](/docs/machines#macos)):
+  ```sh
+  /usr/bin/ssh -F /dev/null -o ControlMaster=no -o BatchMode=yes \
+      -o ProxyCommand=/usr/bin/false -S <ctl> <target> --
+  ```
+- **iOS:** one Citadel connection per host. Each run is an exec channel.
 - **The remote command envelope.** ssh and Citadel hand one string to the
-  machine's login shell, which may be bash, zsh or fish, and quoting rules
-  differ between them. So the app never builds a shell string from data. It
-  sends:
+  machine's login shell, which may be bash, zsh or fish. Their quoting rules
+  differ. So the app never builds a shell string from data. It sends:
   ```sh
   sh -c 'eval "$(printf %s "$1" | base64 -d)"' sh <BASE64>
   ```
-  `<BASE64>` holds the real command as POSIX `sh` with every argv element
+  `<BASE64>` holds the real command as POSIX `sh`, with every argv element
   single-quoted. Base64 contains only `A–Z a–z 0–9 + / =`, so every shell
   passes it through unchanged.
-- **Child processes** are killed when the app quits. Bridge and control
-  children also exit when their stdin closes. Commands that ignore stdin
-  (`tail -F`, `terminal session observe`) are wrapped as
-  `sh -c '<cmd> & c=$!; cat >/dev/null; kill $c'`, so closing the channel
-  ends them and frees the SSH session.
+- **Child processes** are killed when the app quits. The app signals each
+  child by its pid, never by process group. Bridge and control children also
+  exit when their stdin closes. Commands that ignore stdin (`tail -F`,
+  `terminal session observe`) are wrapped like this, so closing the channel
+  ends them and frees the SSH session:
+  ```sh
+  sh -c '<cmd> & c=$!; cat >/dev/null; kill $c'
+  ```
 
 ## Finding herdr on a machine
 
 - herdr installs to `~/.local/bin`, which non-interactive SSH commands often
-  lack. On first connect the app resolves the path once:
-  `sh -c 'command -v herdr || for p in "$HOME/.local/bin/herdr" /opt/homebrew/bin/herdr /usr/local/bin/herdr; do [ -x "$p" ] && echo "$p" && break; done'`.
+  lack. On first connect the app finds the path once:
+  ```sh
+  sh -c 'command -v herdr || for p in "$HOME/.local/bin/herdr" \
+      /opt/homebrew/bin/herdr /usr/local/bin/herdr; do
+    [ -x "$p" ] && echo "$p" && break; done'
+  ```
 - `<herdr> remote-api-bridge --check` must print `herdr-api-bridge-v1`.
 - `ping` returns the version and protocol. Below 0.9.3 the app refuses with a
-  message. Above protocol 22 it shows a banner and keeps going; decoding is
+  message. Above protocol 22 it shows a banner and keeps going. Decoding is
   lenient.
 - Every herdr argv carries `--session <name>` (also `--session default`), so
   no inherited variable can point a command at another session.
@@ -54,10 +64,15 @@ protocol Exec {
 - `call(method, params)`: run `<herdr> --session S remote-api-bridge`, write
   one line `{"id":"1","method":"…","params":{…}}`, read one reply line, then
   close stdin. herdr answers one request per connection.
+- **Timeout:** every `call()` times out after 10 s. On a timeout the app kills
+  the bridge process (macOS) or closes the channel (iOS), shows "‹machine› did
+  not answer · Retry", and checks the machine with `ping`.
+- Long-lived streams (events, terminals, chat tails) have no timeout. The 30 s
+  `ping` checks them.
 - Cost: 18 ms median and 130 ms at p95 per call (measured locally), plus the
-  network round trip. Keystrokes never take this path.
-  Simpler choice: talk to the local socket directly (0.5 ms) if a profile
-  ever shows this hurts.
+  network round trip. Keystrokes never take this path. Simpler choice: the
+  bridge, not the local socket. Revisit when a profile shows the cost hurts:
+  talking to the local socket directly takes 0.5 ms.
 
 ## Events
 
@@ -68,89 +83,130 @@ protocol Exec {
   - `pane.created|closed|updated|moved|exited|agent_detected`
   - `layout.updated`
   - `pane.agent_status_changed`, one entry per pane listed in
-    `snapshot.agents[]` (each entry makes herdr poll that pane every 100 ms,
-    so plain shells are left out).
-  - No `*.focused` events: they fire on every herdr TUI navigation, and the
+    `snapshot.agents[]`. Each entry makes herdr poll that pane every 100 ms,
+    so plain shells are left out.
+  - No `*.focused` events. They fire on every herdr TUI navigation, and the
     app ignores herdr's focus.
-- **Any event line means "re-read `session.snapshot`"** (debounced ~100 ms).
-  Event payloads are never decoded.
-- The stream is reopened, followed by a snapshot, when the set of agent panes
-  changes, on `events_lost` (the reader fell behind herdr's 512-event
+- **Any event line means "read `session.snapshot` again".** Event payloads
+  are never decoded.
+- **Snapshot pacing, per machine:**
+  - At most one `session.snapshot` is in flight.
+  - An event starts a 100 ms debounce. More events restart it, but a read
+    starts at most 500 ms after the first event, so a steady flow of events
+    cannot hold back updates.
+  - Events that arrive during a read schedule one more read after it.
+  - After the app's own write, the read starts at once, with no debounce.
+- The stream is opened again, followed by a snapshot, when the set of agent
+  panes changes, on `events_lost` (the reader fell behind herdr's 512-event
   buffer) and on `pane_not_found` (a listed pane closed first).
 - Every 30 s the app sends `ping`. A network change or a Mac wake forces a
   check. A machine counts as live only while it answers.
 
 ## Reconcile
 
-<Flow steps={[['herdr event', 'any line on the stream'], ['debounce ~100 ms', 'bursts collapse'], ['session.snapshot', 'workspaces, tabs, panes, agents, layouts'], ['reconcile', 'stable objects, changed fields only'], ['views update', 'one row, not the window']]} />
+<Flow steps={[['herdr event', 'any line on the stream'], ['pacing', '100 ms debounce, 500 ms max, one read at a time'], ['session.snapshot', 'workspaces, tabs, panes, agents, layouts'], ['reconcile', 'stable objects, changed fields only'], ['views update', 'one row, not the window']]} />
 
 - One snapshot holds every workspace, tab, pane, agent and layout.
 - The HostStore applies it to stable `@Observable` objects (`Workspace`,
-  `Tab`, `Pane`) keyed by id, setting only fields that changed. A status flip
-  redraws one row, not the window.
+  `Tab`, `Pane`) keyed by id, and sets only the fields that changed. A status
+  change redraws one row, not the window.
 - Ids are scoped by machine (two machines can both have `w1:p1`). Terminal
-  and web cards are keyed by `(machine, terminal_id)`; plugin cards by
-  `(machine, plugin, instance id)` ([Labels and instance ids](/docs/plugins/labels)).
+  and web cards are keyed by `(machine, terminal_id)`. Plugin cards are keyed
+  by `(machine, plugin, instance id)`
+  ([Labels and instance ids](/docs/plugins/labels)).
 - Hand-written, lenient Codable models cover only the fields the app uses.
 
 ## Terminal plane
 
-```
+```text
 herdr terminal session control <terminal_id> --cols C --rows R [--takeover]
-  stdout → {"type":"terminal.frame","seq":1,"width":C,"height":R,"full":true,"bytes":"<base64 ANSI>"}
+  stdout → {"type":"terminal.frame","seq":1,"width":C,"height":R,
+            "full":true,"bytes":"<base64 ANSI>"}
            {"type":"terminal.closed","reason":"…"}
   stdin  ← {"type":"terminal.input","text":"ls\r"}
-           {"type":"terminal.resize","cols":120,"rows":40,"cell_width_px":8,"cell_height_px":17}
-           {"type":"terminal.scroll",…}   {"type":"terminal.mouse",…}   {"type":"terminal.release"}
+           {"type":"terminal.resize","cols":120,"rows":40,
+            "cell_width_px":8,"cell_height_px":17}
+           {"type":"terminal.scroll",…}
+           {"type":"terminal.mouse",…}
+           {"type":"terminal.release"}
 ```
-- herdr draws the pane at our size and sends ANSI updates. A libghostty
-  surface draws them; keys go back as `terminal.input`.
-- **What streams:** the panes of the selected tab, plus the shown floating
-  cards of the selected workspace, on the selected machine. During a swipe the
-  neighbour tab shows each card's last image (or one `pane.read visible`
-  for a card never shown); its streams start when the swipe stops.
-- **Size:** card size ÷ cell size gives cols × rows, sent when layout settles.
-  Pixel-only resizes during a divider drag are ignored. The card keeps the
-  old frame until herdr's full frame at the new size arrives. The frame's
-  `width` and `height` are the real PTY size.
-- **Streams are opened by `terminal_id`**, so they survive the pane moving,
-  even to another workspace.
-- **One controller per pane.** `control` can type and resize; `observe` only
-  watches. One rule on every device:
 
-  <Ownership />
+herdr draws the pane at our size and sends ANSI updates. A libghostty surface
+draws them. Keys go back as `terminal.input`.
 
-  1. Open as `control` without `--takeover`.
-  2. If herdr refuses (another device holds it), open as `observe` and show
-     "In use elsewhere · Take back".
-  3. The first key press, paste, or click inside the card, or Take back,
-     reopens with `--takeover`. The key is sent once the new stream's first
-     frame arrives.
-  4. Nothing else takes control. A watching card stays a watcher until its
-     user acts, even after the other device lets go.
-  5. A device sends `terminal.release` when it leaves the terminal view or
-     goes to the background.
-- **Watching on a narrow screen:** herdr does not report a pane's PTY columns,
-  and `observe` clips or pads to the watcher's size. An iPhone watches at a
-  fixed 160×50 with the font scaled to fit and pinch to zoom. Observe cannot
-  resize, so a size change restarts the stream.
-- **How a stream ends:** after a `terminal.closed` line the CLI exits 0. If it
-  cannot connect or the handshake fails, it exits 1 with the reason on stderr.
+### What streams
 
-  | Reason contains | The app |
-  |---|---|
-  | `already has an attached client` | watches; shows Take back |
-  | `taken over` | watches; never takes back by itself |
-  | `not found` or `exited` | drops the card; waits for the snapshot |
-  | `detached` | does nothing (it released the pane) |
-  | `live update` | backs off, pings, checks the version, reopens everything |
-  | handshake error (exit 1) | "Restart herdr on ‹machine›" |
+- The panes of the selected tab, plus the shown floating cards of the
+  selected workspace, on the selected machine.
+- During a swipe the neighbor tab shows each card's last image (or one
+  `pane.read visible` for a card never shown). Its streams start when the
+  swipe stops.
+- Streams are opened by `terminal_id`, so they survive the pane moving, even
+  to another workspace.
+
+### Size
+
+- Card size ÷ cell size gives cols × rows, sent when the layout settles.
+  Pixel-only resizes during a divider drag are ignored.
+- The card keeps the old frame until herdr's full frame at the new size
+  arrives.
+- A `control` frame's `width` and `height` are the real PTY size.
+
+### One controller per pane
+
+`control` can type and resize. `observe` only watches.
+
+<Ownership />
+
+1. **Mac:** open as `control` without `--takeover`. If herdr refuses (another
+   device holds the pane), open as `observe` and show "In use elsewhere ·
+   Take back".
+2. **iPhone and iPad:** open as `observe`. Looking never resizes the PTY.
+3. On any device, the first key press, paste, or click or tap inside a
+   watching card, or **Take back**, opens the stream again with
+   `--takeover`. Keys typed before the new stream's first frame are queued
+   and sent in order.
+4. Nothing else takes control. A watcher stays a watcher until its user acts,
+   even after the other device lets go.
+5. A device sends `terminal.release` before it closes a `control` stream:
+   when the card leaves the selected tab or the shown floating layer, when the
+   card switches to chat, when the user switches machines, when the window
+   closes, and when the app quits.
+6. **Background:** a Mac app that becomes inactive keeps its streams. An iOS
+   app releases its streams when it goes to the background.
+
+### Watching on a narrow screen
+
+- herdr does not report a pane's PTY columns, and `observe` clips or pads to
+  the watcher's size.
+- An iPhone watches at a fixed 160×50, with the font scaled to fit and pinch
+  to zoom. An iPad watches at its card size.
+- Observe cannot resize, so a size change restarts the stream.
+
+### How a stream ends
+
+After a `terminal.closed` line the CLI exits 0. If it cannot connect, or the
+handshake fails, it exits 1 with the reason on stderr.
+
+| Reason contains | The app |
+|---|---|
+| `already has an attached client` | watches; shows Take back |
+| `taken over` | watches; never takes back by itself |
+| `not found` or `exited` | drops the card; waits for the snapshot |
+| `detached` | does nothing (it released the pane) |
+| `live update` | backs off, pings, checks the version, opens every stream again |
+| handshake error (exit 1) | "Restart herdr on ‹machine›" |
+
+### Scrolling, queries and links
 
 - **Scrolling:** `terminal.scroll` goes to the program when it uses the mouse
   or alternate scroll (most agent TUIs). Otherwise it scrolls herdr's shared
-  viewport. The app keeps no scrollback; agent history is in the chat view.
-- **Terminal queries:** herdr already answers them; libghostty must not
-  answer again.
+  viewport. The app keeps no scrollback. Agent history is in the chat view.
+- **Terminal queries:** herdr already answers them, so libghostty must not
+  answer again. A stock libghostty would send its answers as key input. The
+  app uses a pinned libghostty-spm build with uHerdr's response-suppression
+  patch (`suppressesTerminalResponses`). [Spike S1](/docs/build-order#s1-strip)
+  checks it.
 - **Links** in terminal output open on this device, and only `http` or
   `https`.
 
@@ -159,26 +215,34 @@ herdr terminal session control <terminal_id> --cols C --rows R [--takeover]
 | User action | herdr call |
 |---|---|
 | New workspace | `workspace.create {cwd, label}` |
-| New tab | `tab.create {workspace_id, cwd}` |
+| New tab | `tab.create {workspace_id, cwd}`, with the cwd of the selected pane |
 | Split | `pane.split {target_pane_id, direction: right or down, ratio, cwd}` |
 | Drag a divider | `layout.set_split_ratio {tab_id, path, ratio}` on release; ratio kept in 0.1–0.9 |
+| Double-click a divider | `layout.set_split_ratio` with ratio 0.5 |
+| Make splits equal (⌃⌘=) | one `layout.set_split_ratio` per split; ratio = leaves on the first side ÷ all leaves under the split |
 | Swap two panes (same tab) | `pane.swap {source_pane_id, target_pane_id}` |
 | Drop on an edge of a pane in another tab | `pane.move {pane_id, destination:{type:"tab", tab_id, split, target_pane_id}}`; for left or top, then `pane.swap` |
 | Drop on a tab capsule | `pane.move {pane_id, destination:{type:"tab", tab_id, split:"right"}}` |
 | Drop on a sidebar workspace | `pane.move {pane_id, destination:{type:"new_tab", workspace_id}}` |
 | Drop on empty sidebar space | `pane.move {pane_id, destination:{type:"new_workspace"}}` |
-| Float or dock a pane | [herdr calls](/docs/floating-panes#herdr-calls) |
+| Float or dock a pane | [Floating panes: herdr calls](/docs/floating-panes#herdr-calls) |
 | Reorder tabs or workspaces | `tab.move` / `workspace.move` |
-| Close | `pane.close` / `tab.close` / `workspace.close`; asks first if an agent is working |
+| Close a pane | `pane.close`; asks first unless the pane's only foreground process is its shell (`pane.process_info`) |
+| Close a tab or workspace | `tab.close` / `workspace.close`; always asks, with the pane count |
 | Rename | `tab.rename` / `workspace.rename` |
-| Start an agent | [Agent](/docs/plugins/terminal-and-agent#agent) |
+| Start an agent | [agent.start steps](/docs/plugins/terminal-and-agent#agent) |
 | Keyboard resize (⌃⌘ + arrow) | `pane.resize {pane_id, direction, amount}` |
 
-- Every create and move passes `focus:false` (herdr's default).
+- No close can be undone.
+- Every create and move passes `focus:false`, so herdr's focus never moves.
 - `pane.move` and `pane.swap` can succeed with `changed:false` and a `reason`
   (`same_tab`, `zoomed_tab`, `cross_tab`, `no_neighbor`). The app shows the
   reason.
-- After a call the app waits for the event and the snapshot. It never patches
-  its own state by hand.
+- After its own write, the app reads the snapshot at once and keeps the drag
+  preview until the snapshot arrives. It never patches its own state by hand.
 - `pane.swap` makes herdr focus that tab and mark it seen. The herdr TUI does
   not jump. Accepted, because a swap only follows a drag.
+
+What it looks like: [Main window](/docs/ui/window),
+[Drag and drop](/docs/ui/drag-and-drop),
+[iPhone and iPad](/docs/ui/iphone-and-ipad).

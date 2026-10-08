@@ -1,4 +1,4 @@
 {
   "title": "UI design",
-  "pages": ["window", "swiping", "chat-card", "drag-and-drop", "zoom", "floating-panes", "pills", "iphone-and-ipad", "add-a-machine", "states", "theme", "accessibility"]
+  "pages": ["window", "swiping", "drag-and-drop", "floating-panes", "pills", "iphone-and-ipad", "add-a-machine", "states", "theme-and-accessibility"]
 }

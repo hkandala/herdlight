@@ -1,15 +1,21 @@
 ---
 title: "Inspirations"
-description: "Cube, Rex, One and lessons from about 25 existing herdr clients"
+description: "Cube, Rex, gorex, One and lessons from about 25 existing herdr clients"
 ---
 
-Frame-by-frame write-ups: `resources/inspirations/INSPIRATIONS.md` (Cube, Rex) and
-`resources/inspirations/ONE.md` (One).
+Frame-by-frame write-ups:
+[`INSPIRATIONS.md`](https://github.com/hkandala/herdlight/blob/main/resources/inspirations/INSPIRATIONS.md)
+(Cube, Rex) and
+[`ONE.md`](https://github.com/hkandala/herdlight/blob/main/resources/inspirations/ONE.md)
+(One). The gorex study is in
+[`gorex.md`](https://github.com/hkandala/herdlight/blob/main/resources/research/gorex.md).
 
 ## Cube Computer: a sidebar and a sideways strip
 
 ![Cube: terminal and web page side by side](/inspirations/cube-01-sidebar-terminal-and-web-page.jpg)
 ![Cube: mid-swipe, two tabs lit](/inspirations/cube-02-scrolling-web-into-studio-two-tabs-lit.jpg)
+
+*Top: a terminal and a web page side by side. Bottom: mid-swipe, two tabs lit.*
 
 Each tab is one page in a sideways strip. Content slides without resizing.
 Every tab whose page is visible is lit, so the tab bar works as a map of the
@@ -20,17 +26,41 @@ strip. Web pages sit next to terminals as equals.
 ![Rex: finished badge on a background tab](/inspirations/rex-status-04-background-tab-done-badge.jpg)
 ![Rex: tab thumbnails](/inspirations/rex-peek-02-tab-peek-live-thumbnails.jpg)
 
+*Top: a finished badge on a background tab. Bottom: live tab thumbnails.*
+
 Capsule tabs with app icons. A tab shows when its program is working and when
 it has finished. Unfocused splits are dimmed. The chrome is minimal and dark.
+
+## gorex: a Rex-like app with readable source
+
+[gorex](https://github.com/egoist/gorex) is an open-source copy of Rex,
+written in Go. It is our **reference implementation for Rex-like behavior**:
+capsule tabs, a card split tree where the 8 pt gap is the divider, header
+controls on hover, dimmed unfocused cards, one status slot per tab
+(× on hover > ▲ > ✓ > ◔), a working glyph that does not animate, a double-click
+on a divider to reset it to 0.5, a grip on hover, ⌃⌘= to make splits equal,
+tabs that shrink and fade their labels on overflow, and a window title that
+follows the active tab.
+
+gorex is **not** a reference for glass or SwiftUI. It draws every control
+itself with its own Metal renderer and uses no Apple glass API, so
+[spike S2](/docs/build-order#s2-tab-bar) stays open.
 
 ## One: a floating agent pill
 
 ![One: the pill, its toolbar and a card](/inspirations/one-03-toolbar-expanded-inbox-card.jpg)
 ![One: a card for a waiting agent](/inspirations/one-04-inbox-card-keyboard-hints.jpg)
 
+*Top: the pill, its toolbar and a card. Bottom: a card for a waiting agent.*
+
 A Mac app built on herdr. A black notch-shaped pill on the right screen edge
 holds one dot per agent. Questions and finished work open in a card next to
 it.
+
+## Arc: a sidebar per space
+
+Arc gives each space its own sidebar page and switches spaces with a sideways
+swipe on the sidebar. No image here.
 
 ## What we take
 
@@ -38,6 +68,7 @@ it.
 |---|---|
 | Cube | the sideways strip of tab pages; tabs lit while visible; web pages as panes; a sidebar tree with kind icons |
 | Rex | status inside the tab; × on hover; dimmed unfocused panes; glass on chrome only |
+| gorex | the tab status slot order; a static working glyph; double-click a divider to reset it; ⌃⌘= to make splits equal; the window title from the selected tab |
 | Arc | one sidebar page per machine, swiped sideways |
 | One | the edge pill with a glyph per agent; a card with the agent's output and a reply box |
 
@@ -46,7 +77,9 @@ app is fully dark.
 
 ## Lessons from existing herdr clients
 
-We studied about 25 herdr clients (`resources/research/repo-list.md`).
+We studied about 25 herdr clients
+([`repo-list.md`](https://github.com/hkandala/herdlight/blob/main/resources/research/repo-list.md)).
+
 | Lesson | Evidence |
 |---|---|
 | Clients that keep their own model of tabs or layout drift from herdr. | herdrm, paca, moo, allward. bigtty mirrors herdr and stays small. |
@@ -54,6 +87,7 @@ We studied about 25 herdr clients (`resources/research/repo-list.md`).
 | `herdr terminal session control` is the public way to stream one pane. | bigtty, paca, termote, pairfob. |
 | Chat views read the agent's own transcript file. | herdr-web-ui, collie, termote. |
 | Parsing approval prompts per agent costs a lot to maintain. | herdr-web-ui has 27 regex responders. |
-| Daemons on the host add install steps; SSH already does auth. | herdr-connect, pairfob, collie vs Heeler and herdr itself. |
+| Daemons on the machine add install steps. SSH already does auth. | herdr-connect, pairfob, collie vs Heeler and herdr itself. |
 | Glass behind terminal text hurts reading. | paca removed it after two days. |
 | libghostty draws terminals better than SwiftTerm on iOS. | Heeler measured both. |
+| A stock libghostty answers terminal queries a second time. | uHerdr patches it with `suppressesTerminalResponses`. |

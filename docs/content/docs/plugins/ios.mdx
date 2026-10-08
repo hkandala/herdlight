@@ -6,7 +6,8 @@ description: "Core plugins only in v1, and why"
 - v1 ships the core plugins only (Terminal, Agent, Web page, Git history, Diff,
   Markdown), inside the app. That is ordinary code shipped with the app.
 - A label for any other plugin shows the missing-plugin card with **Show
-  placeholder**.
+  placeholder** (switch the card to the pane's terminal)
+  ([State and restore](/docs/plugins/state)).
 - Later, behind a setting that is off by default: the phone reads the plugins
   from the Mac over the SSH connection it already has, keeps them in memory,
   and asks for consent again. App Store guideline 2.5.2 makes downloaded code

@@ -1,32 +1,80 @@
 ---
-title: "macOS window"
-description: "The sidebar, tab bar and strip of the main window"
+title: "Main window (Mac and iPad)"
+description: "The sidebar, tab bar, strip, pane cards and zoom of the main window"
 ---
 
 <MacWindow />
 
-- **Sidebar** (the standard floating glass sidebar of macOS 26):
-  - Top: the machine's name. Middle: the machine pages, swiped sideways.
-  - Below them, fixed: page dots (one per machine, clickable) and `+` (add a
-    machine).
-  - Bottom, fixed: the status area ([Status area and notifications](/docs/status#status-area-and-notifications)).
-- **Machine page:** herdr's workspaces, in herdr's order.
-  - Expanding a workspace lists its agent panes (icon, name, status glyph and
-    word), its web and plugin panes, and one collapsible "Terminals (n)" row.
-  - A collapsed workspace shows how many of its agents need you.
-  - Clicking a workspace selects it in the app only ([Selection and "seen" are the app's own](/docs/layout#selection-and-seen-are-the-apps-own)).
-- **Tab bar** (top of the detail column, glass): one capsule per herdr tab.
-  - Each capsule shows the icon of the pane last selected in that tab (the
-    first pane if none), and the tab label with the folder part dimmed.
-  - Status glyphs: ◔ while an agent works, ✓ when one finished and you have
-    not seen it, ▲ when one needs you. Hover shows ×.
-  - `+` makes a new tab. `⧉ n` shows or hides this workspace's floating panes
-    ([Floating panes](/docs/ui/floating-panes)).
-- **Strip:** one page per tab, full width, paged.
-  - Inside a page, pane cards follow herdr's split tree. Drag a divider to
-    resize.
-  - Each card has a thin header: kind icon, title, the view switch
-    (chat|term on agents, plugin|term on plugins), zoom and close. On macOS
-    the header controls show on hover; on iOS they always show. Every card
-    action is also in the card's context menu and the menu bar.
-  - Cards without keyboard focus are slightly dimmed.
+## Sidebar
+
+The standard floating glass sidebar of macOS 26.
+- Top: the machine's name. Middle: the machine pages, swiped sideways.
+- Below them, fixed: page dots (one per machine, clickable) and `+` (add a
+  machine).
+- Bottom, fixed: the status area
+  ([Status area and notifications](/docs/status#status-area-and-notifications)).
+
+A machine is one herdr session ([machine](/docs/reference/glossary)). The
+machine page of a non-default session on this Mac is named
+"This Mac · ‹session›".
+
+## Machine page
+
+- herdr's workspaces, in herdr's order.
+- Expanding a workspace lists its agent panes (icon, name, status glyph and
+  word), its web and plugin panes, and one collapsible "Terminals (n)" row.
+- A collapsed workspace shows how many of its agents need you.
+- Clicking a workspace selects it in the app only
+  ([Selection and "seen" are the app's own](/docs/layout#selection-and-seen-are-the-apps-own)).
+
+## Tab bar
+
+The top of the detail column, on glass. One capsule per herdr tab.
+- Each capsule shows the icon of the pane last selected in that tab (the
+  first pane if none), and the tab label with the folder part dimmed.
+- Each capsule has one status slot. It shows one glyph, in this order of
+  priority: × while the pointer is over the tab, then ▲ when an agent needs
+  you, then ✓ when one finished and you have not seen it, then ◔ while one
+  works. The ◔ glyph does not animate.
+- `+` makes a new tab. `⧉ n` shows or hides this workspace's floating panes
+  ([Floating panes](/docs/ui/floating-panes)).
+- The window title is the selected tab's label, so the Window menu and Mission
+  Control show it.
+
+## Strip
+
+- One page per tab, full width, paged.
+- Inside a page, pane cards follow herdr's split tree. Drag a divider to
+  resize. Double-click a divider to reset it to 0.5. ⌃⌘= makes every split in
+  the tab equal.
+- Cards without keyboard focus are slightly dimmed.
+
+## Pane card
+
+- Each card has a thin header: kind icon, title, the view switch, zoom and
+  close. The view switch is chat|term on agents and terminals, plugin|term on
+  plugin panes, and none on web pages.
+- On macOS the header controls show on hover. On iOS they always show. Every
+  card action is also in the card's context menu, the menu bar and ⌘K.
+- Close asks first unless the pane runs only its shell.
+
+## Pane card in chat view
+
+<ChatCard caption="If claude needs you, the blocked panel shows the bottom of the screen and key buttons. The reply box sits below it." />
+
+How the messages, the reply box and the key buttons work:
+[Chat view](/docs/chat-view).
+
+## Zoom
+
+- The zoom button, a double-click on the header, or ⇧⌘↩ zooms a card. It is
+  drawn in an opaque layer over the whole window under the tab bar. Only the
+  zoomed card resizes.
+- While a card is zoomed, the floating cards are hidden. They come back when
+  the card is unzoomed.
+- The same button or ⇧⌘↩ restores the layout. Esc is not used, because the
+  program in the pane needs it.
+
+How it works: [Layout and sizing](/docs/layout),
+[Zoom is the app's own](/docs/layout#zoom-is-the-apps-own),
+[Platform: tab bar and Liquid Glass](/docs/platform#tab-bar-and-liquid-glass).

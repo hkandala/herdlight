@@ -3,15 +3,33 @@ title: "Add a machine"
 description: "The add-machine sheet on macOS and iOS"
 ---
 
-<AddMachineSheet caption="On macOS the sheet has no public key row; herdr asks its own questions in a terminal card." />
+<AddMachineSheet caption="On macOS the sheet has no public key row. herdr asks its own questions in a terminal card." />
 
-- macOS opens a terminal card on This Mac and types `herdr machine add
-  <target> [--label L] [--remote-session S]` into it. herdr asks there about
-  unknown host keys, passwords and installing itself on the machine. When
-  `herdr machine list --json` shows the new machine, the card closes. A
+## macOS
+
+The Mac app needs herdr installed on this Mac. The machine list and the add
+command run through it. Without it, the sheet shows how to install herdr.
+
+The app opens a terminal card on This Mac and types this command into it:
+
+```sh
+herdr machine add <target> [--label L] [--remote-session S]
+```
+
+- herdr asks there about unknown host keys, passwords, and installing itself
+  on the machine.
+- When `herdr machine list --json` shows the new machine, the card closes. A
   failure stays visible in the card.
-- iOS saves the machine, connects, and runs the checks in [Checks on connect](/docs/machines#checks-on-connect).
-- macOS uses `herdr machine rename|remove`. The swipe order is This Mac's
-  sessions first, then herdr's machine list. iOS can rename, reorder and
-  remove in the app.
-- Removing a machine never touches herdr on that machine.
+- Rename and remove use `herdr machine rename|remove`.
+- The swipe order is This Mac's sessions first, then herdr's machine list.
+
+## iOS
+
+- The app saves the machine, connects, and runs the
+  [checks on connect](/docs/machines#checks-on-connect).
+- The sheet shows the device's public key to copy into `authorized_keys`.
+- Rename, reorder and remove happen in the app.
+
+Removing a machine never touches herdr on that machine.
+
+How it works: [Machines and SSH](/docs/machines).

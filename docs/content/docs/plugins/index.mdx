@@ -21,10 +21,17 @@ TypeScript and React.
   JavaScript.
 - Core plugins ship with the app. The three JS core plugins use exactly the
   public API and are the SDK's reference code.
+- A web or plugin pane is a real herdr pane with a label. In herdr it runs a
+  quiet placeholder command, so herdr TUI users see what the pane is. The
+  placeholder is cosmetic: the label is the truth
+  ([Labels and instance ids](/docs/plugins/labels)).
 - herdr's own TUI plugins are not part of this system. A pane that a herdr
   plugin opened shows as a terminal, because it is one.
 
-The picker, opened by `+`, a split, or a new floating pane:
+## The picker
+
+Opened by `+`, a split, or a new floating pane:
+
 <PanePicker />
 
 The app calls herdr only after the user picks.

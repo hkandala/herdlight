@@ -8,11 +8,11 @@ description: "What the app stores and what herdr owns"
 | Workspaces, tabs, panes, order, labels | herdr | `session.snapshot` |
 | Split tree and ratios | herdr | `snapshot.layouts[]` |
 | Terminal content and PTY | herdr | `terminal session` frames |
-| Agent kind, status, completion counter, transcript pointer | herdr | `agents[]`, `panes[]` |
-| Which panes float | herdr | a tab labelled `hl:float` |
+| Agent kind, status, `completion_seq`, transcript pointer | herdr | `agents[]`, `panes[]` |
+| Which panes float | herdr | a tab labeled `hl:float` |
 | Web page address | herdr | pane label `web:<url>` |
 | Plugin, pane kind, instance id, argument | herdr | pane label `hl:<plugin>[/<pane>]#<iid> <arg>` |
-| Plugin instance state | the machine | `$HOME/.local/state/herdlight/<session>/<plugin>/<iid>.json`, with `$HOME` read once on connect ([State and restore](/docs/plugins/state)) |
+| Plugin instance state | the machine | `$HOME/.local/state/herdlight/<session>/<plugin-id>/<iid>.json` ([State and restore](/docs/plugins/state)) |
 | Chat history | the agent | its transcript file on the machine |
 | Machines (macOS) | herdr | `herdr session list`, `herdr machine list` |
 | Machines (iOS): target, session, label, id | app, disk | `UserDefaults` |
@@ -24,12 +24,16 @@ description: "What the app stores and what herdr owns"
 | Plugin preferences | app, disk | `UserDefaults`, passwords in the Keychain |
 | Approved web origins per machine | app, disk | `UserDefaults` |
 | Web cookies | WebKit | one data store per machine |
-| Zoomed card, floating card frames, chat or terminal per pane, seen values, drafts | app | memory |
+| Zoomed card, floating card frames, chat or terminal per pane, seen values, drafts | app, per device | memory |
 | ControlMaster sockets, port forwards | app | `~/Library/Caches/hl/`, while running |
 
+`<session>` is the herdr session name. `$HOME` is the machine's home folder,
+read once on connect.
+
 <Callout title="Nothing the app saves describes herdr's state">
-Nothing the app saves describes herdr's state. A restore id that is gone
-falls back to herdr's focused workspace. A fresh install on a new device
-rebuilds every workspace, tab, pane, floating pane, web page and plugin pane
-from herdr's labels and the machines' state files ([State and restore](/docs/plugins/state)).
+The only exception is the window restore ids. A restore id that is gone falls
+back to herdr's focused workspace. A fresh install on a new device rebuilds
+every workspace, tab, pane, floating pane, web page and plugin pane from
+herdr's labels and the machines' state files
+([State and restore](/docs/plugins/state)).
 </Callout>
