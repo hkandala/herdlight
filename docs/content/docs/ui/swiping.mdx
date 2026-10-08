@@ -3,15 +3,8 @@ title: "Swiping"
 description: "Machine pages, tab pages and the keyboard shortcuts"
 ---
 
-```
- sidebar machine pages                 strip (tabs of the selected workspace)
- ┌────────┐┌────────┐┌────────┐        ┌─────────┬─────────┬─────────┬─────────┐
- │This Mac││ devbox ││ gpu-01 │ ⇠ ⇢    │ tab 1   │ tab 2   │ tab 3   │ tab 4   │ ⇠ ⇢
- └────────┘└────────┘└────────┘        └─────────┴─────────┴─────────┴─────────┘
- changes the machine; the strip        while you swipe, every tab whose page is
- shows that machine's workspace        visible is lit and the glass marker follows;
-                                       when the scroll stops, that tab is selected
-```
+<SwipeDiagram />
+
 - Two-finger swipe on a trackpad, one finger on iOS. Pages snap.
 - First visit to a machine: the app shows herdr's focused workspace and its
   active tab. Later visits: the workspace and tab the user last picked there.

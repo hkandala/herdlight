@@ -7,13 +7,14 @@ Plugins are TypeScript and React, written against our component kit
 (`@herdlight/api`), in the Raycast style. The kit renders as real SwiftUI.
 
 **How it works:**
-```
-plugin.tsx ──esbuild──▶ dist/<pane>.js
-                         │ evaluated in a JSContext (one per card), after the prelude
-                         ▼   (React 19 + a ~60-line react-reconciler host config + the API runtime)
-              React commit ──▶ JSON view tree ──▶ Swift decodes ──▶ SwiftUI components
-              SwiftUI event ──▶ __dispatch(nodeId, args) ──▶ React handler
-```
+<Flow
+  rows={[
+    [['plugin.tsx', 'React + @herdlight/api'], ['esbuild', 'dist/<pane>.js'], ['JSContext per card', 'after the prelude: React 19 + a ~60-line reconciler + the API runtime'], ['JSON view tree', 'each React commit'], ['SwiftUI kit', 'Swift decodes: List, Detail, Diff, Form…']],
+    [['SwiftUI event', 'a click, a key, a text change'], ['__dispatch(nodeId, args)', 'into the card\'s VM'], ['React handler', 'state changes, a new commit']],
+  ]}
+  caption="Top: how a plugin card renders. Bottom: how events come back."
+/>
+
 - Each plugin card gets its own `JSVirtualMachine`, `JSContext` and serial
   queue. JavaScriptCore is built into macOS and iOS.
 - Measured: React 19 with the reconciler runs in plain JavaScriptCore. One

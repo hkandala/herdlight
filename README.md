@@ -20,8 +20,8 @@ resources/
     selected/             the chosen frames from the inspiration videos
 ```
 
-The raw inspiration videos and frames (`resources/inspirations/a/`, `b/`, `c/`, `one/`) are kept
-locally only. They are not in git.
+The raw inspiration videos and frames (`resources/inspirations/cube-computer/`, `rex-status-tabs/`,
+`rex-tab-peek/`, `one-app/`) are kept locally only. They are not in git.
 
 ## Read the design
 
@@ -43,3 +43,15 @@ The site needs pnpm 10 or newer (`docs/package.json` pins it). With an older glo
 ```
 open resources/design.html
 ```
+
+## Deployment
+
+The workflow `.github/workflows/docs-deploy.yml` builds the docs site and deploys it to Vercel.
+
+- A push to `main` that changes `docs/` deploys production.
+- A push to any other branch, or a pull request, that changes `docs/` deploys a preview.
+- The address appears in the summary of the workflow run.
+
+Vercel project root directory: `docs`.
+
+The workflow needs these repository secrets: `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` and `VERCEL_TOKEN`.

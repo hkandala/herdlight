@@ -15,7 +15,7 @@ docs/.vercel/
 
 # raw inspiration videos and frames (~110 MB), kept locally only.
 # the chosen frames in resources/inspirations/selected/ are committed.
-resources/inspirations/a/
-resources/inspirations/b/
-resources/inspirations/c/
-resources/inspirations/one/
+resources/inspirations/cube-computer/
+resources/inspirations/rex-status-tabs/
+resources/inspirations/rex-tab-peek/
+resources/inspirations/one-app/

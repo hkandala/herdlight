@@ -3,15 +3,8 @@ title: "Add a machine"
 description: "The add-machine sheet on macOS and iOS"
 ---
 
-```
-┌─ Add machine ──────────────────────────────┐
-│ SSH target   [ devbox                    ] │   devbox, me@10.0.0.5, a Tailscale name
-│ Session      [ default                   ] │   herdr session name (optional)
-│ Label        [ Dev box                   ] │
-│ (iOS) Public key  ecdsa-sha2-nistp256 AAA… [Copy]
-│                              [Cancel] [Add]│
-└────────────────────────────────────────────┘
-```
+<AddMachineSheet caption="On macOS the sheet has no public key row; herdr asks its own questions in a terminal card." />
+
 - macOS opens a terminal card on This Mac and types `herdr machine add
   <target> [--label L] [--remote-session S]` into it. herdr asks there about
   unknown host keys, passwords and installing itself on the machine. When

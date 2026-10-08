@@ -3,26 +3,8 @@ title: "macOS window"
 description: "The sidebar, tab bar and strip of the main window"
 ---
 
-```
-┌─────────────────────────┬────────────────────────────────────────────────────────────────┐
-│ ● ● ●              ◧    │  (>_ api)  (✳ fix-auth ◔)  (π docs ✓)  ([web] preview)   +  ⧉ 1 │ ← tab bar (glass)
-│ This Mac                │ ┌─ ✳ claude · fix-auth ──── chat|term  ⤢  ✕ ┐┌─ >_ zsh ───────┐ │
-│ ─────────────────────── │ │                                            ││ $ npm test     │ │
-│ ▾ api-server            │ │                                            ││ ✓ 42 passing   │ │
-│     ✳ claude  ◔ working │ │   live terminal                            │└────────────────┘ │
-│     π pi      ✓ finished│ │                                            │┌─ [web] localhost:3000 ┐
-│     [web] preview       │ │                                            ││                │ │
-│     Terminals (2)       │ │                                            ││  web page      │ │
-│ ▸ web-app        1 ▲    │ │                                            ││                │ │
-│ ▸ infra                 │ └────────────────────────────────────────────┘└────────────────┘ │
-│        ● ○ ○   +        │                                                                │
-│ ─────────────────────── │                                                                │
-│ 3 working · 1 needs you │                                                                │
-│ ▲ codex needs you       │                                                                │
-│ ✓ pi finished           │                                                                │
-└─────────────────────────┴────────────────────────────────────────────────────────────────┘
-  sidebar: swipe sideways = next machine        strip: swipe sideways = next tab
-```
+<MacWindow />
+
 - **Sidebar** (the standard floating glass sidebar of macOS 26):
   - Top: the machine's name. Middle: the machine pages, swiped sideways.
   - Below them, fixed: page dots (one per machine, clickable) and `+` (add a

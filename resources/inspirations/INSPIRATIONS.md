@@ -1,6 +1,6 @@
 # UI inspirations for Herdlight
 
-Three short X videos, studied frame by frame (4 fps). Raw videos and all frames are in `a/`, `b/`, `c/`. The chosen frames are in `selected/`.
+Three short X videos, studied frame by frame (4 fps). Raw videos and all frames are in `cube-computer/`, `rex-status-tabs/`, `rex-tab-peek/`. The chosen frames are in `selected/`.
 
 | Video | Post | App | Length |
 |---|---|---|---|
@@ -57,28 +57,28 @@ Web panes are real browser views of forwarded ports, with no browser chrome insi
 - No visible Liquid Glass. The design is flat and dark, with subtle fills.
 
 ### Selected frames
-![Sidebar, tab bar in title bar, terminal + web page screen](selected/a-01-sidebar-terminal-and-web-page.jpg)
+![Sidebar, tab bar in title bar, terminal + web page screen](selected/cube-01-sidebar-terminal-and-web-page.jpg)
 *a-01: Screen 1, terminal and web page side by side. The sidebar holds the repo/session tree and the forwarded-ports card. Tabs are in the title bar.*
 
-![Mid-scroll: two tabs lit](selected/a-02-scrolling-web-into-studio-two-tabs-lit.jpg)
+![Mid-scroll: two tabs lit](selected/cube-02-scrolling-web-into-studio-two-tabs-lit.jpg)
 *a-02: Mid-swipe. The web pane slides under the sidebar edge and Studio slides in. Both "Cube web browser" and "Studio" tabs are outlined, because both screens are visible.*
 
-![Studio full-width web app](selected/a-03-studio-web-app-screen.jpg)
+![Studio full-width web app](selected/cube-03-studio-web-app-screen.jpg)
 *a-03: "Studio" screen, a single full-width web app served from the cloud machine.*
 
-![Scrolling Studio to docs](selected/a-04-scrolling-studio-into-docs.jpg)
+![Scrolling Studio to docs](selected/cube-04-scrolling-studio-into-docs.jpg)
 *a-04: Studio → /docs transition. Content keeps its width and only translates.*
 
-![Full-width terminal](selected/a-05-docs-full-width-terminal.jpg)
+![Full-width terminal](selected/cube-05-docs-full-width-terminal.jpg)
 *a-05: "/docs" screen, a single full-width Claude Code terminal. Note the scroll thumb at the bottom.*
 
-![Scrolling docs to split](selected/a-06-scrolling-docs-into-split-screen.jpg)
+![Scrolling docs to split](selected/cube-06-scrolling-docs-into-split-screen.jpg)
 *a-06: /docs → split screen. The terminal is clipped at the sidebar edge and does not resize.*
 
-![Terminal + file tree](selected/a-07-terminal-and-file-tree-screen.jpg)
+![Terminal + file tree](selected/cube-07-terminal-and-file-tree-screen.jpg)
 *a-07: Split screen with a terminal and a native "Primary worktree" file tree. The tab is the two-rectangle split glyph. The sidebar row is selected to match the focused session.*
 
-![Empty screen](selected/a-08-empty-screen-quick-actions.jpg)
+![Empty screen](selected/cube-08-empty-screen-quick-actions.jpg)
 *a-08: Empty last screen with Add Repo / New Agent / Open Terminal cards.*
 
 ---
@@ -106,22 +106,22 @@ The same Rex app, cropped to the content. pi runs in two splits. When pi starts 
 - The **unfocused split is dimmed.** Its text is greyer and its block cursor is grey and hollow-looking. The focused split has bright text and a white cursor (b-05). The difference is subtle, but it is easy to read at a glance.
 
 ### Selected frames
-![Two pi splits](selected/b-01-two-pi-splits-idle.jpg)
+![Two pi splits](selected/rex-status-01-two-pi-splits-idle.jpg)
 *b-01: Two pi splits in one tab. The pane header controls are on the right of the focused pane.*
 
-![Working, hover close](selected/b-02-both-panes-working-tab-hover-close.jpg)
+![Working, hover close](selected/rex-status-02-both-panes-working-tab-hover-close.jpg)
 *b-02: Both splits are "Working". Hovering the zsh tab shows its close ×.*
 
-![Background working dots](selected/b-03-background-tab-working-dots.jpg)
+![Background working dots](selected/rex-status-03-background-tab-working-dots.jpg)
 *b-03: On the zsh tab, the background pi tab shows animated "•••" while pi works.*
 
-![Done badge](selected/b-04-background-tab-done-badge.jpg)
+![Done badge](selected/rex-status-04-background-tab-done-badge.jpg)
 *b-04: pi finished. A blue dot badge appears on the pi tab's icon.*
 
-![Focused vs dimmed](selected/b-05-focused-vs-dimmed-pane.jpg)
+![Focused vs dimmed](selected/rex-status-05-focused-vs-dimmed-pane.jpg)
 *b-05: The left split is unfocused and dimmed. The right split is focused, with bright text and a white cursor.*
 
-![Tab state sequence](selected/b-06-tab-state-sequence.jpg)
+![Tab state sequence](selected/rex-status-06-tab-state-sequence.jpg)
 *b-06: Tab bar over time, top to bottom: idle → hover × → working "•••" → done blue badge.*
 
 ---
@@ -151,25 +151,25 @@ Same app, a full window on a light wallpaper. The tweet: *"If you three-finger s
 - The light desktop wallpaper shows that the window is translucent.
 
 ### Selected frames
-![Single terminal](selected/c-01-single-terminal-glass-window.jpg)
+![Single terminal](selected/rex-peek-01-single-terminal-glass-window.jpg)
 *c-01: Resting state: tabs in the title bar and one inset pane card. The window material is dark and translucent.*
 
-![Tab peek](selected/c-02-tab-peek-live-thumbnails.jpg)
+![Tab peek](selected/rex-peek-02-tab-peek-live-thumbnails.jpg)
 *c-02: Three-finger swipe down. The tabs expand into live thumbnails and the terminal is pushed down without resizing.*
 
-![Peek switching](selected/c-03-peek-switching-tabs.jpg)
+![Peek switching](selected/rex-peek-03-peek-switching-tabs.jpg)
 *c-03: During peek, clicking or hovering a thumbnail switches the active tab, and the content below updates.*
 
-![Transition to mission control](selected/c-04-peek-to-mission-control-transition.jpg)
+![Transition to mission control](selected/rex-peek-04-peek-to-mission-control-transition.jpg)
 *c-04: Further drag. The thumbnails fly into a grid and the terminal slides off the bottom.*
 
-![Mission control](selected/c-05-mission-control-grid.jpg)
+![Mission control](selected/rex-peek-05-mission-control-grid.jpg)
 *c-05: Mission control: a 2×2 grid of live session tiles under the "Default" group label.*
 
-![Mission control hover](selected/c-06-mission-control-hover-select.jpg)
+![Mission control hover](selected/rex-peek-06-mission-control-hover-select.jpg)
 *c-06: The hovered tile lifts (lighter backing, × appears). Click to open it.*
 
-![Peek again](selected/c-07-peek-again-after-switch.jpg)
+![Peek again](selected/rex-peek-07-peek-again-after-switch.jpg)
 *c-07: Back to the terminal, then peek again. The tab bar's thumbnails show where everything is.*
 
 ---

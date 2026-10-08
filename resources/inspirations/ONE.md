@@ -7,20 +7,20 @@ with one key. **It is built on herdr**: to answer, stop or message an agent
 from One, the agent must run in herdr. That makes it the closest existing
 product to what Herdlight's status area wants to be.
 
-Raw material is in `one/`; chosen frames are in `selected/one-*.jpg`.
+Raw material is in `one-app/`; chosen frames are in `selected/one-*.jpg`.
 
 ## Sources
 
 | What | Where | Notes |
 |---|---|---|
-| Landing page | https://getone.one/ (saved: `one/index.html`) | Live HTML/CSS mockup of the pill and Inbox; 19 s loop ("Agents ask → You answer in a keystroke → Or from your phone"). Captured 1 fps in `one/demo/t_*.jpg`; its DOM in `one/demo/demo.html` gives exact CSS. Page sections in `one/page/`. |
-| Founder video, landing page | YouTube `Xq7jUy7dch4` (`one/video.mp4`, 69 s) | Camera filming a laptop: early UI (vertical capsules, session list, chat window, recording). Frames: `one/frames/`, `one/hi/`. |
-| Launch video, 6 Oct 2026 | https://x.com/ky__zo/status/2107549434280284460 (`one/x_2107549434280284460.mp4`, 4K, 31 s) | Clean motion-graphics of the shipped UI. Frames: `one/xl/`. |
-| "Usage metrics" video, 15 Sep 2026 | https://x.com/ky__zo/status/2099679560099103115 (`one/x_2099679560099103115.mp4`, 21 s) | Real screen recording: pill hover, usage popover, torn-off chat window. Frames: `one/xs/`. |
+| Landing page | https://getone.one/ (saved: `one-app/index.html`) | Live HTML/CSS mockup of the pill and Inbox; 19 s loop ("Agents ask → You answer in a keystroke → Or from your phone"). Captured 1 fps in `one-app/demo/t_*.jpg`; its DOM in `one-app/demo/demo.html` gives exact CSS. Page sections in `one-app/page/`. |
+| Founder video, landing page | YouTube `Xq7jUy7dch4` (`one-app/video.mp4`, 69 s) | Camera filming a laptop: early UI (vertical capsules, session list, chat window, recording). Frames: `one-app/frames/`, `one-app/hi/`. |
+| Launch video, 6 Oct 2026 | https://x.com/ky__zo/status/2107549434280284460 (`one-app/x_2107549434280284460.mp4`, 4K, 31 s) | Clean motion-graphics of the shipped UI. Frames: `one-app/xl/`. |
+| "Usage metrics" video, 15 Sep 2026 | https://x.com/ky__zo/status/2099679560099103115 (`one-app/x_2099679560099103115.mp4`, 21 s) | Real screen recording: pill hover, usage popover, torn-off chat window. Frames: `one-app/xs/`. |
 | Remote machines guide | https://getone.one/docs/remote-machines | How the connector reads herdr and acts on agents. |
 | Privacy policy | https://getone.one/privacy | What is sent where; permissions. |
 | Third-party write-up | https://cellcog.ai/blog/one-app-coding-agents/ | Launch date, pricing, agent list. |
-| Images | `one/img/` | Logo/mascot, agent icons (claude, codex, opencode, pi, omp, amp, grok), dock icons, hero background, OG image. |
+| Images | `one-app/img/` | Logo/mascot, agent icons (claude, codex, opencode, pi, omp, amp, grok), dock icons, hero background, OG image. |
 
 No changelog or docs index exists (`/changelog`, `/docs` return 404). No
 Product Hunt page found. The author is kyzo (@ky__zo).
@@ -42,7 +42,7 @@ Product Hunt page found. The author is kyzo (@ky__zo).
 - **How it gets agent state** (stated):
   - Onboarding: "One can see your local agent sessions… One reads the visible
     output of your terminals and your agents' recent transcripts" (frame
-    `one/hi/f_20.5.jpg`).
+    `one-app/hi/f_20.5.jpg`).
   - FAQ: agents in other terminals "still show up", but answering, stopping
     or messaging needs herdr. "Move to herdr and send" closes the agent in
     the other terminal and reopens the same conversation in herdr. Every
@@ -65,7 +65,7 @@ Product Hunt page found. The author is kyzo (@ky__zo).
 
 ### 1. Collapsed pill (resting state)
 ![Collapsed pill: black side-notch with two working spinners](selected/one-01-pill-collapsed-working.jpg)
-*Collapsed: a black tab glued to the right screen edge, one status glyph per agent. Here two agents work (blue spinning rings). Landing-page mockup, `one/demo/t_00.jpg`.*
+*Collapsed: a black tab glued to the right screen edge, one status glyph per agent. Here two agents work (blue spinning rings). Landing-page mockup, `one-app/demo/t_00.jpg`.*
 
 - Shape from the DOM: a 25 × 104 px SVG, `fill="#000"`, path
   `M25 0 C25 18.7 0 3.3 0 22 L0 82 C0 100.7 25 85.3 25 104 Z`. The top and
@@ -78,13 +78,13 @@ Product Hunt page found. The author is kyzo (@ky__zo).
   blue `#0a84ff` top segment, spinning (0.95 s and 1.3 s per turn, so
   neighbours don't spin in sync); needs you = solid amber dot (~`#ffc542`);
   done = solid green `#30d158`; idle/seen = grey dot.
-- Height grows with the agent count (frame `one/xl/f_016.jpg`: 4 glyphs).
-- In the real recording (`one/xs/f_001.jpg`) the pill is only a thin dark
+- Height grows with the agent count (frame `one-app/xl/f_016.jpg`: 4 glyphs).
+- In the real recording (`one-app/xs/f_001.jpg`) the pill is only a thin dark
   sliver at the edge until the pointer comes near it.
 
 ### 2. Attention toast ("Agent needs you")
 ![Toast next to the pill](selected/one-02-pill-agent-needs-you-toast.jpg)
-*A black capsule toast slides out to the left of the pill when an agent becomes blocked; the mascot sits under it. Launch video, `one/xl/f_016.jpg`.*
+*A black capsule toast slides out to the left of the pill when an agent becomes blocked; the mascot sits under it. Launch video, `one-app/xl/f_016.jpg`.*
 
 Other one-line toasts seen under the Inbox card: "Sent to claude-7" with a
 green check, "Press 1, 2 or 3 to answer", "Both agents are back at work."
@@ -106,7 +106,7 @@ green check, "Press 1, 2 or 3 to answer", "Both agents are back at work."
   cards, or green dot when there is finished work); agents capsule (one
   11 px glyph per agent); Router capsule (mascot = Talk, mic, camera = point
   at screen); "…" (more). The Sept build also had bug report, settings, logs
-  and usage (`one/xs/f_002.jpg`).
+  and usage (`one-app/xs/f_002.jpg`).
 - Hovering a dot shows a small label pill to its left: "● Working",
   "● Needs you" (`selected/one-14`).
 
@@ -118,7 +118,7 @@ green check, "Press 1, 2 or 3 to answer", "Both agents are back at work."
 *One card per waiting agent. Header: agent name, page dots (which card of how many), J / K to move, ? for help, Esc to close. Then status line, the last user message (blue bubble), the agent's last message (grey bubble), the question in bold, numbered options, and a reply row. Launch video.*
 
 - Opens to the left of the toolbar, top-aligned with the Inbox button, with a
-  small pointer nub toward it (`one/demo/t_05.jpg`).
+  small pointer nub toward it (`one-app/demo/t_05.jpg`).
 - Status line: agent icon with a coloured badge + "Waiting for your answer ·
   web" (the `· web` is the project/folder).
 - Options are full-width rounded rows with a key cap "1", "2", "3"; the
@@ -154,15 +154,15 @@ then advances to the next waiting agent; the status line reads "Answer sent".
 *Double-tap Option (or click the mascot/mic). The mic turns into a red waveform and a wide black capsule shows the live transcript. One picks the agent and confirms "Sent to @codex-9 · remote vps".*
 
 In the early build, recording showed a red mic with a trash/pause capsule,
-and the camera offered "Capture a region" (`one/hi/f_64.jpg`). After sending,
-the mic button briefly turns into a big green check (`one/hi/f_67.8.jpg`).
+and the camera offered "Capture a region" (`one-app/hi/f_64.jpg`). After sending,
+the mic button briefly turns into a big green check (`one-app/hi/f_67.8.jpg`).
 
 ### 10. Chat window (torn off)
 ![Torn-off chat window](selected/one-10-chat-window-torn-off.jpg)
 *Opening an agent shows a floating chat window: icon, title, "OpenCode in herdr · one · finished", green dot, transcript bubbles with tool lines ("⚙ bash") and times, and a composer (camera, mic, "Reply to …", send). The hand cursor shows it can be dragged off the list.*
 
 Header controls in the founder video: open in terminal (↗) and close (×)
-(`one/hi/f_53.jpg`). The user's message footer shows "1 screenshot · 15:33 ·
+(`one-app/hi/f_53.jpg`). The user's message footer shows "1 screenshot · 15:33 ·
 sent ✓", and a live "Release One 0.1.12 is working…" row with a blue spinner.
 
 ### 11. Usage popover
@@ -177,7 +177,7 @@ sent ✓", and a live "Release One 0.1.12 is working…" row with a blue spinner
 
 | Input | Effect | Source |
 |---|---|---|
-| Hover the pill / its hot zone | Expands to the toolbar | DOM transition; `one/xs/f_001-002` |
+| Hover the pill / its hot zone | Expands to the toolbar | DOM transition; `one-app/xs/f_001-002` |
 | Click Inbox button | Opens the Inbox card | launch video `xl/f_047` |
 | Hover or click the dots capsule | Opens the agent list | founder video `hi/f_32.5` (pointer on the dots), launch video |
 | 1 / 2 / 3 | Answer the numbered question | homepage |

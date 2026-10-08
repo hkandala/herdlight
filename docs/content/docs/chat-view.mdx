@@ -5,6 +5,8 @@ description: "Transcripts, screen-text chat, sending, answering and switching vi
 
 ## Where messages come from
 
+<Flow steps={[['agent_session', 'pi: path · Claude/Codex: id'], ['find file', 'ls · lsof for Codex'], ['tail -c +N -F', 'new lines as they are written'], ['parser', 'user · assistant · thinking · tools'], ['messages', 'Markdown, collapsed tools']]} />
+
 herdr keeps no chat history, but it knows where each agent writes its own
 transcript: `agent_session` on the pane.
 

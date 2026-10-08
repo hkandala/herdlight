@@ -3,22 +3,12 @@ title: "Floating pills (macOS)"
 description: "The status pill on the Mac screen edge, its list and its card"
 ---
 
-```
-                         card (opens to the left of the pill)            pill (right screen edge)
-  ┌───────────────────────────────────────────────┐   list (click the pill)   ┌─╮
-  │ >_ codex · infra · devbox                   ✕ │   ┌─────────────────────┐ │ │
-  │ ▲ Needs you: waiting for an answer            │   │ THIS MAC            │ │◔│ claude
-  │ ┌───────────────────────────────────────────┐ │   │ ✳ claude  ◔ working │ │✓│ pi
-  │ │ ? Allow command? terraform apply          │ │   │   api-server        │ │▲│ codex
-  │ │   1. Yes  2. Yes, always  3. No           │ │   │ π pi      ✓ finished│ │ │
-  │ └───────────────────────────────────────────┘ │   │   docs              │ └─╯
-  │ [1] [2] [3] [↑] [↓] [Enter] [Esc]             │   │ DEVBOX              │
-  │ ┌───────────────────────────────────────┐  ↑  │   │ >_ codex  ▲ needs you│
-  │ │ Reply to codex…                       │     │   │   infra             │
-  │ └───────────────────────────────────────┘     │   └─────────────────────┘
-  │ Mark seen                Open in app  ⌘↩      │
-  └───────────────────────────────────────────────┘
-```
+<PillsDemo />
+
+The card of a blocked agent, as a peek opens it:
+
+<PillCard state="blk" />
+
 - **Pill:** a black notch-shaped tab on the right screen edge, vertically
   centred, away from the top-right banners and the Dock. One status glyph
   per agent across all machines, in a stable order (machine, then

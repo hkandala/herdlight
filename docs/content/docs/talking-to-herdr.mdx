@@ -82,6 +82,8 @@ protocol Exec {
 
 ## Reconcile
 
+<Flow steps={[['herdr event', 'any line on the stream'], ['debounce ~100 ms', 'bursts collapse'], ['session.snapshot', 'workspaces, tabs, panes, agents, layouts'], ['reconcile', 'stable objects, changed fields only'], ['views update', 'one row, not the window']]} />
+
 - One snapshot holds every workspace, tab, pane, agent and layout.
 - The HostStore applies it to stable `@Observable` objects (`Workspace`,
   `Tab`, `Pane`) keyed by id, setting only fields that changed. A status flip
@@ -115,6 +117,9 @@ herdr terminal session control <terminal_id> --cols C --rows R [--takeover]
   even to another workspace.
 - **One controller per pane.** `control` can type and resize; `observe` only
   watches. One rule on every device:
+
+  <Ownership />
+
   1. Open as `control` without `--takeover`.
   2. If herdr refuses (another device holds it), open as `observe` and show
      "In use elsewhere · Take back".

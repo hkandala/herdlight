@@ -3,7 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "prebuild": "node scripts/copy-overview.mjs",
     "build": "next build",
+    "predev": "node scripts/copy-overview.mjs",
     "dev": "next dev",
     "start": "next start",
     "types:check": "fumadocs-mdx && next typegen && tsc --noEmit",

@@ -3,28 +3,8 @@ title: "Architecture"
 description: "The pieces of the app and how they reach each machine"
 ---
 
-```
-┌──────────────────────────────── App (SwiftUI, macOS + iOS) ─────────────────────────────────┐
-│ Views: Sidebar · TabBar · Strip · PaneCard (Terminal | Chat | Web | Plugin) · Floating ·    │
-│        StatusArea · Pills (macOS)                                                           │
-│ PaneViewRegistry: keeps terminal views, web pages and plugin cards alive                    │
-│ PluginRegistry + PluginHost: plugin manifests, one JavaScript VM per plugin card            │
-│ HostStore (one per machine): snapshot → stable @Observable objects; call(); streams        │
-└───────────────────────────────────────┬─────────────────────────────────────────────────────┘
-                                        │ Exec.run(argv) → stdin / stdout
-             ┌──────────────────────────┴──────────────────────────┐
-             │ macOS: ProcessExec(prefix)                           │ iOS: CitadelExec
-             │   this Mac: prefix = []                              │   one SSH connection per machine,
-             │   remote:   prefix = [ssh -F /dev/null … -S ctl, --] │   one exec channel per run
-             └──────────────────────────┬──────────────────────────┘
-                                        ▼
-   ┌──────────────────────────── on the machine ───────────────────────────┐
-   │ herdr remote-api-bridge             → herdr.sock (JSON, 1 request each)│
-   │ herdr terminal session control …    → live frames for one pane         │
-   │ tail -c +N -F <transcript>          → chat view                        │
-   │ git, cat, … (plugin exec)           → plugin data                      │
-   └────────────────────────────────────────────────────────────────────────┘
-```
+<Architecture />
+
 
 | Piece | Platform | Job |
 |---|---|---|

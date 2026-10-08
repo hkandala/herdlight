@@ -3,17 +3,8 @@ title: "Floating panes"
 description: "Cards that float above the strip"
 ---
 
-```
-┌─────────────┬──────────────────────────────────────────────────────────────┐
-│ sidebar     │  (>_ api) (✳ fix-auth) (π docs)               +   ⧉ 2       │
-│             │ ┌─ ✳ claude ───────────────────┐┌─ >_ zsh ───────────────┐  │
-│             │ │                ┌─ >_ scratch ─────────── ⤓ ⤢ ✕ ┐       │  │
-│             │ │                │ $ git log --oneline           │       │  │ ← floating card:
-│             │ │                │ a1b2c3 fix auth               │       │  │   drag the header,
-│             │ │                │                               │◢      │  │   resize the corner
-│             │ └────────────────└───────────────────────────────┘───────┘  │
-└─────────────┴──────────────────────────────────────────────────────────────┘
-```
+<MacWindow floating caption={<><b>Try:</b> drag the scratch card by its header, resize it from its corner, and press <b>⧉ 1</b> to hide or show it.</>} />
+
 - Any pane (terminal, agent, web page, plugin) can float above the strip of
   its workspace. A floating card has the normal header plus **Dock** (⤓),
   which moves it into the selected tab.
