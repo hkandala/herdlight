@@ -19,6 +19,8 @@ final class HostStore {
         var tabs: [Tab] = []
         /// The app's own selection, never herdr's focus. Starts at herdr's active tab.
         var selectedTabID: String?
+        /// The strip's scroll offset in pages (1.5 = halfway from the second tab to the third), for the tab marker.
+        var page = 0.0
 
         init(id: String) {
             self.id = id

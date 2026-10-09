@@ -41,30 +41,37 @@ struct TitleBar: View {
     }
 }
 
-/// The workspace's tabs as capsules; one glass marker morphs to the selected one.
+/// The workspace's tabs as capsules on one glass marker that follows the strip's scroll offset: between two
+/// capsules while the strip is between their pages. The tabs whose pages are in view are lit.
 private struct TabBar: View {
     let workspace: HostStore.Workspace
-    @Namespace private var glass
     @State private var hovered: String?
+    /// Each capsule's frame in the bar, for the marker.
+    @State private var frames: [String: CGRect] = [:]
 
     var body: some View {
+        let tabs = workspace.tabs
+        // Pages floor(x/w) through ceil((x+w)/w) − 1, that is floor(page)...ceil(page).
+        let lit = Int(workspace.page.rounded(.down)) ... Int(workspace.page.rounded(.up))
         ScrollViewReader { proxy in
             ScrollView(.horizontal) {
-                GlassEffectContainer {
-                    HStack(spacing: 2) {
-                        ForEach(Array(workspace.tabs.enumerated()), id: \.element.id) { index, tab in
-                            if index > 0 {
-                                // Only between two flat capsules.
-                                let quiet = [tab.id, workspace.tabs[index - 1].id].contains {
-                                    $0 == workspace.selectedTabID || $0 == hovered
-                                }
-                                Divider().frame(height: 16).opacity(quiet ? 0 : 1)
-                            }
-                            TabCapsule(tab: tab, workspace: workspace, glass: glass)
-                                .onHover { hovered = $0 ? tab.id : hovered == tab.id ? nil : hovered }
+                HStack(spacing: 2) {
+                    ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
+                        if index > 0 {
+                            // Only between two flat capsules.
+                            let quiet = lit.contains(index) || lit.contains(index - 1)
+                                || [tab.id, tabs[index - 1].id].contains(hovered)
+                            Divider().frame(height: 16).opacity(quiet ? 0 : 1)
                         }
+                        TabCapsule(tab: tab, workspace: workspace, lit: lit.contains(index))
+                            .onHover { hovered = $0 ? tab.id : hovered == tab.id ? nil : hovered }
+                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("tabs")) } action: {
+                                frames[tab.id] = $0
+                            }
                     }
                 }
+                .background(alignment: .topLeading) { marker(tabs) }
+                .coordinateSpace(.named("tabs"))
             }
             .scrollIndicators(.never)
             // Capsules fade out at the edges instead of being cut.
@@ -87,22 +94,35 @@ private struct TabBar: View {
             }
         }
     }
+
+    /// The marker: the capsule frame of the page in view, blended toward the next one by the scroll's fraction.
+    private func marker(_ tabs: [HostStore.Tab]) -> some View {
+        let page = min(max(workspace.page, 0), Double(max(tabs.count - 1, 0)))
+        let index = Int(page), fraction = page - Double(index)
+        let frame = { tabs.indices.contains($0) ? frames[tabs[$0].id] : nil }
+        let from = frame(index) ?? .zero, next = frame(index + 1) ?? from
+        return Color.clear
+            .frame(width: from.width + (next.width - from.width) * fraction, height: from.height)
+            .glassEffect(.regular, in: .capsule)
+            .offset(x: from.minX + (next.minX - from.minX) * fraction, y: from.minY)
+            .allowsHitTesting(false)
+    }
 }
 
 /// One tab; its own view, so a status change redraws this capsule only (design D6).
 private struct TabCapsule: View {
     let tab: HostStore.Tab
     let workspace: HostStore.Workspace
-    let glass: Namespace.ID
+    /// Its page is in view.
+    let lit: Bool
 
     var body: some View {
         let selected = tab.id == workspace.selectedTabID
-        Button {
-            withAnimation(.snappy) { workspace.selectedTabID = tab.id }
-        } label: {
+        // The strip scrolls to the new selection and the marker follows, as during a swipe.
+        Button { workspace.selectedTabID = tab.id } label: {
             HStack(spacing: 8) {
                 IconTile()
-                Text(tab.label).lineLimit(1)
+                Text(tab.label).lineLimit(1).foregroundStyle(lit ? .primary : .secondary)
                 StatusGlyph(status: tab.status)
             }
             .padding(.leading, 5)
@@ -111,8 +131,6 @@ private struct TabCapsule: View {
             .frame(minWidth: 120, maxWidth: 220, alignment: .leading)
         }
         .buttonStyle(ChromeStyle(radius: 15))
-        .glassEffect(selected ? .regular.interactive() : .identity, in: .capsule)
-        .glassEffectID(selected ? "marker" : tab.id, in: glass)
         .accessibilityIdentifier("tab.\(tab.id)")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }

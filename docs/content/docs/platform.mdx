@@ -59,13 +59,13 @@ If [spike S1](/docs/build-order#s1-strip) fails, the strip becomes one AppKit or
 ## Tab bar and Liquid Glass
 
 - The tab bar is one `ToolbarItem` with `.sharedBackgroundVisibility(.hidden)`
-  (no double glass), holding a horizontal `ScrollView` and a
-  `GlassEffectContainer`.
+  (no double glass), holding a horizontal `ScrollView`. v0 has no toolbar
+  item: the tab bar is a row in the hidden title bar (phase 3b).
 - One glass marker follows the strip's scroll offset
   (`onScrollGeometryChange`). The lit tabs come from the same number: every
   tab from `floor(x/w)` to `ceil((x+w)/w) − 1`. When the scroll stops, the
-  selection changes inside `withAnimation` and the marker morphs
-  (`glassEffectID`).
+  selection changes to the page in view. A click on a tab scrolls the strip
+  there, so the marker slides as during a swipe; nothing morphs.
 - If the toolbar squeezes the item ([spike S2](/docs/build-order#s2-tab-bar)),
   the window hides its title bar and the tab bar sits at the top of the
   detail column with `WindowDragGesture`.
