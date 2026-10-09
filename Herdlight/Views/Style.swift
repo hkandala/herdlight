@@ -4,6 +4,7 @@ import SwiftUI
 extension Color {
     /// Over the frosted window: dark, so the desktop shows through only softly.
     static let tint = Color.black.opacity(0.4)
+    /// Lighter than the window, so cards float on it.
     static let card = Color.white.opacity(0.04)
     static let hairline = Color.white.opacity(0.09)
 }
@@ -34,6 +35,7 @@ struct IconTile: View {
             .frame(width: 22, height: 18)
             .background(.black.opacity(0.55), in: .rect(cornerRadius: 5))
             .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.hairline))
+            .accessibilityHidden(true)
     }
 }
 
@@ -45,25 +47,23 @@ struct ChromeStyle: ButtonStyle {
     var tint: Color?
 
     func makeBody(configuration: Configuration) -> some View {
-        Chrome(configuration: configuration, selected: selected, radius: radius, tint: tint)
+        Chrome(style: self, configuration: configuration)
     }
 
     struct Chrome: View {
+        let style: ChromeStyle
         let configuration: Configuration
-        let selected: Bool
-        let radius: CGFloat
-        let tint: Color?
         @State private var hovering = false
         @Environment(\.isEnabled) private var enabled
 
         var body: some View {
-            let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-            let fill = selected ? 0.16 : configuration.isPressed ? 0.1 : hovering && enabled ? 0.06 : 0
+            let shape = RoundedRectangle(cornerRadius: style.radius, style: .continuous)
+            let white = style.selected ? 0.16 : configuration.isPressed ? 0.1 : hovering && enabled ? 0.06 : 0
             configuration.label
                 .contentShape(shape)
-                .background(selected ? tint ?? .white.opacity(fill) : .white.opacity(fill), in: shape)
-                .overlay(shape.strokeBorder(Color.hairline.opacity(selected ? 1 : 0)))
-                .shadow(color: .black.opacity(selected ? 0.3 : 0), radius: 4, y: 1)
+                .background(style.selected ? style.tint ?? .white.opacity(white) : .white.opacity(white), in: shape)
+                .overlay(shape.strokeBorder(Color.hairline.opacity(style.selected ? 1 : 0)))
+                .shadow(color: .black.opacity(style.selected ? 0.3 : 0), radius: 4, y: 1)
                 .opacity(enabled ? 1 : 0.4)
                 .onHover { hovering = $0 }
         }
@@ -74,13 +74,15 @@ struct ChromeStyle: ButtonStyle {
 struct IconButton: View {
     let symbol: String
     let help: String
+    /// Dimmer, for controls that do nothing yet.
+    var quiet = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.secondary)
+                .fontWeight(.medium)
+                .foregroundStyle(quiet ? HierarchicalShapeStyle.tertiary : .secondary)
                 .frame(width: 28, height: 28)
         }
         .buttonStyle(ChromeStyle(radius: 7))
@@ -89,22 +91,53 @@ struct IconButton: View {
     }
 }
 
-/// The filter field of the sidebar and the session picker.
+/// The filter field of the sidebar and the session list. Until clicked (or with `autofocus`) it is plain text,
+/// so the window has no text field to hand the keyboard to at launch; keys belong to the panes.
 struct FilterField: View {
     let prompt: String
     @Binding var text: String
     let identifier: String
+    var autofocus = false
+    @State private var editing = false
+    @FocusState private var focused: Bool
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "line.3.horizontal.decrease.circle").foregroundStyle(.secondary)
-            TextField(prompt, text: $text)
-                .textFieldStyle(.plain)
-                .accessibilityIdentifier(identifier)
+            Image(systemName: "line.3.horizontal.decrease.circle")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            if editing || autofocus || !text.isEmpty {
+                TextField(prompt, text: $text)
+                    .textFieldStyle(.plain)
+                    .focused($focused)
+                    .task {
+                        // ponytail: focus asked for as the field appears is dropped (AppKit has not made it a
+                        // key view yet); a short wait works. Upgrade: an AppKit field that takes first responder
+                        // in viewDidMoveToWindow.
+                        try? await Task.sleep(for: .milliseconds(100))
+                        focused = true
+                    }
+                    .onChange(of: focused) { editing = focused }
+                    .accessibilityIdentifier(identifier)
+            } else {
+                Text(prompt)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier(identifier)
+            }
         }
-        .font(.system(size: 13))
         .padding(.horizontal, 8)
-        .frame(height: 28)
+        .padding(.vertical, 5)
         .background(.white.opacity(0.07), in: .capsule)
+        .contentShape(.capsule)
+        .onTapGesture { editing = true }
+    }
+}
+
+extension String {
+    /// Whether this label passes a typed filter: trimmed, case and accent blind, empty passes all.
+    func matches(_ filter: String) -> Bool {
+        let filter = filter.trimmingCharacters(in: .whitespaces)
+        return filter.isEmpty || localizedStandardContains(filter)
     }
 }
