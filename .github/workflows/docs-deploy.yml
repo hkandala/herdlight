@@ -1,7 +1,9 @@
 name: deploy docs
 
+# main deploys production; pull requests (and manual runs on other branches) only build
 on:
   push:
+    branches: [main]
     paths:
       - 'docs/**'
       - 'resources/design.html'
@@ -12,21 +14,22 @@ on:
       - 'docs/**'
       - 'resources/design.html'
       - 'resources/inspirations/selected/**'
+      - '.github/workflows/docs-deploy.yml'
   workflow_dispatch:
 
 concurrency:
   group: docs-deploy-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-  # production only for pushes (or manual runs) on main; everything else is a preview
-  PROD: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+permissions:
+  contents: read
 
 jobs:
-  deploy:
+  docs:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PROD: ${{ github.ref == 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -37,15 +40,19 @@ jobs:
           node-version: 22
           cache: pnpm
           cache-dependency-path: docs/pnpm-lock.yaml
-      - name: install vercel cli
-        run: npm install -g vercel@latest
-      - name: pull vercel project settings
-        run: vercel pull --yes --environment=${{ env.PROD == 'true' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
-      - name: build with vercel
-        run: vercel build ${{ env.PROD == 'true' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
-      - name: deploy to vercel
-        id: deploy
+      - name: build
+        if: env.PROD != 'true'
+        working-directory: docs
+        run: pnpm install --frozen-lockfile && pnpm build
+      - name: deploy production to vercel
+        if: env.PROD == 'true'
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          url=$(vercel deploy --prebuilt ${{ env.PROD == 'true' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }})
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "${{ env.PROD == 'true' && 'Production' || 'Preview' }}: $url" >> "$GITHUB_STEP_SUMMARY"
+          npm install -g vercel@latest
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel build --prod --token="$VERCEL_TOKEN"
+          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "Production: $url" >> "$GITHUB_STEP_SUMMARY"

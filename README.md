@@ -48,9 +48,9 @@ open resources/design.html
 
 The workflow `.github/workflows/docs-deploy.yml` builds the docs site and deploys it to Vercel.
 
-- A push to `main` that changes `docs/` deploys production.
-- A push to any other branch, or a pull request, that changes `docs/` deploys a preview.
-- The address appears in the summary of the workflow run.
+- A push to `main` that changes `docs/` deploys production. The address appears in the summary of the workflow run.
+- A pull request that changes `docs/` only builds the site, to catch errors. It does not deploy.
+- There are no preview deployments.
 
 Vercel project root directory: `docs`.
 
