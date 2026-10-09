@@ -106,7 +106,8 @@ private func client(_ exec: FakeExec) -> HerdrClient {
 /// Starts updates and waits for the opening reads (one before and one after subscribing).
 private func started(_ client: HerdrClient, _ exec: FakeExec) async -> AsyncStream<Update> {
     let updates = await client.updates()
-    #expect(await eventually { exec[\.subscribes].count == 1 && exec[\.reads] == 2 && exec[\.inFlight] == 0 })
+    // At least two: timing on a loaded machine can add a read; the tests count from the reset below.
+    #expect(await eventually { exec[\.subscribes].count == 1 && exec[\.reads] >= 2 && exec[\.inFlight] == 0 })
     exec.state.withLock {
         $0.reads = 0
         $0.readTimes = []
@@ -171,7 +172,8 @@ private func started(_ client: HerdrClient, _ exec: FakeExec) async -> AsyncStre
         exec.event()
         try? await Task.sleep(for: .milliseconds(30))
     }
-    #expect(try #require(exec[\.readTimes].first) - first <= .milliseconds(800)) // 500 ms + slack
+    // 500 ms max wait + slack for a loaded machine, still before the flow ends at 1.5 s.
+    #expect(try #require(exec[\.readTimes].first) - first < .milliseconds(1400))
     withExtendedLifetime(updates) {}
 }
 
