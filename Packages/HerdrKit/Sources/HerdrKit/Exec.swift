@@ -67,7 +67,7 @@ public struct Channel: Sendable {
                     var seen = false
                     // Stop at the second marker: a process the shell started may keep stdout open.
                     for await line in channel.lines {
-                        if line == marker {
+                        if line.hasSuffix(marker) { // an rc file may print without a final newline
                             if seen {
                                 break
                             }
@@ -146,26 +146,39 @@ public struct Channel: Sendable {
                 endedContinuation.yield($0.terminationStatus)
                 endedContinuation.finish()
             }
-            try process.run()
-            let pid = process.processIdentifier
-            children.withLock { _ = $0.insert(pid) }
+            // Under the lock, so a child that ends at once cannot be removed before it is added.
+            let pid = try children.withLock {
+                try process.run()
+                $0.insert(process.processIdentifier)
+                return process.processIdentifier
+            }
 
             let (lines, linesContinuation) = AsyncStream<String>.makeStream()
             // Ending the stream too, so a reader never waits on a child that ignores the signal.
             let terminate: @Sendable () -> Void = {
-                if children.withLock({ $0.contains(pid) }) {
-                    kill(pid, SIGKILL)
+                children.withLock {
+                    if $0.contains(pid) {
+                        kill(pid, SIGKILL)
+                    }
                 }
                 linesContinuation.finish()
             }
             linesContinuation.onTermination = { _ in terminate() }
             split(stdout.fileHandleForReading, into: linesContinuation)
             let errorOutput = chunks(stderr.fileHandleForReading)
-            let errors = Task { await String(decoding: errorOutput.reduce(Data(), +), as: UTF8.self) }
+            let errors = Task {
+                var data = Data()
+                for await chunk in errorOutput {
+                    // Only the tail: long-lived streams may log for hours.
+                    data = (data + chunk).suffix(8192)
+                }
+                return String(decoding: data, as: UTF8.self)
+            }
             let status = Task { await ended.first { _ in true } ?? -1 }
             let input = stdin.fileHandleForWriting
             return Channel(
                 lines: lines,
+                // ponytail: blocks the caller while the pipe is full; phase 4 moves terminal writes off the main actor.
                 write: { try? input.write(contentsOf: Data(($0 + "\n").utf8)) },
                 closeInput: { try? input.close() },
                 terminate: terminate,
