@@ -64,8 +64,8 @@ final class HerdlightUITests: XCTestCase {
         XCTAssertEqual(app.windows.firstMatch.title, "second")
 
         element("workspace.w2").click()
-        XCTAssertTrue(element("tab.w2:t1").waitForExistence(timeout: 2))
-        XCTAssertFalse(element("tab.w1:t1").exists)
+        XCTAssertTrue(element("page.w2:t1").waitForExistence(timeout: 2))
+        XCTAssertFalse(element("page.w1:t1").exists)
         XCTAssertTrue(element("pane.w2:p1").exists)
         keepScreenshot("second workspace")
     }
@@ -82,18 +82,83 @@ final class HerdlightUITests: XCTestCase {
     }
 
     func testSwitchesSessions() {
-        let picker = element("sidebar.session-picker")
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
-        picker.click()
-        let other = app.menuItems["This Mac · \(two)"]
+        element("titlebar.session-picker").click()
+        let other = element("session.\(two)")
         XCTAssertTrue(other.waitForExistence(timeout: 2))
-        XCTAssertTrue(app.menuItems["This Mac · \(one)"].exists)
+        XCTAssertTrue(element("session.\(one)").exists)
         other.click()
 
-        // Reading `value` of a missing element fails the test, so check that it exists first.
+        // Reading `label` of a missing element fails the test, so check that it exists first.
         let row = element("workspace.w1")
-        XCTAssertTrue(wait(timeout: connect) { row.exists && row.value as? String == "gamma" })
+        XCTAssertTrue(wait(timeout: connect) { row.exists && row.label == "gamma" })
         XCTAssertFalse(element("workspace.w2").exists)
+    }
+
+    func testSessionFilterNarrowsTheList() {
+        XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
+        element("titlebar.session-picker").click()
+        let filter = element("sessions.filter")
+        XCTAssertTrue(filter.waitForExistence(timeout: 2))
+        XCTAssertTrue(element("session.\(one)").exists)
+        filter.typeText(String(two.suffix(2)))
+        XCTAssertTrue(element("session.\(one)").waitForNonExistence(timeout: 2))
+        XCTAssertTrue(element("session.\(two)").exists)
+        keepScreenshot("session filter")
+    }
+
+    func testSidebarFilterNarrowsTheTabs() {
+        XCTAssertTrue(element("tab.w1:t1").waitForExistence(timeout: connect))
+        let filter = element("sidebar.filter")
+        filter.click()
+        filter.typeText("seco")
+        XCTAssertTrue(element("tab.w1:t1").waitForNonExistence(timeout: 2))
+        XCTAssertTrue(element("tab.w1:t2").exists)
+        XCTAssertFalse(element("workspace.w2").exists)
+        keepScreenshot("sidebar filter")
+    }
+
+    func testHidingTheSidebarShowsTitleBarTabs() {
+        let window = app.windows.firstMatch
+        let tab = element("tab.w1:t2")
+        XCTAssertTrue(tab.waitForExistence(timeout: connect))
+        XCTAssertGreaterThan(tab.frame.minY, window.frame.minY + 40)
+
+        element("titlebar.sidebar").click()
+        XCTAssertTrue(element("sidebar.filter").waitForNonExistence(timeout: 2))
+        XCTAssertTrue(wait { tab.exists && tab.frame.maxY < window.frame.minY + 40 })
+        tab.click()
+        XCTAssertTrue(wait { window.title == "second" })
+        keepScreenshot("title-bar tabs")
+    }
+
+    func testSplitButtonAddsAPane() async throws {
+        XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
+        let created = try await call(one, "tab.create", ["workspace_id": "w2", "label": "split", "cwd": "/tmp",
+                                                         "focus": false])
+        let tab = try XCTUnwrap((created["tab"] as? [String: Any])?["tab_id"] as? String)
+        let pane = try XCTUnwrap((created["root_pane"] as? [String: Any])?["pane_id"] as? String)
+        let row = element("tab.\(tab)")
+        XCTAssertTrue(row.waitForExistence(timeout: 2))
+        row.click()
+        let card = element("pane.\(pane)")
+        XCTAssertTrue(card.waitForExistence(timeout: 2))
+        card.hover()
+        element("pane.\(pane).split-right").click()
+
+        // herdr has the new pane, and the app draws it to the right of the first.
+        var panes: [String] = []
+        for _ in 0 ..< 20 where panes.count < 2 {
+            let snapshot = try await call(one, "session.snapshot", [:])["snapshot"] as? [String: Any]
+            panes = (snapshot?["panes"] as? [[String: Any]] ?? []).filter { $0["tab_id"] as? String == tab }
+                .compactMap { $0["pane_id"] as? String }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        let new = try XCTUnwrap(panes.first { $0 != pane })
+        XCTAssertTrue(element("pane.\(new)").waitForExistence(timeout: 2))
+        XCTAssertLessThan(card.frame.maxX, element("pane.\(new)").frame.minX)
+        keepScreenshot("split")
+        try await call(one, "tab.close", ["tab_id": tab])
     }
 
     /// For people reviewing a run: the window, in the result bundle.
