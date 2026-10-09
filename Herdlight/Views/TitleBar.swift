@@ -75,8 +75,16 @@ private struct TabBar: View {
                     LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing).frame(width: 16)
                 }
             }
-            .onAppear { proxy.scrollTo(workspace.selectedTabID) }
-            .onChange(of: workspace.selectedTabID) { withAnimation { proxy.scrollTo(workspace.selectedTabID) } }
+            .onAppear {
+                if let id = workspace.selectedTabID {
+                    proxy.scrollTo(id)
+                }
+            }
+            .onChange(of: workspace.selectedTabID) {
+                if let id = workspace.selectedTabID {
+                    withAnimation { proxy.scrollTo(id) }
+                }
+            }
         }
     }
 }
@@ -105,7 +113,6 @@ private struct TabCapsule: View {
         .buttonStyle(ChromeStyle(radius: 15))
         .glassEffect(selected ? .regular.interactive() : .identity, in: .capsule)
         .glassEffectID(selected ? "marker" : tab.id, in: glass)
-        .id(tab.id)
         .accessibilityIdentifier("tab.\(tab.id)")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
