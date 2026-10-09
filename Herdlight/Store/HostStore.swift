@@ -1,3 +1,4 @@
+import Foundation
 import HerdrKit
 import Observation
 
@@ -40,6 +41,9 @@ final class HostStore {
     final class Pane: Identifiable {
         let id: String
         var label: String?
+        var cwd: String?
+        /// The tab's focused pane, as herdr has it.
+        var focused = false
 
         init(id: String) {
             self.id = id
@@ -53,6 +57,9 @@ final class HostStore {
     private(set) var workspaces: [Workspace] = []
     private(set) var panes: [Pane] = []
     var selectedWorkspaceID: String?
+    /// The last failed write, shown until the next one.
+    private(set) var notice: String?
+    private var client: HerdrClient?
 
     init(session: String) {
         self.session = session
@@ -75,6 +82,14 @@ final class HostStore {
         selectedWorkspace.flatMap { workspace in workspace.tabs.first { $0.id == workspace.selectedTabID } }
     }
 
+    var isLive: Bool {
+        if case .live = state {
+            true
+        } else {
+            false
+        }
+    }
+
     /// False only when herdr lists the session as stopped (or not at all).
     var isRunning: Bool {
         sessions.isEmpty || sessions.contains { $0.name == session && $0.running }
@@ -85,6 +100,8 @@ final class HostStore {
         var loadedSessions = false
         do {
             let client = try await HerdrClient(herdr: HerdrClient.locate(exec: exec), session: session, exec: exec)
+            self.client = client
+            defer { self.client = nil }
             for await update in await client.updates() {
                 switch update {
                 case let .snapshot(snapshot):
@@ -106,6 +123,19 @@ final class HostStore {
         }
     }
 
+    /// The one write v0 makes. No focus change; the snapshot after it draws the new pane.
+    func split(_ paneID: String, _ direction: SplitNode.Direction) async {
+        guard let client else { return }
+        do {
+            let _: Created = try await client.call("pane.split", ["target_pane_id": paneID,
+                                                                  "direction": direction.rawValue, "focus": false])
+            notice = nil
+            await client.refresh()
+        } catch {
+            notice = error.localizedDescription
+        }
+    }
+
     private func apply(_ snapshot: Snapshot) {
         let tabs = Dictionary(grouping: snapshot.tabs, by: \.workspaceID)
         reuse(self, \.workspaces, snapshot.workspaces, Workspace.init(id:)) { workspace, new in
@@ -121,13 +151,21 @@ final class HostStore {
                     ? new.activeTabID : workspace.tabs.first?.id
             }
         }
-        reuse(self, \.panes, snapshot.panes, Pane.init(id:)) { $0.label = $1.label }
+        let focused = snapshot.focusedPaneIDs
+        reuse(self, \.panes, snapshot.panes, Pane.init(id:)) { pane, new in
+            pane.label = new.label
+            pane.cwd = new.cwd
+            pane.focused = focused.contains(new.id)
+        }
         if selectedWorkspace == nil {
             selectedWorkspaceID = workspaces.contains { $0.id == snapshot.focusedWorkspaceID }
                 ? snapshot.focusedWorkspaceID : workspaces.first?.id
         }
     }
 }
+
+/// Any reply: only success matters.
+private nonisolated struct Created: Decodable, Sendable {}
 
 /// Keeps the object of each id that stays, makes the new ones, and replaces the list only when its
 /// ids changed, so views of the list redraw only then.
