@@ -28,19 +28,14 @@ extension HerdlightUITests {
         try await waitFor("w1:p2") { $0.components(separatedBy: "\nhl-42").count == 3 }
     }
 
-    func testResizingTheWindowResizesThePTY() async throws {
+    func testResizingACardResizesThePTY() async throws {
         let terminal = element("terminal.w1:p1")
         XCTAssertTrue(terminal.waitForExistence(timeout: connect))
         try await expectPTYSize("w1:p1", terminal)
         let before = terminal.value as? String
-        // Window > Zoom fills the screen (a drag on the corner does not resize the window under
-        // XCUITest); a second Zoom restores it.
-        let zoom = { @MainActor [app] in
-            app.menuBars.menuBarItems["Window"].click()
-            app.menuBars.menuItems["Zoom"].click()
-        }
-        zoom()
-        addTeardownBlock(zoom)
+        // Hiding the sidebar widens the cards. Not the window: CI's window already fills the screen
+        // (Zoom changes nothing there), and a drag on its corner does not resize it under XCUITest.
+        element("titlebar.sidebar").click()
         let changed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value != %@", before ?? ""),
                                                 object: terminal)
         XCTAssertEqual(XCTWaiter().wait(for: [changed], timeout: 3), .completed)
@@ -53,7 +48,8 @@ extension HerdlightUITests {
         try await waitForPrompt("w1:p1")
         try await Self.call(one, "pane.send_text", ["pane_id": "w1:p1", "text": "seq 1 500\r"])
         try await waitFor("w1:p1") { $0.contains("\n500\n") }
-        // Negative is up, toward older lines.
+        // The wheel goes where the pointer is. Negative is up, toward older lines.
+        terminal.hover()
         terminal.scroll(byDeltaX: 0, deltaY: -100)
         var offset = 0
         for _ in 0 ..< 20 where offset == 0 {

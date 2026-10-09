@@ -152,9 +152,11 @@ Stage A (stream level, against throwaway sessions; no GUI yet).
 - **e2e.** Each card's terminal view is an accessibility element `terminal.<pane_id>` whose
   value is its grid as `stty size` prints it, so tests compare it with the PTY. The helper's
   `POST /<session>/control` opens a second `control` (released at once) to tell a held pane
-  from a released one. Under XCUITest a drag on the window corner does not resize the window
-  (it does with real events); Window ▸ Zoom does. `scroll(byDeltaX:deltaY:)` scrolls up for a
-  negative `deltaY`.
+  from a released one. The resize test hides the sidebar to widen the cards: under XCUITest a
+  drag on the window corner does not resize the window (it does with real events), and CI's
+  window already fills its 1024×768 screen, so Window ▸ Zoom changes nothing there. The window
+  resize itself was checked by hand. `scroll(byDeltaX:deltaY:)` scrolls where the pointer is
+  (hover first) and up for a negative `deltaY`.
 
 ## User feedback round (after Stage B hand test)
 
