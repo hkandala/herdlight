@@ -91,10 +91,21 @@ private func leaf(_ id: String) -> SplitNode {
         let json = #"{"process_info":{"pane_id":"w1:p1","shell_pid":7,"foreground_processes":[\#(processes)]}}"#
         return try JSONDecoder().decode(ProcessInfoResult.self, from: Data(json.utf8)).processInfo
     }
-    #expect(try info(#"{"pid":7,"name":"zsh"}"#).program == nil)
+    #expect(try info(#"{"pid":7,"name":"zsh","argv0":"-zsh"}"#).program == nil)
+    #expect(try info(#"{"pid":7,"name":"fish"}"#).program == nil)
+    // `exec vim` keeps the shell's pid.
+    #expect(try info(#"{"pid":7,"name":"vim","argv0":"vim"}"#).program == "vim")
     #expect(try info(#"{"pid":9,"name":"sleep"}"#).program == "sleep")
     // While the shell starts, its rc files run in the foreground too.
     #expect(try info(#"{"pid":8,"name":"bash"},{"pid":7,"name":"zsh"}"#).program == "bash")
     // An exited shell.
     #expect(try info("").program == nil)
+}
+
+@Test func `session names follow herdr's rule`() {
+    #expect(Session.isValidName("lunar-ridge.2_x"))
+    #expect(Session.isValidName(String(repeating: "a", count: 64)))
+    for name in ["", ".", "..", "a b", "a/b", "ü", String(repeating: "a", count: 65)] {
+        #expect(!Session.isValidName(name))
+    }
 }

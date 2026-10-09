@@ -123,13 +123,6 @@ struct SessionList: View {
     }
 }
 
-extension Session {
-    /// herdr's rule for session names.
-    static func isValidName(_ name: String) -> Bool {
-        !name.isEmpty && name.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || "._-".contains($0)) }
-    }
-}
-
 extension [Session] {
     /// A readable name no session has yet, like the references' `lunar-ridge`.
     var newName: String {
