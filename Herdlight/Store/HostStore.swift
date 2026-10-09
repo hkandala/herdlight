@@ -44,6 +44,8 @@ final class HostStore {
         var cwd: String?
         /// The tab's focused pane, as herdr has it.
         var focused = false
+        var tabID = ""
+        var terminalID: String?
 
         init(id: String) {
             self.id = id
@@ -62,6 +64,9 @@ final class HostStore {
     /// A split in flight; the buttons wait for it.
     private(set) var splitting = false
     @ObservationIgnored private var client: HerdrClient?
+    #if os(macOS)
+        let terminals = PaneViewRegistry()
+    #endif
 
     init(session: String) {
         self.session = session
@@ -84,6 +89,13 @@ final class HostStore {
         selectedWorkspace.flatMap { workspace in workspace.tabs.first { $0.id == workspace.selectedTabID } }
     }
 
+    /// The selected tab's terminals (terminal id → pane id): the ones that stream.
+    var shownTerminals: [String: String] {
+        Dictionary(panes.compactMap { pane in
+            pane.tabID == selectedTab?.id ? pane.terminalID.map { ($0, pane.id) } : nil
+        }, uniquingKeysWith: { first, _ in first })
+    }
+
     /// False only when herdr lists the session as stopped (or not at all).
     var isRunning: Bool {
         sessions.isEmpty || sessions.contains { $0.name == session && $0.running }
@@ -96,6 +108,10 @@ final class HostStore {
             let client = try await HerdrClient(herdr: HerdrClient.locate(exec: exec), session: session, exec: exec)
             self.client = client
             defer { self.client = nil }
+            #if os(macOS)
+                terminals.client = client
+                defer { terminals.closeAll() }
+            #endif
             for await update in await client.updates() {
                 switch update {
                 case let .snapshot(snapshot):
@@ -165,6 +181,8 @@ final class HostStore {
             pane.label = new.label
             pane.cwd = new.cwd
             pane.focused = focused.contains(new.id)
+            pane.tabID = new.tabID
+            pane.terminalID = new.terminalID
         }
         if selectedWorkspace == nil {
             selectedWorkspaceID = workspaces.contains { $0.id == snapshot.focusedWorkspaceID }

@@ -102,6 +102,7 @@ struct HerdlightApp: App {
                                     .accessibilityIdentifier("detail.notice")
                             }
                         }
+                        .onChange(of: store.shownTerminals, initial: true) { store.terminals.show($1) }
                 } else {
                     message("No workspaces", "Create one in herdr:",
                             "herdr --session \(store.session) workspace create")
