@@ -44,7 +44,11 @@
 - Concurrent agents must not share DerivedData: pass `DERIVED_DATA=/tmp/hl-dd-<agent-name>`
   (the Makefile honors it).
 - Only one agent drives the GUI at a time (XCUITest and manual runs take over the real
-  mouse and keyboard). The orchestrator assigns that slot.
+  mouse and keyboard). Take the GUI lock before any GUI driving (running the app and
+  clicking, screenshots that need the app frontmost, `make e2e`), and release it right
+  after: `until mkdir /tmp/hl-gui.lock 2>/dev/null; do sleep 20; done; echo "$NAME" >
+  /tmp/hl-gui.lock/owner` … `rm -rf /tmp/hl-gui.lock`. Hold it for minutes, not hours.
+  If a lock is older than 30 minutes, ask the orchestrator before removing it.
 - Screenshots: `screencapture -x -l <windowid> <file>` for the app window, or the
   attachments in the `.xcresult`. Put the ones you report in `/tmp/hl-shots/`.
 
