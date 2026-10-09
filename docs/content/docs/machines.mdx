@@ -106,6 +106,8 @@ description: "What a machine is, macOS and iOS connections, the channel budget a
 - Terminal streams, chat tails and plugin `exec` calls share the rest, in
   this order: the focused card, the other cards of the selected tab, shown
   floating cards, chat tails, plugin calls.
+  Streams kept for recently shown tabs (D46) come last, and go first when a
+  card above needs a session.
 - A card that gets no session shows its last image and a **Retry** button. If
   the server refuses a session ("open failed"), the app lowers that
   connection's limit by one.
