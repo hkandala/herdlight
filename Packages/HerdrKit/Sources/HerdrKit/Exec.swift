@@ -9,7 +9,7 @@ public protocol Exec: Sendable {
 public struct Channel: Sendable {
     /// Stdout, one element per line. Ends when the command closes stdout.
     public let lines: AsyncStream<String>
-    /// Writes one line to stdin.
+    /// Writes one line to stdin, in order, without blocking the caller.
     public let write: @Sendable (String) -> Void
     public let closeInput: @Sendable () -> Void
     public let terminate: @Sendable () -> Void
@@ -187,11 +187,12 @@ public struct Channel: Sendable {
             }
             let status = Task { await ended.first { _ in true } ?? -1 }
             let input = stdin.fileHandleForWriting
+            // A full pipe blocks this queue, never the caller (keystrokes come from the main actor).
+            let writes = DispatchQueue(label: "herdlight.exec.stdin")
             return Channel(
                 lines: lines,
-                // ponytail: blocks the caller while the pipe is full; phase 4 moves terminal writes off the main actor.
-                write: { try? input.write(contentsOf: Data(($0 + "\n").utf8)) },
-                closeInput: { try? input.close() },
+                write: { line in writes.async { try? input.write(contentsOf: Data((line + "\n").utf8)) } },
+                closeInput: { writes.async { try? input.close() } },
                 terminate: terminate,
                 exit: { await (status.value, errors.value) },
             )
