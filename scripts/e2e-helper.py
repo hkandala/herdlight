@@ -6,6 +6,7 @@ Any session not named on the command line is refused.
 """
 
 import http.server
+import socketserver
 import subprocess
 import sys
 
@@ -31,6 +32,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         pass
 
 
-server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
-print(server.server_port, flush=True)
+# Not HTTPServer: its getfqdn() lookup raised the Local Network prompt on CI.
+server = socketserver.TCPServer(("127.0.0.1", 0), Handler)
+print(server.server_address[1], flush=True)
 server.serve_forever()
