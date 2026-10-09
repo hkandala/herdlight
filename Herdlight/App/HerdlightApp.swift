@@ -72,6 +72,8 @@ struct HerdlightApp: App {
             let view = NSVisualEffectView()
             view.blendingMode = .behindWindow
             view.material = .hudWindow
+            // Blurred in an inactive window too, so the dark look holds.
+            view.state = .active
             return view
         }
 

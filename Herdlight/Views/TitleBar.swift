@@ -21,7 +21,7 @@ struct TitleBar: View {
             .keyboardShortcut("s", modifiers: [.command, .control])
             .accessibilityIdentifier("titlebar.sidebar")
             SessionPicker(store: store, open: $picking)
-            if !sidebar, store.isLive, let workspace = store.selectedWorkspace {
+            if !sidebar, store.state == .live, let workspace = store.selectedWorkspace {
                 TabBar(workspace: workspace)
             }
             Spacer(minLength: 0)
