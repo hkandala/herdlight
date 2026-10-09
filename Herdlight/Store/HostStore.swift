@@ -59,7 +59,9 @@ final class HostStore {
     var selectedWorkspaceID: String?
     /// The last failed write, shown until the next one.
     private(set) var notice: String?
-    private var client: HerdrClient?
+    /// A split in flight; the buttons wait for it.
+    private(set) var splitting = false
+    @ObservationIgnored private var client: HerdrClient?
 
     init(session: String) {
         self.session = session
@@ -99,6 +101,7 @@ final class HostStore {
                 case let .snapshot(snapshot):
                     apply(snapshot)
                     state = .live
+                    notice = nil
                     // After the first snapshot, so the picker never delays the layout.
                     if !loadedSessions {
                         loadedSessions = true
@@ -117,7 +120,9 @@ final class HostStore {
 
     /// The one write v0 makes. No focus change; the snapshot after it draws the new pane.
     func split(_ paneID: String, _ direction: SplitNode.Direction) async {
-        guard let client else { return }
+        guard let client, !splitting else { return }
+        splitting = true
+        defer { splitting = false }
         do {
             let _: Created = try await client.call("pane.split", ["target_pane_id": paneID,
                                                                   "direction": direction.rawValue, "focus": false])
@@ -126,6 +131,12 @@ final class HostStore {
         } catch {
             notice = error.localizedDescription
         }
+    }
+
+    /// herdr's session list again, for the picker: a session started since shows up.
+    func loadSessions() async {
+        guard let client else { return }
+        sessions = await (try? client.sessions()) ?? sessions
     }
 
     private func apply(_ snapshot: Snapshot) {
