@@ -19,8 +19,13 @@ private func shell(_ argv: String...) -> Int32 {
     return process.terminationStatus
 }
 
-/// Any result we do not read.
-private struct Ignored: Decodable {}
+/// A client for a new throwaway session, removed after `body`.
+private func withSession(_ exec: any Exec, _ body: (HerdrClient) async throws -> Void) async throws {
+    let session = "hl-e2e-\(UUID().uuidString.prefix(6).lowercased())"
+    try #require(shell(script, "up", session) == 0)
+    defer { shell(script, "down", session) }
+    try await body(HerdrClient(herdr: HerdrClient.locate(exec: exec), session: session, exec: exec))
+}
 
 /// Counts `events.subscribe` requests, so a test can tell a read caused by an event from one after
 /// the stream reopened.
@@ -51,15 +56,14 @@ private final class SubscribeCounter: Exec {
 
 @Test(.enabled(if: shell("which", "herdr") == 0, "herdr is not on PATH"))
 func `talks to a throwaway herdr session`() async throws {
-    let session = "hl-e2e-\(UUID().uuidString.prefix(6).lowercased())"
-    try #require(shell(script, "up", session) == 0)
-    defer { shell(script, "down", session) }
-
     let exec = await SubscribeCounter(ProcessExec())
-    let client = try await HerdrClient(herdr: HerdrClient.locate(exec: exec), session: session, exec: exec)
+    try await withSession(exec) { client in try await talk(client, exec) }
+}
+
+private func talk(_ client: HerdrClient, _ exec: SubscribeCounter) async throws {
     try await client.ping()
-    #expect(try await client.sessions().contains { $0.name == session && $0.running })
-    let _: Ignored = try await client.call("workspace.create", ["cwd": "/tmp", "focus": false])
+    #expect(try await client.sessions().contains { $0.name == client.session && $0.running })
+    let _: Created = try await client.call("workspace.create", ["cwd": "/tmp", "focus": false])
 
     let updates = await client.updates()
     let found = try await withTimeout(.seconds(10), onTimeout: {}, { () -> Snapshot? in
@@ -68,7 +72,7 @@ func `talks to a throwaway herdr session`() async throws {
             reads += 1
             // The second read follows the open events stream, so the next one comes from an event.
             if reads == 2 {
-                let _: Ignored = try await client.call(
+                let _: Created = try await client.call(
                     "tab.create",
                     ["workspace_id": "w1", "cwd": "/tmp", "focus": false],
                 )
@@ -118,7 +122,7 @@ func `talks to a throwaway herdr session`() async throws {
     _ = try await withTimeout(.seconds(5), onTimeout: {}, { await channel.exit() })
 }
 
-private struct Created: Decodable {
+private struct NewWorkspace: Decodable {
     struct Pane: Decodable {
         let pane_id: String // swiftlint:disable:this identifier_name
         let terminal_id: String // swiftlint:disable:this identifier_name
@@ -144,13 +148,11 @@ private func closedReason(_ events: inout AsyncStream<TerminalStream.Event>.Iter
 
 @Test(.enabled(if: shell("which", "herdr") == 0, "herdr is not on PATH"))
 func `controls a throwaway terminal`() async throws {
-    let session = "hl-e2e-\(UUID().uuidString.prefix(6).lowercased())"
-    try #require(shell(script, "up", session) == 0)
-    defer { shell(script, "down", session) }
+    try await withSession(ProcessExec(), control)
+}
 
-    let exec = await ProcessExec()
-    let client = try await HerdrClient(herdr: HerdrClient.locate(exec: exec), session: session, exec: exec)
-    let pane = try await (client.call("workspace.create", ["cwd": "/tmp", "focus": false]) as Created).root_pane
+private func control(_ client: HerdrClient) async throws {
+    let pane = try await (client.call("workspace.create", ["cwd": "/tmp", "focus": false]) as NewWorkspace).root_pane
     let terminal = pane.terminal_id
 
     try await withTimeout(.seconds(20), onTimeout: {}, {

@@ -222,14 +222,12 @@ private func started(_ client: HerdrClient, _ exec: FakeExec) async -> AsyncStre
 }
 
 @Test func `updates deliver snapshots and read errors`() async {
-    let exec = FakeExec()
-    let client = client(exec)
-    var updates = await client.updates().makeAsyncIterator()
+    var updates = await client(FakeExec()).updates().makeAsyncIterator()
     guard case .snapshot = await updates.next() else {
         Issue.record("expected a snapshot")
         return
     }
-    let broken = HerdrClient(herdr: "/bin/herdr", session: "s", exec: FakeExec { _ in "not json" })
+    let broken = client(FakeExec { _ in "not json" })
     var errors = await broken.updates().makeAsyncIterator()
     guard case .error(.failed) = await errors.next() else {
         Issue.record("expected an error")
