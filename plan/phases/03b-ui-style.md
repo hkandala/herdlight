@@ -120,3 +120,17 @@ changed) once the look is settled.
   truncating) while it is hidden; both carry `tab.<id>`. Workspace headers are buttons, so
   their text is the `label`, not the `value`.
 - **⌘1…⌘9** work while the session list is open (shortcuts on its rows), not globally.
+- **No NavigationSplitView.** The title row spans the sidebar (toggle and session picker sit
+  over it, as in the references) and the sidebar is a fixed-width floating panel; the
+  system split view puts its own toolbar and toggle there. The sidebar is a plain view in an
+  `HStack`; don't revert.
+- **Keyboard at launch.** The window gives the first text field the keyboard when it opens;
+  `defaultFocus` on another view did not stop it. Filter fields are plain text until clicked,
+  so there is none to give (phase 4: the terminal takes it). Focus asked for the moment a
+  field appears is dropped; a 100 ms wait works (`ponytail:` comment in `FilterField`).
+- **Split layout.** Both children of a split get an exact width and height; a card clips
+  its header. Unframed, a card's header buttons pushed neighbors off the page.
+- **Full screen.** The empty toolbar covers the title row in full screen;
+  `windowToolbarFullScreenVisibility(.onHover)` hides it there.
+- **Window size.** `windowResizability(.contentMinSize)`: the title-bar tabs' ideal width
+  grew the window when the sidebar hid.
