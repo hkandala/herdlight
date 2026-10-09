@@ -35,7 +35,8 @@ struct Strip: View {
 /// The 8 pt gap between cards is the one fixed size; it is also where dividers go later.
 let gap: CGFloat = 8
 
-/// herdr's split tree: each split divides its rectangle by the ratio, minus the gap.
+/// herdr's split tree: each split divides its rectangle by the ratio, minus the gap. Both children get an exact
+/// size, so no card's content can push its neighbor out of the page.
 private struct SplitLayout: View {
     let node: SplitNode
     let store: HostStore
@@ -47,14 +48,16 @@ private struct SplitLayout: View {
         case let .split(direction, ratio, first, second):
             GeometryReader { geometry in
                 let right = direction == .right
+                let total = max(0, (right ? geometry.size.width : geometry.size.height) - gap)
                 // A NaN or out-of-range ratio from herdr must not break the layout.
-                let share = ratio.isNaN ? 0.5 : min(max(ratio, 0), 1)
-                let size = max(0, ((right ? geometry.size.width : geometry.size.height) - gap) * share)
+                let size = total * (ratio.isNaN ? 0.5 : min(max(ratio, 0), 1))
                 let stack = right ? AnyLayout(HStackLayout(spacing: gap)) : AnyLayout(VStackLayout(spacing: gap))
+                let width = geometry.size.width, height = geometry.size.height
                 stack {
                     SplitLayout(node: first, store: store)
-                        .frame(width: right ? size : nil, height: right ? nil : size)
+                        .frame(width: right ? size : width, height: right ? height : size)
                     SplitLayout(node: second, store: store)
+                        .frame(width: right ? total - size : width, height: right ? height : total - size)
                 }
             }
         }
@@ -73,42 +76,53 @@ private struct PaneCard: View {
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                Image(systemName: "apple.terminal").foregroundStyle(.secondary)
+                Image(systemName: "apple.terminal").foregroundStyle(.secondary).accessibilityHidden(true)
                 Text(title)
                     .lineLimit(1)
-                    .truncationMode(.middle)
+                    // A path keeps its end, a label its start.
+                    .truncationMode(pane?.label == nil ? .head : .tail)
                 Spacer(minLength: 0)
-                HStack(spacing: 0) {
-                    IconButton(symbol: "rectangle.split.2x1", help: "Split Right") {
-                        Task { await store.split(id, .right) }
+                // Only on hover, so the hidden buttons take no width from a narrow card.
+                if hovering {
+                    HStack(spacing: 0) {
+                        IconButton(symbol: "rectangle.split.2x1", help: "Split Right") {
+                            Task { await store.split(id, .right) }
+                        }
+                        .accessibilityIdentifier("pane.\(id).split-right")
+                        IconButton(symbol: "rectangle.split.1x2", help: "Split Down") {
+                            Task { await store.split(id, .down) }
+                        }
+                        .accessibilityIdentifier("pane.\(id).split-down")
+                        // ponytail: no-op until zoom
+                        IconButton(symbol: "arrow.up.left.and.arrow.down.right", help: "Zoom", quiet: true) {}
+                        // ponytail: no-op until panes can be closed
+                        IconButton(symbol: "xmark", help: "Close", quiet: true) {}
                     }
-                    .accessibilityIdentifier("pane.\(id).split-right")
-                    IconButton(symbol: "rectangle.split.1x2", help: "Split Down") {
-                        Task { await store.split(id, .down) }
-                    }
-                    .accessibilityIdentifier("pane.\(id).split-down")
-                    // ponytail: no-op until zoom
-                    IconButton(symbol: "arrow.up.left.and.arrow.down.right", help: "Zoom") {}
-                    // ponytail: no-op until panes can be closed
-                    IconButton(symbol: "xmark", help: "Close") {}
+                    .disabled(store.splitting)
                 }
-                .opacity(hovering ? 1 : 0)
             }
-            .font(.system(size: 13, weight: .medium))
+            .fontWeight(.medium)
             .padding(.leading, 12)
             .padding(.trailing, 4)
-            .frame(height: 34)
+            // A card narrower than its header cuts the header (the card clips) instead of growing.
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 34, maxHeight: 34, alignment: .leading)
             // The terminal's slot.
             Text(id).monospaced().foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .opacity(pane?.focused ?? true || hovering ? 1 : 0.6)
         // The card's element is its background: a container would merge into a one-pane page's.
         .background {
             shape.fill(Color.card).accessibilityElement().accessibilityLabel(title)
                 .accessibilityIdentifier("pane.\(id)")
         }
+        .overlay {
+            // Cards without herdr's focus are a little darker; the terminal's text keeps its own contrast.
+            if !(pane?.focused ?? true), !hovering {
+                shape.fill(.black.opacity(0.15)).allowsHitTesting(false)
+            }
+        }
         .overlay(shape.strokeBorder(Color.hairline))
+        .clipShape(shape)
         .onHover { hovering = $0 }
     }
 }
