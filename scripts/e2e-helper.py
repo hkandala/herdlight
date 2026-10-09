@@ -35,7 +35,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif action in ("control", "takeover") and not re.fullmatch(rb"\w[\w-]*", body):
             status, reply = 400, b"the body must be a terminal id"
         elif action == "start":
-            subprocess.Popen(["herdr", "--session", session, "server"], stdin=subprocess.DEVNULL,
+            env = {k: v for k, v in os.environ.items() if not k.startswith("HERDR_")}
+            subprocess.Popen(["herdr", "--session", session, "server"], env=env, stdin=subprocess.DEVNULL,
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
             status, reply = 200, b""
         else:
