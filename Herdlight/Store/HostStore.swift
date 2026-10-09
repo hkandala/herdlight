@@ -83,12 +83,14 @@ final class HostStore {
 
     /// Follows the session until the calling task is cancelled.
     func run(exec: any Exec) async {
-        debugLog.notice("run \(session, privacy: .public)")
+        let name = session
+        debugLog.notice("run \(name, privacy: .public)")
         do {
             let client = try await HerdrClient(herdr: HerdrClient.locate(exec: exec), session: session, exec: exec)
             debugLog.notice("located")
             sessions = await (try? client.sessions()) ?? []
-            debugLog.notice("sessions \(sessions.count)")
+            let count = sessions.count
+            debugLog.notice("sessions \(count)")
             for await update in await client.updates() {
                 debugLog.notice("update \(String(describing: update).prefix(80), privacy: .public)")
                 switch update {
