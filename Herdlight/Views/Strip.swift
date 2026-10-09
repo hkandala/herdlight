@@ -52,9 +52,6 @@ struct Strip: View {
             let animate = old != new && old.first == new.first && !reduceMotion
             withAnimation(animate ? .smooth : nil) { shown = workspace.selectedTabID }
         }
-        #if os(macOS)
-        .onAppear { SwipeRouter.install() }
-        #endif
     }
 }
 
