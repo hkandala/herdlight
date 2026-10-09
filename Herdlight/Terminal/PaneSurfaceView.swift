@@ -18,6 +18,8 @@
 
         /// Asked for the keyboard before it was in a window.
         var wantsKeyboard = false
+        /// Took the keyboard.
+        var onKeyboard: (() -> Void)?
 
         override init(frame: NSRect) {
             super.init(frame: frame)
@@ -54,6 +56,9 @@
         override func becomeFirstResponder() -> Bool {
             let became = super.becomeFirstResponder()
             terminal?.hasKeyboard = became
+            if became {
+                onKeyboard?()
+            }
             return became
         }
 

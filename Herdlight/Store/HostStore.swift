@@ -68,6 +68,8 @@ final class HostStore {
         let terminals = PaneViewRegistry()
         /// The tab whose terminal last got the keyboard from the app.
         @ObservationIgnored private var keyboardTabID: String?
+        /// The card that last had the keyboard in each tab.
+        @ObservationIgnored private var keyboardPanes: [String: String] = [:]
     #endif
 
     init(session: String) {
@@ -99,16 +101,20 @@ final class HostStore {
     }
 
     #if os(macOS)
-        /// Streams the selected tab's terminals, releases the others, drops those of closed panes.
+        /// Streams the selected tab's terminals (see the registry), drops those of closed panes.
         func showTerminals() {
+            // The card the user last typed in, per tab: the app's own, like the selection.
+            if let paneID = terminals.keyboardPaneID, let tabID = pane(paneID)?.tabID {
+                keyboardPanes[tabID] = paneID
+            }
             terminals.show(shownTerminals, alive: Set(panes.compactMap(\.terminalID)))
-            // A tab shown for the first time since it was selected gives the keyboard to herdr's
-            // focused pane; later snapshots leave it where the user clicked.
+            // A newly selected tab gives the keyboard back to the card it had; herdr's focused pane
+            // only picks it the first time a tab is shown. Later snapshots leave it alone.
             guard let tab = selectedTab, tab.id != keyboardTabID else { return }
-            let tabPanes = panes.filter { $0.tabID == tab.id }
-            if let terminalID = tabPanes.first(where: \.focused)?.terminalID ?? tabPanes.compactMap(\.terminalID)
-                .first
-            {
+            let tabPanes = panes.filter { $0.tabID == tab.id && $0.terminalID != nil }
+            let pane = tabPanes.first { $0.id == keyboardPanes[tab.id] }
+                ?? tabPanes.first(where: \.focused) ?? tabPanes.first
+            if let terminalID = pane?.terminalID {
                 keyboardTabID = tab.id
                 terminals.focus(terminalID)
             }
