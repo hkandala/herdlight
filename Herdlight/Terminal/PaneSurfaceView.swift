@@ -32,8 +32,18 @@
         /// Gives this terminal the keyboard, now or once it is in a window.
         func takeKeyboard() {
             wantsKeyboard = window == nil
-            window?.makeFirstResponder(self)
+            Self.request += 1
+            let request = Self.request
+            // After SwiftUI's update: a first responder set during one (a tab that just arrived) is undone. Only
+            // the latest request wins, so an older one cannot steal the keyboard back.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, request == Self.request else { return }
+                window?.makeFirstResponder(self)
+            }
         }
+
+        /// Counts keyboard requests across terminals.
+        private static var request = 0
 
         /// SwiftUI moves the view to a new host when the layout changes (a split); leaving the
         /// window drops the first responder, so it takes the keyboard back once it is in again.
