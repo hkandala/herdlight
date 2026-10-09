@@ -71,6 +71,35 @@ public enum AgentStatus: String, Decodable, Sendable {
     }
 }
 
+/// What `workspace.create` and `tab.create` return: the new tab, to select once a snapshot shows it.
+public struct Created: Decodable, Sendable {
+    public let tab: Tab?
+}
+
+/// `pane.process_info`: the pane's shell and its foreground processes.
+struct ProcessInfoResult: Decodable {
+    let processInfo: PaneProcesses
+
+    enum CodingKeys: String, CodingKey { case processInfo = "process_info" }
+}
+
+struct PaneProcesses: Decodable {
+    struct Process: Decodable {
+        let pid: Int
+        let name: String
+    }
+
+    let shellPID: Int
+    let foregroundProcesses: [Process]
+
+    /// What runs in the foreground besides the shell; nil when nothing does (design D41).
+    var program: String? {
+        foregroundProcesses.first { $0.pid != shellPID }?.name
+    }
+
+    enum CodingKeys: String, CodingKey { case shellPID = "shell_pid", foregroundProcesses = "foreground_processes" }
+}
+
 public struct Session: Decodable, Equatable, Sendable {
     public let name: String
     public let running: Bool
