@@ -35,10 +35,11 @@ struct Strip: View {
             // To a thousandth, so a page at rest is a whole number (one lit tab) despite rounding.
             ($0.contentOffset.x / max($0.containerSize.width, 1) * 1000).rounded() / 1000
         } action: {
-            workspace.page = $1
+            store.page = $1
         }
         .onScrollPhaseChange { _, phase in
-            if phase == .idle, let shown {
+            // Not a page of the workspace that was shown before a switch.
+            if phase == .idle, let shown, workspace.tabs.contains(where: { $0.id == shown }) {
                 workspace.selectedTabID = shown
             }
         }

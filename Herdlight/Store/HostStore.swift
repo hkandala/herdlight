@@ -19,8 +19,6 @@ final class HostStore {
         var tabs: [Tab] = []
         /// The app's own selection, never herdr's focus. Starts at herdr's active tab.
         var selectedTabID: String?
-        /// The strip's scroll offset in pages (1.5 = halfway from the second tab to the third), for the tab marker.
-        var page = 0.0
 
         init(id: String) {
             self.id = id
@@ -61,6 +59,9 @@ final class HostStore {
     private(set) var workspaces: [Workspace] = []
     private(set) var panes: [Pane] = []
     var selectedWorkspaceID: String?
+    /// The strip's scroll offset in pages (1.5 = halfway from the second tab to the third), for the tab marker. One
+    /// strip shows every workspace, so one number.
+    var page = 0.0
     /// The last failed write, shown for a few seconds.
     private(set) var notice: String?
     /// A split in flight; the buttons wait for it.
