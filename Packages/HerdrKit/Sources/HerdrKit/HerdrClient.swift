@@ -271,10 +271,15 @@ public actor HerdrClient {
         }
     }
 
-    /// Pings now and every 30 s. The first good ping starts the reads, so a herdr that is too old
-    /// never delivers a snapshot; a stale session reads again once it answers.
+    /// Pings now and every 30 s, every 2 s while a read failed. The first good ping starts the reads, so a
+    /// herdr that is too old never delivers a snapshot; a stale session (stopped, then started in a terminal)
+    /// reads again once it answers.
     private func keepAlive() async {
+        var next = ContinuousClock.now
         repeat {
+            // A 2 s tick, so a read that fails mid-wait (the session stopped) is checked soon.
+            guard stale || ContinuousClock.now >= next else { continue }
+            next = .now + .seconds(30)
             do {
                 try await ping()
                 if stale {
@@ -288,7 +293,7 @@ public actor HerdrClient {
                 stale = true
                 out?.yield(.error(error as? HerdrError ?? .failed("\(error)")))
             }
-        } while await (try? Task.sleep(for: .seconds(30))) != nil
+        } while await (try? Task.sleep(for: .seconds(2))) != nil
     }
 
     private nonisolated var bridge: [String] {
