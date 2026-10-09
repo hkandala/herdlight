@@ -18,24 +18,25 @@ struct HerdlightApp: App {
 
 struct ContentView: View {
     var body: some View {
-        #if os(macOS)
-            NavigationSplitView {
-                List {
-                    Text("Herdlight")
+        Group {
+            #if os(macOS)
+                NavigationSplitView {
+                    List {
+                        Text("Herdlight")
+                    }
+                    .accessibilityIdentifier("sidebar")
+                } detail: {
+                    ContentUnavailableView(
+                        "No session",
+                        systemImage: "terminal",
+                        description: Text("For herdr \(herdrVersion)"),
+                    )
                 }
-                .accessibilityIdentifier("sidebar")
-            } detail: {
-                ContentUnavailableView(
-                    "No session",
-                    systemImage: "terminal",
-                    description: Text("For herdr \(herdrVersion)"),
-                )
-            }
-            .preferredColorScheme(.dark)
-        #else
-            ContentUnavailableView("Herdlight for iOS is coming", systemImage: "iphone")
-                .preferredColorScheme(.dark)
-        #endif
+            #else
+                ContentUnavailableView("Herdlight for iOS is coming", systemImage: "iphone")
+            #endif
+        }
+        .preferredColorScheme(.dark)
     }
 }
 
