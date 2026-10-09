@@ -25,3 +25,6 @@ resources/inspirations/one-app/
 xcuserdata/
 *.xcresult
 .swiftpm/
+
+# editor swap files
+*.swp
