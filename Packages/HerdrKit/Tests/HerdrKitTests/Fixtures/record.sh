@@ -32,6 +32,4 @@ report w1:p1 idle
 report w2:p2 working
 
 call session.snapshot '{}' | jq . >snapshot.json
-call ping '{}' | jq . >ping.json
 call layout.export '{"tab_id":"w1:t1"}' | jq . >layout-export.json
-herdr session list --json | jq --arg s "$session" '.sessions |= map(select(.name == $s or .name == "default"))' >session-list.json

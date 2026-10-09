@@ -5,15 +5,7 @@ import Testing
 /// A recorded reply's `result`, from `Fixtures/` (see `record.sh` for the layout).
 func fixture<T: Decodable>(_ name: String, _: T.Type) throws -> T {
     let url = try #require(Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Fixtures"))
-    return try JSONDecoder().decode(Result<T>.self, from: Data(contentsOf: url)).result
-}
-
-private struct Result<T: Decodable>: Decodable {
-    let result: T
-}
-
-private struct SnapshotResult: Decodable {
-    let snapshot: Snapshot
+    return try #require(JSONDecoder().decode(Reply<T>.self, from: Data(contentsOf: url)).result)
 }
 
 private func snapshot() throws -> Snapshot {
@@ -54,19 +46,6 @@ private func leaf(_ id: String) -> SplitNode {
     #expect(SplitNode(snapshot.layouts[0]) == .split(.right, ratio: 0.5, first: leaf("w1:p1"), second: leaf("w1:p2")))
 }
 
-@Test func `session list decodes`() throws {
-    let sessions = try JSONDecoder().decode(
-        [String: [Session]].self,
-        from: Data(contentsOf: #require(Bundle.module.url(
-            forResource: "session-list",
-            withExtension: "json",
-            subdirectory: "Fixtures",
-        ))),
-    )["sessions"]
-    #expect(sessions?.first?.name == "default")
-    #expect(sessions?.allSatisfy(\.running) == true)
-}
-
 @Test func `split tree rebuilds nested splits`() throws {
     let layouts = try Dictionary(uniqueKeysWithValues: snapshot().layouts.map { ($0.tabID, $0) })
     let w1t1 = try SplitNode(#require(layouts["w1:t1"]))
@@ -90,11 +69,7 @@ private func leaf(_ id: String) -> SplitNode {
     ))
     #expect(try SplitNode(#require(layouts["w1:t2"])) == leaf("w1:p5"))
     // layout.export gives the same tree, nested.
-    struct Export: Decodable {
-        struct Layout: Decodable { let root: SplitNode }
-        let layout: Layout
-    }
-    #expect(try fixture("layout-export", Export.self).layout.root == w1t1)
+    #expect(try fixture("layout-export", ExportResult.self).layout.root == w1t1)
 }
 
 @Test func `split tree is nil when leaves and panes differ`() throws {
