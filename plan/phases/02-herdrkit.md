@@ -60,3 +60,27 @@ Read first: [talking-to-herdr](../../docs/content/docs/talking-to-herdr.mdx),
 ## Out of scope
 
 Terminal streams (phase 4), SSH, iOS transport, writes beyond what tests need.
+
+## Findings
+
+- **`terminal session` resolution.** `herdr --session S terminal session control|observe <id>`
+  attaches to session S. Checked on a throwaway session with `HERDR_SOCKET_PATH` and
+  `HERDR_SESSION` pointing at sockets that do not exist: `--session` wins over both (frame,
+  then `terminal.closed` `detached` on release, exit 0). Without `--session`, the CLI follows
+  `HERDR_SOCKET_PATH` (`failed to connect … /tmp/nope-client.sock`). So phase 4 passes
+  `--session S` like every other argv; no socket path needed. (herdr-web needed the variable
+  only because it left out `--session`.)
+- **`FileHandle.bytes` stalls.** Reading two child pipes at once with `FileHandle.bytes`
+  (macOS 27) never delivers the second child's output: a `session.snapshot` bridge run while
+  the events stream was open got no reply. `ProcessExec` reads pipes with
+  `readabilityHandler` instead (comment in `Exec.swift`).
+- **Argv.** `herdr --session S session list --json` and `herdr --session default
+  remote-api-bridge --check` both work, so every argv carries `--session`. A bridge run
+  against a session that is not running exits 1 with `failed to connect to remote Herdr API
+  socket …` on stderr; `call` throws that text as `.failed`.
+- **Errors on the events stream** come as `{"id","error":{code,message}}` lines
+  (`pane_not_found` when a subscribed agent pane is unknown). Any error line or the stream
+  ending reopens it after 1 s, through a fresh snapshot so the agent pane list is current.
+- **Fixtures** come from `Tests/HerdrKitTests/Fixtures/record.sh` (throwaway session, known
+  layout, two agents faked with `pane.report_agent`). The integration test runs in CI's
+  `test-e2e` job, which has herdr; the `build` job only builds.
