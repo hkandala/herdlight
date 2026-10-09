@@ -51,6 +51,7 @@ private struct TabBar: View {
     let workspace: HostStore.Workspace
     let page: Double
     @State private var hovered: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Each capsule's frame in the bar, for the marker.
     @State private var frames: [String: CGRect] = [:]
 
@@ -87,14 +88,9 @@ private struct TabBar: View {
                     LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing).frame(width: 16)
                 }
             }
-            .onAppear {
-                if let id = workspace.selectedTabID {
-                    proxy.scrollTo(id)
-                }
-            }
-            .onChange(of: workspace.selectedTabID) {
-                if let id = workspace.selectedTabID {
-                    withAnimation { proxy.scrollTo(id) }
+            .onChange(of: workspace.selectedTabID, initial: true) { old, new in
+                if let new {
+                    withAnimation(old != new && !reduceMotion ? .default : nil) { proxy.scrollTo(new) }
                 }
             }
         }
@@ -133,10 +129,10 @@ private struct TabCapsule: View {
             // As in the reference: the tile sits in from the capsule's round end, more than above and below it.
             .padding(.leading, 8)
             .padding(.trailing, 12)
-            .padding(.vertical, 5)
+            .padding(.vertical, 7)
             .frame(maxWidth: 220, alignment: .leading)
         }
-        .buttonStyle(ChromeStyle(radius: 14))
+        .buttonStyle(ChromeStyle(radius: 16))
         .accessibilityIdentifier("tab.\(tab.id)")
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityValue(lit ? "in view" : "")
