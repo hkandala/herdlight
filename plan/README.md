@@ -81,7 +81,8 @@ JSON. That seam is where remote machines and iOS plug in later.
 | 3 | App shell: sidebar, tabs, strip, splits | [phases/03-app-shell.md](phases/03-app-shell.md) |
 | 3b | UI style: match the reference look | [phases/03b-ui-style.md](phases/03b-ui-style.md) |
 | 4 | Live terminals | [phases/04-terminals.md](phases/04-terminals.md) |
-| 5 | Swipe across tabs, glass polish | [phases/05-strip-and-glass.md](phases/05-strip-and-glass.md) |
+| 4b | Actions: close, zoom, new tab/workspace/session, palette | [phases/04b-actions.md](phases/04b-actions.md) |
+| 5 | Swipe across tabs, tab pills, chrome polish | [phases/05-strip-and-glass.md](phases/05-strip-and-glass.md) |
 | 6 | Hardening and v0 wrap-up | [phases/06-hardening.md](phases/06-hardening.md) |
 
 Rules for working: [rules.md](rules.md). Coding standards: [standards.md](standards.md).

@@ -67,3 +67,26 @@ mouse and pane size.
 ## Out of scope
 
 Zoom, chat, observe-only iOS mode, the 24-surface LRU (note a `ponytail:` ceiling).
+
+## User feedback round (after Stage B hand test)
+
+Fix on the `terminals` branch before merge:
+
+1. **Flicker when a tab becomes active**, worst for full-screen agent TUIs and only while a
+   herdr TUI client is also attached. Cause to confirm: on leaving a tab the app releases,
+   the herdr TUI lays the panes out at its own size, and on return the app resizes them
+   back (two SIGWINCH redraws), possibly plus a first frame at a stale size. Fix:
+   - keep control streams of recently shown tabs (herdr-web keeps the last 8 tabs mounted):
+     an LRU of tabs, bounded by the design's ~24 live surfaces; off-screen surfaces stop
+     drawing (`isSurfaceVisible = false`) but keep reading their stream; release on LRU
+     eviction, session switch, pane close, quit;
+   - open each stream with the card's exact cols × rows so the first frame is already at
+     our size (no resize right after attach);
+   - verify with a herdr TUI attached to a throwaway session showing the same tab.
+   Update `docs/content/docs/talking-to-herdr.mdx` "What streams" and add a decision.
+2. **Remember the active pane per tab.** The keyboard card is the app's own selection per
+   tab: coming back to a tab restores the card the user last clicked there. herdr's focused
+   pane is used only the first time a tab is shown (layout.mdx rule).
+3. **Hover must not look active.** Hovering an unfocused card lightens it a little, clearly
+   less than the keyboard card.
+4. The held GUI checks: dead key, IME, htop.

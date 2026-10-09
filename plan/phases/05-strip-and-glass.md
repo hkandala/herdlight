@@ -1,4 +1,4 @@
-# Phase 5: swipe across tabs, glass polish
+# Phase 5: swipe across tabs, tab pills, chrome polish
 
 Goal: a two-finger horizontal swipe anywhere in the strip pages between tabs, vertical
 scroll still reaches terminals, and the chrome is finished Liquid Glass.
@@ -17,12 +17,28 @@ Read first: [platform: making the strip work, tab bar and Liquid Glass](../../do
    streams switch then (neighbor pages show their last image during the swipe).
 3. **Tab marker**: one glass marker follows the strip's scroll offset
    (`onScrollGeometryChange`), lit tabs from `floor(x/w)` to `ceil((x+w)/w) − 1`; when the
-   scroll stops, the selection changes inside `withAnimation` and the marker morphs
-   (`glassEffectID`). Unit test the lit-tab math if it has branches.
+   scroll stops, the selection changes and the marker moves to it (no grow-from-center
+   morph; see item 6). Unit test the lit-tab math if it has branches.
 4. **Keyboard paths**: ⌘1…⌘9 and ⇧⌘[ / ⇧⌘] switch tabs; also in the menu bar.
 5. **Glass polish**: the look from phase 3b holds during swipes (no double glass, no
    flicker of frosted cards). Reduce Motion turns off page and morph animations.
-6. **e2e**: synthesize horizontal scroll gestures (XCUITest `scroll(byDeltaX:deltaY:)` or a
+6. **Tab click = scroll.** Clicking a pill (or sidebar row) moves the strip to that page
+   and the selection marker moves exactly as it does during a swipe. No pill
+   grow-from-center animation.
+7. **Bug: wrong tab after a workspace switch.** Coming from another workspace and clicking
+   the 2nd tab shows the 1st; clicking the 1st does nothing, then the 2nd works. Find the
+   root cause (strip scroll position vs selection binding on workspace change) and add an
+   e2e test that fails before the fix.
+8. **Pill spacing** like the references (`resources/inspirations/ui-target/02-*`): more
+   leading padding (the icon tile is at the capsule edge now), consistent top/bottom
+   space, consistent spacing between pills.
+9. **Chrome polish from the user's test:**
+   - the session button shows only the session name (drop "This Mac"); its icon the same
+     size as the other title-bar icons;
+   - full screen: no empty traffic-light inset on the left of the title row;
+   - the sidebar sits on the flat window background, no glass panel (as in ref 03): only
+     the pane cards are frosted; selected and hover rows keep their pills. Update D44/D45.
+10. **e2e**: synthesize horizontal scroll gestures (XCUITest `scroll(byDeltaX:deltaY:)` or a
    `CGEvent` scroll with phases) over a terminal card → the next tab becomes selected and
    its panes attach; a vertical scroll over the same card scrolls the terminal and does not
    page; ⌘2 selects the second tab; screenshots of each step.
