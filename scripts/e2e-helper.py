@@ -24,9 +24,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if session not in sessions:
             status, reply = 403, f"refusing session '{session}'".encode()
         else:
-            run = subprocess.run(["herdr", "--session", session, "remote-api-bridge"],
-                                 input=body, capture_output=True, timeout=10)
-            status, reply = (200, run.stdout) if run.returncode == 0 else (500, run.stderr)
+            try:
+                run = subprocess.run(["herdr", "--session", session, "remote-api-bridge"],
+                                     input=body, capture_output=True, timeout=10)
+                status, reply = (200, run.stdout) if run.returncode == 0 else (500, run.stderr)
+            except Exception as error:  # a timeout or no herdr: tell the test, keep serving
+                status, reply = 500, str(error).encode()
         self.send_response(status)
         self.send_header("Content-Length", str(len(reply)))
         self.end_headers()
