@@ -44,12 +44,17 @@ extension HerdlightUITests {
 
     func testClosingATabAsksFirst() async throws {
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
-        let (tab, _) = try await newTab("doomed", closeAfter: false)
+        let (tab, pane) = try await newTab("doomed", closeAfter: false)
+        try await Self.call(one, "pane.split", ["target_pane_id": pane, "direction": "right", "cwd": "/tmp",
+                                                "focus": false])
         let row = element("tab.\(tab)")
         row.hover()
         element("tab.\(tab).close").click()
         let confirm = app.sheets.buttons["Close Tab"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.sheets.staticTexts
+            .matching(NSPredicate(format: "value CONTAINS '2 panes' OR label CONTAINS '2 panes'")).firstMatch
+            .exists)
         keepScreenshot("close tab dialog")
         confirm.click()
         XCTAssertTrue(row.waitForNonExistence(timeout: 3))
@@ -98,6 +103,14 @@ extension HerdlightUITests {
         XCTAssertEqual(card.frame.width, page.width, accuracy: 2)
         try await expectPTYSize("w1:p2")
         keepScreenshot("zoom")
+        // Clicks and keys reach the zoomed terminal, not a hidden one under it.
+        element("terminal.w1:p2").click()
+        app.typeText("echo hl-zoom-$((6*7))")
+        app.typeKey(.return, modifierFlags: [])
+        try await poll("the zoomed card's output") { () async throws -> Bool? in
+            let read = try await Self.call(one, "pane.read", ["pane_id": "w1:p2", "source": "visible"])["read"]
+            return ((read as? [String: Any])?["text"] as? String)?.contains("\nhl-zoom-42") == true ? true : nil
+        }
         // The hidden cards keep their size.
         try await Self.call(one, "pane.send_text", ["pane_id": "w1:p3", "text": "clear; stty size\r"])
         try await poll("p3 to keep its size") { () async throws -> Bool? in
@@ -131,7 +144,7 @@ extension HerdlightUITests {
         XCTAssertTrue(element("session.\(name)").wait(for: \.isSelected, toEqual: true, timeout: 3))
     }
 
-    func testShowStoppedRevealsStoppedSessions() throws {
+    func testShowStoppedRevealsStoppedSessionsAndPickingOneStartsIt() throws {
         let stopped = try XCTUnwrap(ProcessInfo.processInfo.environment["HL_SESSION3"])
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
         element("titlebar.session-picker").click()
@@ -142,6 +155,12 @@ extension HerdlightUITests {
         keepScreenshot("show stopped")
         element("sessions.show-stopped").click()
         XCTAssertTrue(element("session.\(stopped)").waitForNonExistence(timeout: 2))
+
+        // Picking a stopped session starts it (a launchd job) and gives it a workspace.
+        element("sessions.show-stopped").click()
+        element("session.\(stopped)").click()
+        XCTAssertTrue(element("workspace.w2").waitForNonExistence(timeout: connect))
+        XCTAssertTrue(element("workspace.w1").waitForExistence(timeout: connect))
     }
 
     func testPaletteFiltersAndJumps() {
@@ -176,6 +195,20 @@ extension HerdlightUITests {
         XCTAssertTrue(filter.waitForNonExistence(timeout: 2))
     }
 
+    func testPaletteJumpsToAnotherWorkspacesSecondTab() async throws {
+        XCTAssertTrue(element("tab.w1:t2").waitForExistence(timeout: connect))
+        let (tab, _) = try await newTab("faraway")
+        app.typeKey("k", modifierFlags: .command)
+        let filter = element("palette.filter")
+        XCTAssertTrue(filter.waitForExistence(timeout: 2))
+        XCTAssertTrue(hasKeyboard(filter))
+        app.typeText("faraway")
+        XCTAssertTrue(element("palette.tab.\(tab)").waitForExistence(timeout: 2))
+        app.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(element("tab.\(tab)").wait(for: \.isSelected, toEqual: true, timeout: 2))
+        XCTAssertTrue(element("page.\(tab)").wait(for: \.isHittable, toEqual: true, timeout: 3))
+    }
+
     // MARK: Helpers
 
     /// Shows a card's header buttons. Over the header, not the card's center: SwiftUI does not see the
@@ -184,10 +217,10 @@ extension HerdlightUITests {
         element("pane.\(pane)").coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 40, dy: 17)).hover()
     }
 
-    /// A new tab in w1 (closed after the test), shown in the sidebar: its id and its pane's. Not in w2: picking a
-    /// tab of another workspace opens its strip at the first tab (a strip bug, phase 5).
+    /// A new tab in w2 (closed after the test), shown in the sidebar: its id and its pane's. In another workspace
+    /// than the selected one, so a click on it also crosses workspaces.
     private func newTab(_ label: String, closeAfter: Bool = true) async throws -> (tab: String, pane: String) {
-        let created = try await Self.call(one, "tab.create", ["workspace_id": "w1", "label": label, "cwd": "/tmp",
+        let created = try await Self.call(one, "tab.create", ["workspace_id": "w2", "label": label, "cwd": "/tmp",
                                                               "focus": false])
         let tab = try XCTUnwrap((created["tab"] as? [String: Any])?["tab_id"] as? String)
         let pane = try XCTUnwrap((created["root_pane"] as? [String: Any])?["pane_id"] as? String)
