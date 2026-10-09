@@ -6,6 +6,8 @@ struct HerdlightApp: App {
     #if os(macOS)
         init() {
             SwipeRouter.install()
+            // One window; no tab bar or tab menu items of AppKit's own.
+            NSWindow.allowsAutomaticWindowTabbing = false
         }
     #endif
 
