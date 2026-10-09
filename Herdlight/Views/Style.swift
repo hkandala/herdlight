@@ -136,10 +136,13 @@ struct FilterField: View {
                     .focused($focused)
                     .task {
                         // ponytail: focus asked for as the field appears is dropped (AppKit has not made it a
-                        // key view yet); a short wait works. Upgrade: an AppKit field that takes first responder
-                        // in viewDidMoveToWindow.
-                        try? await Task.sleep(for: .milliseconds(100))
-                        focused = true
+                        // key view yet), and a single later ask was sometimes dropped too (⌘K, then typing went
+                        // nowhere); ask every 50 ms until it holds, for up to 1 s. Upgrade: an AppKit field that
+                        // takes first responder in viewDidMoveToWindow.
+                        for _ in 0 ..< 20 where !focused {
+                            try? await Task.sleep(for: .milliseconds(50))
+                            focused = true
+                        }
                     }
                     .onChange(of: focused) { editing = focused }
                     .accessibilityIdentifier(identifier)
