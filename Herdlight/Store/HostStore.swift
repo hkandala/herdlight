@@ -102,6 +102,14 @@ final class HostStore {
         selectedWorkspace.flatMap { workspace in workspace.tabs.first { $0.id == workspace.selectedTabID } }
     }
 
+    /// Selects the tab before or after the selected one, round the ends.
+    func step(_ offset: Int) {
+        guard let workspace = selectedWorkspace, !workspace.tabs.isEmpty else { return }
+        let tabs = workspace.tabs
+        let index = tabs.firstIndex { $0.id == workspace.selectedTabID } ?? 0
+        workspace.selectedTabID = tabs[(index + offset + tabs.count) % tabs.count].id
+    }
+
     /// The selected tab's terminals (terminal id → pane id): the ones that stream.
     var shownTerminals: [String: String] {
         Dictionary(panes.compactMap { pane in
