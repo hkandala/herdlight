@@ -12,6 +12,7 @@ struct HerdlightApp: App {
             .defaultSize(width: 1200, height: 760)
             // Content never grows the window (the title-bar tabs would, when the sidebar hides).
             .windowResizability(.contentMinSize)
+            .commands { TabCommands() }
         #else
             WindowGroup {
                 ContentUnavailableView("Herdlight for iOS is coming", systemImage: "iphone")
@@ -73,10 +74,48 @@ struct HerdlightApp: App {
             }
             .navigationTitle(store.selectedTab?.label ?? HostStore.name(store.session))
             .preferredColorScheme(.dark)
+            // The menu's ⌘1…⌘9 tabs step aside while the session list has its own ⌘1…⌘9.
+            .focusedSceneValue(\.store, picking ? nil : store)
             // A new store (session switch) cancels the old one's run, which drops its client.
             .task(id: ObjectIdentifier(store)) { await store.run(exec: exec.value) }
             // Here, not in the detail: a failed or empty session must release its terminals too.
             .onChange(of: store.shownTerminals) { store.showTerminals() }
+        }
+    }
+
+    extension FocusedValues {
+        @Entry var store: HostStore?
+    }
+
+    /// In the Window menu: the selected workspace's tabs on ⌘1…⌘9, and ⇧⌘[ / ⇧⌘] for the one before or after.
+    private struct TabCommands: Commands {
+        @FocusedValue(\.store) private var store
+
+        var body: some Commands {
+            CommandGroup(after: .windowArrangement) {
+                let workspace = store?.selectedWorkspace
+                let tabs = workspace?.tabs ?? []
+                Divider()
+                Button("Show Previous Tab") { step(-1) }
+                    .keyboardShortcut("[", modifiers: [.command, .shift])
+                    .disabled(tabs.count < 2)
+                Button("Show Next Tab") { step(1) }
+                    .keyboardShortcut("]", modifiers: [.command, .shift])
+                    .disabled(tabs.count < 2)
+                Divider()
+                ForEach(Array(tabs.prefix(9).enumerated()), id: \.element.id) { index, tab in
+                    Button(tab.label) { workspace?.selectedTabID = tab.id }
+                        .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")))
+                }
+            }
+        }
+
+        /// The tab before or after the selected one, round the ends.
+        private func step(_ offset: Int) {
+            guard let workspace = store?.selectedWorkspace, !workspace.tabs.isEmpty else { return }
+            let tabs = workspace.tabs
+            let index = tabs.firstIndex { $0.id == workspace.selectedTabID } ?? 0
+            workspace.selectedTabID = tabs[(index + offset + tabs.count) % tabs.count].id
         }
     }
 

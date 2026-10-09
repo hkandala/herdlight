@@ -89,6 +89,16 @@ extension HerdlightUITests {
         try await expectPTYSize("w1:p4")
     }
 
+    func testCommandDigitSelectsATab() {
+        XCTAssertTrue(element("terminal.w1:p1").waitForExistence(timeout: connect))
+        app.typeKey("2", modifierFlags: .command)
+        XCTAssertTrue(element("tab.w1:t2").wait(for: \.isSelected, toEqual: true, timeout: 2))
+        XCTAssertTrue(element("pane.w1:p4").wait(for: \.isHittable, toEqual: true, timeout: 2))
+        keepScreenshot("command 2")
+        app.typeKey("[", modifierFlags: [.command, .shift])
+        XCTAssertTrue(element("tab.w1:t1").wait(for: \.isSelected, toEqual: true, timeout: 2))
+    }
+
     func testSwitchingTabsKeepsTheLastTabAttached() async throws {
         XCTAssertTrue(element("terminal.w1:p1").waitForExistence(timeout: connect))
         let old = try await terminalID("w1:p1"), new = try await terminalID("w1:p4")
