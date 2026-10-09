@@ -106,7 +106,9 @@ final class HostStore {
             // focused pane; later snapshots leave it where the user clicked.
             guard let tab = selectedTab, tab.id != keyboardTabID else { return }
             let tabPanes = panes.filter { $0.tabID == tab.id }
-            if let terminalID = (tabPanes.first(where: \.focused) ?? tabPanes.first)?.terminalID {
+            if let terminalID = tabPanes.first(where: \.focused)?.terminalID ?? tabPanes.compactMap(\.terminalID)
+                .first
+            {
                 keyboardTabID = tab.id
                 terminals.focus(terminalID)
             }

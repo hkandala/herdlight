@@ -17,11 +17,14 @@
         private var scrolled: CGFloat = 0
 
         /// Asked for the keyboard before it was in a window.
-        private var wantsKeyboard = false
+        var wantsKeyboard = false
 
         override init(frame: NSRect) {
             super.init(frame: frame)
             delegate = self
+            setAccessibilityElement(true)
+            setAccessibilityRole(.group)
+            setAccessibilityLabel("Terminal")
         }
 
         /// Gives this terminal the keyboard, now or once it is in a window.
@@ -226,16 +229,13 @@
         }
     }
 
-    /// For e2e tests: the grid as `stty size` prints it (rows, columns).
     extension PaneSurfaceView {
-        override func isAccessibilityElement() -> Bool {
-            true
+        override func accessibilityIdentifier() -> String {
+            terminal.map { "terminal.\($0.paneID)" } ?? ""
         }
 
-        override func accessibilityRole() -> NSAccessibility.Role? {
-            .group
-        }
-
+        /// The grid as `stty size` prints it (rows, columns), for e2e tests.
+        /// ponytail: grid size until VoiceOver gets the screen text (design: accessibility).
         override func accessibilityValue() -> Any? {
             metrics.map { "\($0.rows) \($0.columns)" }
         }
@@ -246,7 +246,9 @@
             metrics = size
         }
 
-        /// A new surface starts focused (a filled cursor) until it first loses the keyboard.
+        /// A new surface starts focused (a filled cursor) until it first loses the keyboard, and
+        /// libghostty-spm has no public way to set a surface's focus; resigning is the one that
+        /// tells the surface it is not focused.
         func terminalDidAttachSurface(_: TerminalSurface) {
             if window?.firstResponder !== self {
                 _ = resignFirstResponder()

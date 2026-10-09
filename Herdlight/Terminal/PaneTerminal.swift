@@ -60,6 +60,7 @@
         /// No padding, so cells map from the view's origin; no scrollback, herdr keeps it.
         private static let controller = TerminalController {
             $0.withCustom("keybind", "clear")
+            // ponytail: a fixed 13 pt until the app has a text size setting.
             $0.withFontSize(13)
             $0.withBackgroundOpacity(0)
             $0.withWindowPaddingX(0)
@@ -106,6 +107,7 @@
         func hide() {
             shown = false
             pending = []
+            paste = nil
             end()
         }
 
@@ -269,9 +271,14 @@
         private func enqueue(_ input: Input) {
             if case let .text(text) = input, paste != nil || text.hasPrefix("\u{1B}[200~") {
                 let whole = (paste ?? "") + text
-                paste = whole.hasSuffix("\u{1B}[201~") ? nil : whole
-                if paste == nil {
-                    queue(.text(whole))
+                paste = whole
+                // Text after the end mark (typing in the same write) goes out on its own.
+                if let end = whole.range(of: "\u{1B}[201~") {
+                    paste = nil
+                    queue(.text(String(whole[..<end.upperBound])))
+                    if end.upperBound < whole.endIndex {
+                        queue(.text(String(whole[end.upperBound...])))
+                    }
                 }
             } else {
                 queue(input)
