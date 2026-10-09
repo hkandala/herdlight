@@ -75,6 +75,51 @@ extension HerdlightUITests {
         XCTAssertTrue(element("page.\(tab)").wait(for: \.isHittable, toEqual: true, timeout: 3))
     }
 
+    func testCommandTOpensInTheKeyboardCardsDirectoryAndCommandWClosesIt() async throws {
+        XCTAssertTrue(element("terminal.w1:p2").waitForExistence(timeout: connect))
+        try await waitForPrompt("w1:p2")
+        try await Self.call(one, "pane.send_text", ["pane_id": "w1:p2", "text": "cd /usr\r"])
+        element("terminal.w1:p2").click()
+
+        // ⌘T: the new tab opens in /usr and has the keyboard; ⌘W there closes it (only its shell runs).
+        var pane = try await commandT()
+        try await waitForPrompt(pane)
+        try await typeAndRead(pane)
+        let tab = try await tabOf(pane)
+        app.typeKey("w", modifierFlags: .command)
+        XCTAssertTrue(element("tab.\(tab)").waitForNonExistence(timeout: 3))
+
+        // After a zoom and a restore by double-click, ⌘T still knows the card.
+        element("tab.w1:t1").click()
+        let header = element("pane.w1:p2").coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 40, dy: 17))
+        header.doubleClick()
+        XCTAssertTrue(element("pane.w1:p1").waitForNonExistence(timeout: 2))
+        header.doubleClick()
+        XCTAssertTrue(element("pane.w1:p1").waitForExistence(timeout: 2))
+        pane = try await commandT()
+        let created = try await tabOf(pane)
+        addTeardownBlock { [one] in _ = try? await Self.call(one, "tab.close", ["tab_id": created]) }
+    }
+
+    /// ⌘T, then the new tab's pane once herdr has it; its cwd must be /usr.
+    private func commandT() async throws -> String {
+        let before = try await tabIDs()
+        app.typeKey("t", modifierFlags: .command)
+        let tab = try await poll("a new tab") { () async throws -> String? in
+            try await tabIDs().first { !before.contains($0) }
+        }
+        XCTAssertTrue(element("tab.\(tab)").wait(for: \.isSelected, toEqual: true, timeout: 3))
+        let snapshot = try await Self.call(one, "session.snapshot", [:])["snapshot"] as? [String: Any]
+        let pane = try XCTUnwrap((snapshot?["panes"] as? [[String: Any]])?.first { $0["tab_id"] as? String == tab })
+        XCTAssertEqual(pane["cwd"] as? String, "/usr")
+        return try XCTUnwrap(pane["pane_id"] as? String)
+    }
+
+    private func tabOf(_ pane: String) async throws -> String {
+        let info = try await Self.call(one, "pane.get", ["pane_id": pane])["pane"] as? [String: Any]
+        return try XCTUnwrap(info?["tab_id"] as? String)
+    }
+
     func testNewWorkspaceAppearsSelected() async throws {
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
         // From the second tab, after the sidebar was hidden and shown: a new workspace once came up blank then.
