@@ -117,3 +117,69 @@ func `talks to a throwaway herdr session`() async throws {
     // stderr is still open in `sleep`; without stopping its reader, this waits 8 s.
     _ = try await withTimeout(.seconds(5), onTimeout: {}, { await channel.exit() })
 }
+
+private struct Created: Decodable {
+    struct Pane: Decodable {
+        let pane_id: String // swiftlint:disable:this identifier_name
+        let terminal_id: String // swiftlint:disable:this identifier_name
+    }
+
+    let root_pane: Pane // swiftlint:disable:this identifier_name
+}
+
+private struct Read: Decodable {
+    struct Text: Decodable { let text: String }
+    let read: Text
+}
+
+@Test(.enabled(if: shell("which", "herdr") == 0, "herdr is not on PATH"))
+func `controls a throwaway terminal`() async throws {
+    let session = "hl-e2e-\(UUID().uuidString.prefix(6).lowercased())"
+    try #require(shell(script, "up", session) == 0)
+    defer { shell(script, "down", session) }
+
+    let exec = await ProcessExec()
+    let client = try await HerdrClient(herdr: HerdrClient.locate(exec: exec), session: session, exec: exec)
+    let pane = try await (client.call("workspace.create", ["cwd": "/tmp", "focus": false]) as Created).root_pane
+    let terminal = pane.terminal_id
+
+    try await withTimeout(.seconds(20), onTimeout: {}, {
+        let control = try await client.terminal(terminal, cols: 60, rows: 12)
+        var events = control.events.makeAsyncIterator()
+        guard case let .frame(first)? = await events.next() else { throw HerdrError.failed("no first frame") }
+        #expect(first.full && first.width == 60 && first.height == 12)
+
+        control.input("echo hl-$((6*7)); stty size\r")
+        var text = ""
+        for _ in 0 ..< 50 where !text.contains("12 60") {
+            try await Task.sleep(for: .milliseconds(100))
+            text = try await (client.call("pane.read", ["pane_id": pane.pane_id, "source": "visible"]) as Read)
+                .read.text
+        }
+        #expect(text.contains("hl-42"))
+        #expect(text.contains("12 60"))
+
+        control.resize(cols: 70, rows: 15, cellWidth: 8, cellHeight: 17)
+        var resized: TerminalStream.Frame?
+        while resized == nil, case let .frame(frame)? = await events.next() {
+            resized = frame.full ? frame : nil
+        }
+        #expect(resized?.width == 70 && resized?.height == 15)
+
+        // Held: a second controller is refused, a watcher is not.
+        let second = try await client.terminal(terminal, cols: 60, rows: 12)
+        #expect(await second.events.first { _ in true } == .closed(.held))
+        let watcher = try await client.terminal(terminal, cols: 60, rows: 12, observe: true)
+        guard case let .frame(watched)? = await watcher.events.first(where: { _ in true }) else {
+            throw HerdrError.failed("no observe frame")
+        }
+        #expect(watched.full && watched.width == 60)
+
+        control.release()
+        while let event = await events.next() {
+            if case let .closed(reason) = event {
+                #expect(reason == .detached)
+            }
+        }
+    })
+}
