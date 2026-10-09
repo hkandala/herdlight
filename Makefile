@@ -28,6 +28,7 @@ test:
 e2e:
 	rm -rf $(DERIVED_DATA)/e2e.xcresult
 	scripts/e2e.sh $(XCODEBUILD) -destination 'platform=macOS' \
+		-test-timeouts-enabled YES -default-test-execution-time-allowance 120 \
 		-resultBundlePath $(DERIVED_DATA)/e2e.xcresult test $(BEAUTIFY)
 
 run:
