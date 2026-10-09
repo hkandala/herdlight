@@ -70,6 +70,28 @@ struct ChromeStyle: ButtonStyle {
     }
 }
 
+/// A row of the session list and the palette: a symbol, a title, and a shortcut or hint on the right.
+struct MenuRow: View {
+    var symbol: String?
+    let title: String
+    var detail = ""
+    /// On the accent pill.
+    var selected = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol ?? "circle").opacity(symbol == nil ? 0 : 1).frame(width: 18)
+                .accessibilityHidden(true)
+            Text(title).lineLimit(1)
+            Spacer()
+            // Readable on the accent pill too.
+            Text(detail).foregroundStyle(.white.opacity(selected ? 0.75 : 0.5)).lineLimit(1)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+    }
+}
+
 /// An SF Symbol button for the title bar, the sidebar and card headers.
 struct IconButton: View {
     let symbol: String

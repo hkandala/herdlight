@@ -62,6 +62,11 @@
             terminals[terminalID]?.view.takeKeyboard()
         }
 
+        /// The pane whose terminal has the keyboard.
+        var keyboardPaneID: String? {
+            terminals.values.first(where: \.hasKeyboard)?.paneID
+        }
+
         /// Releases everything: the session switches or its store stops.
         func closeAll() {
             terminals.values.forEach { $0.close() }

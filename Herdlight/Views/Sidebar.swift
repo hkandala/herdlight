@@ -27,8 +27,11 @@ struct Sidebar: View {
                     .onExitCommand { filter = "" }
                 #endif
                     .padding(.trailing, 4)
-                // ponytail: no-op until sessions can be created
-                IconButton(symbol: "rectangle.stack.badge.plus", help: "New Session") {}
+                IconButton(symbol: "rectangle.stack.badge.plus", help: "New Workspace") {
+                    Task { await store.newWorkspace() }
+                }
+                .disabled(store.state != .live || store.writing)
+                .accessibilityIdentifier("sidebar.new-workspace")
                 // ponytail: no-op until remote hosts
                 IconButton(symbol: "network", help: "Add Remote Host") {}
             }
@@ -74,6 +77,7 @@ private struct TabRow: View {
     let tab: HostStore.Tab
     let workspace: HostStore.Workspace
     let store: HostStore
+    @State private var hovering = false
 
     var body: some View {
         let selected = workspace.id == store.selectedWorkspaceID && tab.id == workspace.selectedTabID
@@ -85,7 +89,10 @@ private struct TabRow: View {
                 IconTile()
                 Text(tab.label).lineLimit(1)
                 Spacer(minLength: 0)
-                StatusGlyph(status: tab.status)
+                // The one status slot: × while hovered (design D42).
+                if !hovering {
+                    StatusGlyph(status: tab.status)
+                }
             }
             .padding(.horizontal, 7)
             .padding(.vertical, 7)
@@ -93,5 +100,29 @@ private struct TabRow: View {
         .buttonStyle(ChromeStyle(selected: selected, radius: 10))
         .accessibilityIdentifier("tab.\(tab.id)")
         .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityAction(named: "Close Tab") { store.closing = .tab(tab.id) }
+        .overlay(alignment: .trailing) {
+            if hovering {
+                CloseTabButton(tab: tab, store: store).padding(.trailing, 4)
+            }
+        }
+        .onHover { hovering = $0 }
+    }
+}
+
+/// The × of a tab row or capsule: asks first, with the pane count (design D41).
+struct CloseTabButton: View {
+    let tab: HostStore.Tab
+    let store: HostStore
+
+    var body: some View {
+        Button { store.closing = .tab(tab.id) } label: {
+            Image(systemName: "xmark").font(.caption.weight(.bold)).foregroundStyle(.secondary)
+                .frame(width: 18, height: 18)
+        }
+        .buttonStyle(ChromeStyle(radius: 5))
+        .help("Close Tab")
+        .accessibilityLabel("Close Tab")
+        .accessibilityIdentifier("tab.\(tab.id).close")
     }
 }

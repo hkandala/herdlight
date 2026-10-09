@@ -20,7 +20,10 @@ struct HerdlightApp: App {
             .defaultSize(width: 1200, height: 760)
             // Content never grows the window (the title-bar tabs would, when the sidebar hides).
             .windowResizability(.contentMinSize)
-            .commands { TabCommands() }
+            .commands {
+                TabCommands()
+                ActionCommands()
+            }
         #else
             WindowGroup {
                 ContentUnavailableView("Herdlight for iOS is coming", systemImage: "iphone")
@@ -40,17 +43,18 @@ struct HerdlightApp: App {
         @State private var sidebar = true
         @State private var picking = false
         @State private var fullScreen = false
+        @State private var palette = false
 
         var body: some View {
             VStack(spacing: 0) {
-                TitleBar(store: store, fullScreen: fullScreen, sidebar: $sidebar, picking: $picking)
+                TitleBar(store: store, fullScreen: fullScreen, sidebar: $sidebar, picking: $picking, palette: $palette)
                 HStack(spacing: 0) {
                     if sidebar {
                         Sidebar(store: store)
                             .padding([.leading, .bottom], gap)
                             .transition(.move(edge: .leading).combined(with: .opacity))
                     }
-                    Detail(store: store)
+                    Detail(store: $store)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .padding(.top, 4)
@@ -65,6 +69,21 @@ struct HerdlightApp: App {
                                 .padding(.top, TitleBar.height + 4)
                         }
                 }
+                if palette {
+                    Color.clear.contentShape(.rect).onTapGesture { palette = false }
+                        .overlay(alignment: .top) { Palette(store: $store, open: $palette).padding(.top, 96) }
+                }
+            }
+            .confirmationDialog(dialog?.title ?? "", isPresented: Binding { store.closing != nil } set: {
+                if !$0 {
+                    store.closing = nil
+                }
+            }, titleVisibility: .visible, presenting: store.closing) { close in
+                Button(close.isTab ? "Close Tab" : "Close Pane", role: .destructive) {
+                    Task { await store.close(close) }
+                }
+            } message: { _ in
+                Text(dialog?.message ?? "")
             }
             // The title bar row takes the hidden title bar's line.
             .ignoresSafeArea(edges: .top)
@@ -78,21 +97,94 @@ struct HerdlightApp: App {
             .navigationTitle(store.selectedTab?.label ?? HostStore.name(store.session))
             .preferredColorScheme(.dark)
             // The menu's ⌘1…⌘9 tabs step aside while the session list has its own ⌘1…⌘9.
-            .focusedSceneValue(\.store, picking ? nil : store)
+            .focusedSceneValue(\.store, picking ? nil : $store)
             // A new store (session switch) cancels the old one's run, which drops its client.
             .task(id: ObjectIdentifier(store)) { await store.run(exec: exec.value) }
             // Here, not in the detail: a failed or empty session must release its terminals too.
             .onChange(of: store.shownTerminals) { store.showTerminals() }
         }
+
+        /// The close dialog's text (design D41): a close ends processes on every device and cannot be undone.
+        private var dialog: (title: String, message: String)? {
+            switch store.closing {
+            case let .tab(id):
+                let tab = store.workspaces.flatMap(\.tabs).first { $0.id == id }
+                let count = store.panes.count { $0.tabID == id }
+                return ("Close the tab “\(tab?.label ?? id)”?",
+                        "Its \(count == 1 ? "pane" : "\(count) panes") and everything running in "
+                            + "\(count == 1 ? "it" : "them") will end, here and in every herdr client. "
+                            + "This cannot be undone.")
+            case let .pane(id, program):
+                let pane = store.pane(id)
+                return ("Close “\(pane?.label ?? pane?.cwd.map { ($0 as NSString).lastPathComponent } ?? id)”?",
+                        "\(program) is running in it and will end, here and in every herdr client. "
+                            + "This cannot be undone.")
+            case nil:
+                return nil
+            }
+        }
     }
 
     extension FocusedValues {
-        @Entry var store: HostStore?
+        /// The window's store, for the menu commands.
+        @Entry var store: Binding<HostStore>?
+    }
+
+    /// The menu bar's actions on the window's store; the shortcuts work wherever the keyboard is.
+    private struct ActionCommands: Commands {
+        @FocusedBinding(\.store) private var store
+
+        var body: some Commands {
+            CommandGroup(replacing: .newItem) {
+                Button("New Tab") { Task { await store?.newTab() } }
+                    .keyboardShortcut("t")
+                    .disabled(store?.selectedWorkspace == nil)
+                Button("New Workspace") { Task { await store?.newWorkspace() } }
+                    .disabled(store?.state != .live)
+                Button("New Session") {
+                    if let sessions = store?.sessions {
+                        store = HostStore(session: sessions.newName, start: true)
+                    }
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+                .disabled(store == nil)
+            }
+            // ⌘W closes the keyboard card, ⇧⌘W the window (design: keyboard).
+            CommandGroup(replacing: .saveItem) {
+                Button("Close Pane") {
+                    if let store, let pane = store.keyboardPane {
+                        Task { await store.close(pane: pane.id) }
+                    }
+                }
+                .keyboardShortcut("w")
+                .disabled(store?.keyboardPane == nil)
+                Button("Close Tab") {
+                    if let store, let tab = store.selectedTab {
+                        store.closing = .tab(tab.id)
+                    }
+                }
+                .disabled(store?.selectedTab == nil)
+                Button("Close Window") { NSApp.keyWindow?.performClose(nil) }
+                    .keyboardShortcut("w", modifiers: [.command, .shift])
+            }
+            CommandGroup(after: .sidebar) {
+                Button("Zoom Pane") {
+                    guard let store else { return }
+                    if let zoomed = store.zoomedPaneID, store.pane(zoomed)?.tabID == store.selectedTab?.id {
+                        store.zoom(zoomed)
+                    } else if let pane = store.keyboardPane {
+                        store.zoom(pane.id)
+                    }
+                }
+                .keyboardShortcut(.return, modifiers: [.command, .shift])
+                .disabled(store?.keyboardPane == nil)
+            }
+        }
     }
 
     /// In the Window menu: the selected workspace's tabs on ⌘1…⌘9, and ⇧⌘[ / ⇧⌘] for the one before or after.
     private struct TabCommands: Commands {
-        @FocusedValue(\.store) private var store
+        @FocusedBinding(\.store) private var store
 
         var body: some Commands {
             CommandGroup(after: .windowArrangement) {
@@ -171,7 +263,7 @@ struct HerdlightApp: App {
 
     /// The selected workspace's tabs, or why there is nothing to show.
     private struct Detail: View {
-        let store: HostStore
+        @Binding var store: HostStore
 
         var body: some View {
             switch store.state {
@@ -196,21 +288,26 @@ struct HerdlightApp: App {
             case let .failed(.unsupported(text)):
                 message("herdr is too old", text + ". Update it in a terminal:", "herdr update")
             case .failed where !store.isRunning:
-                message("\(HostStore.name(store.session)) is not running", "Start it in a terminal:",
-                        "herdr --session \(store.session) server")
+                message("\(HostStore.name(store.session)) is not running", "Start it here, or in a terminal:",
+                        "herdr --session \(store.session) server", start: true)
             case let .failed(error):
                 message("No answer from herdr", error.localizedDescription, nil)
             }
         }
 
-        /// Plain text with the command to run: the app never starts herdr on This Mac (design D39).
-        private func message(_ title: String, _ text: String, _ command: String?) -> some View {
+        /// What is wrong and the command that fixes it; a stopped session also gets a Start button (design D47).
+        private func message(_ title: String, _ text: String, _ command: String?, start: Bool = false) -> some View {
             ContentUnavailableView {
                 Label(title, systemImage: "terminal")
             } description: {
                 Text(text)
                 if let command {
                     Text(command).monospaced().textSelection(.enabled)
+                }
+            } actions: {
+                if start {
+                    Button("Start \(store.session)") { store = HostStore(session: store.session, start: true) }
+                        .accessibilityIdentifier("detail.start")
                 }
             }
             .accessibilityIdentifier("detail.message")

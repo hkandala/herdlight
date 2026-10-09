@@ -52,7 +52,24 @@ final class HostStore {
         }
     }
 
+    /// A close waiting for the user's yes (design D41).
+    enum Close: Equatable {
+        /// The pane and the program running in it.
+        case pane(String, program: String)
+        case tab(String)
+
+        var isTab: Bool {
+            if case .tab = self {
+                true
+            } else {
+                false
+            }
+        }
+    }
+
     let session: String
+    /// Start the session's server first: it is stopped or new.
+    private let start: Bool
     private(set) var state = State.connecting
     /// Every session herdr knows on this Mac, for the session picker.
     private(set) var sessions: [Session] = []
@@ -64,8 +81,13 @@ final class HostStore {
     var page = 0.0
     /// The last failed write, shown for a few seconds.
     private(set) var notice: String?
-    /// A split in flight; the buttons wait for it.
-    private(set) var splitting = false
+    /// A write in flight; the buttons wait for it.
+    private(set) var writing = false
+    var closing: Close?
+    /// The app's own zoom (design D11): this card fills its tab's page.
+    var zoomedPaneID: String?
+    /// A tab this app just made, selected once a snapshot shows it.
+    @ObservationIgnored private var arriving: String?
     @ObservationIgnored private var client: HerdrClient?
     #if os(macOS)
         let terminals = PaneViewRegistry()
@@ -75,8 +97,9 @@ final class HostStore {
         @ObservationIgnored private var keyboardTerminals: [String: String] = [:]
     #endif
 
-    init(session: String) {
+    init(session: String, start: Bool = false) {
         self.session = session
+        self.start = start
         #if os(macOS)
             terminals.onKeyboard = { [weak self] terminalID in
                 guard let self, let tabID = panes.first(where: { $0.terminalID == terminalID })?.tabID else { return }
@@ -108,6 +131,16 @@ final class HostStore {
         let tabs = workspace.tabs
         let index = tabs.firstIndex { $0.id == workspace.selectedTabID } ?? 0
         workspace.selectedTabID = tabs[(index + offset + tabs.count) % tabs.count].id
+    }
+
+    /// The card keys go to: the terminal with the keyboard, else herdr's focused pane of the selected tab.
+    var keyboardPane: Pane? {
+        #if os(macOS)
+            if let id = terminals.keyboardPaneID, let pane = pane(id) {
+                return pane
+            }
+        #endif
+        return panes.first { $0.tabID == selectedTab?.id && $0.focused }
     }
 
     /// The selected tab's terminals (terminal id → pane id): the ones that stream.
@@ -147,6 +180,14 @@ final class HostStore {
             self.client = client
             defer { self.client = nil }
             #if os(macOS)
+                if start {
+                    try await client.startServer()
+                    // A new server has no workspace yet.
+                    if try await client.snapshot().workspaces.isEmpty {
+                        let _: Created = try await client.call("workspace.create", ["cwd": NSHomeDirectory(),
+                                                                                    "focus": false])
+                    }
+                }
                 terminals.client = client
                 defer { terminals.closeAll() }
             #endif
@@ -172,28 +213,6 @@ final class HostStore {
             }
         } catch {
             state = .failed(error as? HerdrError ?? .failed("\(error)"))
-        }
-    }
-
-    /// The one write v0 makes. No focus change; the snapshot after it draws the new pane.
-    func split(_ paneID: String, _ direction: SplitNode.Direction) async {
-        guard let client, !splitting else { return }
-        splitting = true
-        notice = nil
-        do {
-            let _: Created = try await client.call("pane.split", ["target_pane_id": paneID,
-                                                                  "direction": direction.rawValue, "focus": false])
-            splitting = false
-            await client.refresh()
-        } catch {
-            splitting = false
-            let text = error.localizedDescription
-            notice = text
-            // Shown for a few seconds, unless a newer one replaced it.
-            try? await Task.sleep(for: .seconds(4))
-            if notice == text {
-                notice = nil
-            }
         }
     }
 
@@ -226,6 +245,11 @@ final class HostStore {
             pane.tabID = new.tabID
             pane.terminalID = new.terminalID
         }
+        if let id = arriving, let workspace = workspaces.first(where: { $0.tabs.contains { $0.id == id } }) {
+            arriving = nil
+            selectedWorkspaceID = workspace.id
+            workspace.selectedTabID = id
+        }
         if selectedWorkspace == nil {
             selectedWorkspaceID = workspaces.contains { $0.id == snapshot.focusedWorkspaceID }
                 ? snapshot.focusedWorkspaceID : workspaces.first?.id
@@ -233,8 +257,80 @@ final class HostStore {
     }
 }
 
-/// Any reply: only success matters.
-private nonisolated struct Created: Decodable, Sendable {}
+/// Writes: each is one herdr call, then a snapshot read (design: writes are herdr calls).
+extension HostStore {
+    func split(_ paneID: String, _ direction: SplitNode.Direction) async {
+        await write("pane.split", ["target_pane_id": paneID, "direction": direction.rawValue, "focus": false])
+    }
+
+    /// A new tab in the selected workspace, in the keyboard card's directory.
+    func newTab() async {
+        guard let workspace = selectedWorkspace else { return }
+        await write("tab.create", ["workspace_id": workspace.id, "cwd": keyboardPane?.cwd ?? NSHomeDirectory(),
+                                   "focus": false])
+    }
+
+    func newWorkspace() async {
+        await write("workspace.create", ["cwd": NSHomeDirectory(), "focus": false])
+    }
+
+    /// Closes a pane that runs only its shell; asks first when anything else runs (design D41).
+    func close(pane paneID: String) async {
+        guard let client else { return }
+        let program: String?
+        do {
+            program = try await client.program(paneID)
+        } catch {
+            // Unknown: ask.
+            program = "A program"
+        }
+        if let program {
+            closing = .pane(paneID, program: program)
+        } else {
+            await write("pane.close", ["pane_id": paneID])
+        }
+    }
+
+    /// The user said yes.
+    func close(_ close: Close) async {
+        switch close {
+        case let .pane(id, _): await write("pane.close", ["pane_id": id])
+        case let .tab(id): await write("tab.close", ["tab_id": id])
+        }
+    }
+
+    /// Zooms the card, or restores the layout when it is the zoomed one. The zoomed card gets the keyboard.
+    func zoom(_ paneID: String) {
+        zoomedPaneID = zoomedPaneID == paneID ? nil : paneID
+        #if os(macOS)
+            if zoomedPaneID != nil, let terminalID = pane(paneID)?.terminalID {
+                terminals.focus(terminalID)
+            }
+        #endif
+    }
+
+    /// One write. No focus change; the snapshot after it draws the result, and selects a tab it made.
+    private func write(_ method: String, _ params: [String: any Sendable]) async {
+        guard let client, !writing else { return }
+        writing = true
+        notice = nil
+        do {
+            let created: Created = try await client.call(method, params)
+            writing = false
+            arriving = created.tab?.id ?? arriving
+            await client.refresh()
+        } catch {
+            writing = false
+            let text = error.localizedDescription
+            notice = text
+            // Shown for a few seconds, unless a newer one replaced it.
+            try? await Task.sleep(for: .seconds(4))
+            if notice == text {
+                notice = nil
+            }
+        }
+    }
+}
 
 /// Keeps the object of each id that stays, makes the new ones, and replaces the list only when its
 /// ids changed, so views of the list redraw only then.
