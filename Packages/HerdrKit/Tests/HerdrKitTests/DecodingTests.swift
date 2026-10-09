@@ -27,6 +27,8 @@ private func leaf(_ id: String) -> SplitNode {
     #expect(snapshot.panes.count == 10)
     #expect(snapshot.panes[0].terminalID?.hasPrefix("term_") == true)
     #expect(snapshot.panes[0].tabID == "w1:t1")
+    #expect(snapshot.panes[0].cwd == "/private/tmp")
+    #expect(snapshot.focusedPaneIDs == ["w1:p1", "w1:p5", "w2:p1", "w2:p4", "w2:p5"])
     #expect(snapshot.workspaces[1].agentStatus == .working)
     #expect(snapshot.agents.map(\.paneID) == ["w1:p1", "w2:p2"])
 }

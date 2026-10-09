@@ -10,6 +10,10 @@ public struct Snapshot: Decodable, Sendable {
     let layouts: [Layout]
     /// Each tab's split tree by tab id. Filled by `HerdrClient.snapshot()`.
     public internal(set) var trees: [String: SplitNode] = [:]
+    /// Each tab's focused pane; herdr's global `focused` marks only one pane of all tabs.
+    public var focusedPaneIDs: Set<String> {
+        Set(layouts.compactMap(\.focusedPaneID))
+    }
 
     enum CodingKeys: String, CodingKey {
         case focusedWorkspaceID = "focused_workspace_id"
@@ -45,9 +49,10 @@ public struct Pane: Decodable, Sendable, Identifiable {
     public let terminalID: String?
     public let tabID: String
     public let label: String?
+    public let cwd: String?
 
     enum CodingKeys: String, CodingKey {
-        case id = "pane_id", terminalID = "terminal_id", tabID = "tab_id", label
+        case id = "pane_id", terminalID = "terminal_id", tabID = "tab_id", label, cwd
     }
 }
 
@@ -73,6 +78,7 @@ public struct Session: Decodable, Equatable, Sendable {
 
 struct Layout: Decodable {
     let tabID: String
+    let focusedPaneID: String?
     let panes: [Pane]
     let splits: [Split]
 
@@ -86,5 +92,5 @@ struct Layout: Decodable {
         let ratio: Double
     }
 
-    enum CodingKeys: String, CodingKey { case tabID = "tab_id", panes, splits }
+    enum CodingKeys: String, CodingKey { case tabID = "tab_id", focusedPaneID = "focused_pane_id", panes, splits }
 }
