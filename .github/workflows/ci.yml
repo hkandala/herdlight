@@ -3,7 +3,9 @@ name: ci
 on:
   push:
     branches: [main]
+    paths-ignore: [plan/**, docs/**, resources/**, '**/*.md']
   pull_request:
+    paths-ignore: [plan/**, docs/**, resources/**, '**/*.md']
 
 permissions:
   contents: read
