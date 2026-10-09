@@ -2,6 +2,8 @@
 
 import PackageDescription
 
+let strict: [SwiftSetting] = [.treatAllWarnings(as: .error)]
+
 let package = Package(
     name: "HerdrKit",
     platforms: [.macOS(.v26), .iOS(.v26)],
@@ -9,7 +11,7 @@ let package = Package(
         .library(name: "HerdrKit", targets: ["HerdrKit"]),
     ],
     targets: [
-        .target(name: "HerdrKit"),
-        .testTarget(name: "HerdrKitTests", dependencies: ["HerdrKit"]),
+        .target(name: "HerdrKit", swiftSettings: strict),
+        .testTarget(name: "HerdrKitTests", dependencies: ["HerdrKit"], swiftSettings: strict),
     ],
 )
