@@ -5,11 +5,11 @@ import XCTest
 /// xcodebuild strips the TEST_RUNNER_ prefix from the names.
 @MainActor
 final class HerdlightUITests: XCTestCase {
-    private var one = ""
-    private var two = ""
-    private let app = XCUIApplication()
+    var one = ""
+    var two = ""
+    let app = XCUIApplication()
     /// The app's first snapshot: login shell, herdr checks and a few herdr runs; slow on CI runners.
-    private let connect: TimeInterval = 30
+    let connect: TimeInterval = 30
 
     /// Session one: w1 "alpha" with t1 = p1 | (p2 / p3) at 0.6 and t2 "second"; w2 "beta".
     /// Session two: w1 "gamma".
@@ -193,7 +193,7 @@ final class HerdlightUITests: XCTestCase {
     }
 
     /// For people reviewing a run: the window, in the result bundle.
-    private func keepScreenshot(_ name: String) {
+    func keepScreenshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
@@ -209,14 +209,14 @@ final class HerdlightUITests: XCTestCase {
         return XCTWaiter().wait(for: [focus], timeout: 2) == .completed
     }
 
-    private func element(_ identifier: String) -> XCUIElement {
+    func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier]
     }
 
     /// One herdr API call on a throwaway session, through the helper.
     @discardableResult
-    private nonisolated static func call(_ session: String, _ method: String,
-                                         _ params: [String: Any]) async throws -> [String: Any]
+    nonisolated static func call(_ session: String, _ method: String,
+                                 _ params: [String: Any]) async throws -> [String: Any]
     {
         let helper = try XCTUnwrap(ProcessInfo.processInfo.environment["HL_HELPER"])
         var request = try URLRequest(url: XCTUnwrap(URL(string: "\(helper)/\(session)")))
