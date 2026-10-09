@@ -6,7 +6,7 @@ struct TitleBar: View {
     static let lights: CGFloat = 78
     /// The compact toolbar's height, so the row centers on the traffic lights.
     static let height: CGFloat = 40
-    /// Where the session picker button starts: after the lights and the sidebar toggle.
+    /// Where the session picker button starts: after the 28 pt sidebar toggle and the row's 4 pt spacing.
     static let picker = lights + 32
 
     let store: HostStore
@@ -45,27 +45,51 @@ struct TitleBar: View {
 private struct TabBar: View {
     let workspace: HostStore.Workspace
     @Namespace private var glass
+    @State private var hovered: String?
 
     var body: some View {
-        ScrollView(.horizontal) {
-            GlassEffectContainer {
-                HStack(spacing: 2) {
-                    ForEach(Array(workspace.tabs.enumerated()), id: \.element.id) { index, tab in
-                        if index > 0 {
-                            let quiet = [tab.id, workspace.tabs[index - 1].id].contains(workspace.selectedTabID)
-                            Rectangle().fill(Color.white.opacity(quiet ? 0 : 0.15)).frame(width: 1, height: 16)
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal) {
+                GlassEffectContainer {
+                    HStack(spacing: 2) {
+                        ForEach(Array(workspace.tabs.enumerated()), id: \.element.id) { index, tab in
+                            if index > 0 {
+                                // Only between two flat capsules.
+                                let quiet = [tab.id, workspace.tabs[index - 1].id].contains {
+                                    $0 == workspace.selectedTabID || $0 == hovered
+                                }
+                                Divider().frame(height: 16).opacity(quiet ? 0 : 1)
+                            }
+                            TabCapsule(tab: tab, workspace: workspace, glass: glass)
+                                .onHover { hovered = $0 ? tab.id : hovered == tab.id ? nil : hovered }
                         }
-                        capsule(tab)
                     }
                 }
             }
+            .scrollIndicators(.never)
+            // Capsules fade out at the edges instead of being cut.
+            .mask {
+                HStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing).frame(width: 8)
+                    Color.black
+                    LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing).frame(width: 16)
+                }
+            }
+            .onAppear { proxy.scrollTo(workspace.selectedTabID) }
+            .onChange(of: workspace.selectedTabID) { withAnimation { proxy.scrollTo(workspace.selectedTabID) } }
         }
-        .scrollIndicators(.never)
     }
+}
 
-    private func capsule(_ tab: HostStore.Tab) -> some View {
+/// One tab; its own view, so a status change redraws this capsule only (design D6).
+private struct TabCapsule: View {
+    let tab: HostStore.Tab
+    let workspace: HostStore.Workspace
+    let glass: Namespace.ID
+
+    var body: some View {
         let selected = tab.id == workspace.selectedTabID
-        return Button {
+        Button {
             withAnimation(.snappy) { workspace.selectedTabID = tab.id }
         } label: {
             HStack(spacing: 8) {
@@ -73,14 +97,15 @@ private struct TabBar: View {
                 Text(tab.label).lineLimit(1)
                 StatusGlyph(status: tab.status)
             }
-            .font(.system(size: 13))
             .padding(.leading, 5)
             .padding(.trailing, 12)
-            .frame(minWidth: 120, maxWidth: 220, minHeight: 30, alignment: .leading)
+            .padding(.vertical, 6)
+            .frame(minWidth: 120, maxWidth: 220, alignment: .leading)
         }
         .buttonStyle(ChromeStyle(radius: 15))
         .glassEffect(selected ? .regular.interactive() : .identity, in: .capsule)
         .glassEffectID(selected ? "marker" : tab.id, in: glass)
+        .id(tab.id)
         .accessibilityIdentifier("tab.\(tab.id)")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }

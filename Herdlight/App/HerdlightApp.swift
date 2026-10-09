@@ -10,6 +10,8 @@ struct HerdlightApp: App {
             }
             .windowToolbarStyle(.unifiedCompact)
             .defaultSize(width: 1200, height: 760)
+            // Content never grows the window (the title-bar tabs would, when the sidebar hides).
+            .windowResizability(.contentMinSize)
         #else
             WindowGroup {
                 ContentUnavailableView("Herdlight for iOS is coming", systemImage: "iphone")
@@ -41,6 +43,7 @@ struct HerdlightApp: App {
                     Detail(store: store)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .padding(.top, 4)
             }
             .overlay {
                 if picking {
@@ -49,7 +52,7 @@ struct HerdlightApp: App {
                         .overlay(alignment: .topLeading) {
                             SessionList(store: $store, open: $picking)
                                 .padding(.leading, TitleBar.picker)
-                                .padding(.top, TitleBar.height)
+                                .padding(.top, TitleBar.height + 4)
                         }
                 }
             }
@@ -59,6 +62,8 @@ struct HerdlightApp: App {
             .toolbar { ToolbarSpacer(.flexible) }
             .toolbar(removing: .title)
             .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+            // In full screen the empty toolbar would cover the title row; it shows on hover only.
+            .windowToolbarFullScreenVisibility(.onHover)
             .navigationTitle(store.selectedTab?.label ?? HostStore.name(store.session))
             .preferredColorScheme(.dark)
             // A new store (session switch) cancels the old one's run, which drops its client.
@@ -94,6 +99,7 @@ struct HerdlightApp: App {
                         .overlay(alignment: .bottom) {
                             if let notice = store.notice {
                                 Text(notice).padding(8).glassEffect().padding(gap * 2)
+                                    .accessibilityIdentifier("detail.notice")
                             }
                         }
                 } else {
