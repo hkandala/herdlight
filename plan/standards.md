@@ -36,12 +36,14 @@ before writing code. In short:
 
 ## SwiftUI and look
 
-- Dark theme only. Opaque near-black window and pane cards; Liquid Glass only on chrome:
-  sidebar, tab bar, toolbar, menus (design D33, `docs/content/docs/ui/theme-and-accessibility.mdx`).
-- Use the system glass APIs (`glassEffect`, `GlassEffectContainer`, `.buttonStyle(.glass)`,
-  `NavigationSplitView`'s own sidebar glass). No custom blur materials.
+- Dark theme only, frosted (D44, `docs/content/docs/ui/theme-and-accessibility.mdx`): the
+  window background is one behind-window `NSVisualEffectView` under a dark tint (the only
+  blur bridge to AppKit); pane cards are translucent with a hairline border; Liquid Glass on
+  chrome: sidebar, tab capsules, the session list.
+- Use the system glass APIs (`glassEffect`, `glassEffectID`, `GlassEffectContainer`). No
+  other custom blur.
 - Every control and region an e2e test touches has an `accessibilityIdentifier`
-  (`sidebar.session-picker`, `tab.<tab_id>`, `pane.<pane_id>`, ...).
+  (`titlebar.session-picker`, `tab.<tab_id>`, `pane.<pane_id>`, ...).
 - No hardcoded sizes where layout can decide; the 8 pt gap between cards is the one fixed
   number (design: Layout and sizing).
 
