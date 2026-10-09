@@ -12,6 +12,11 @@ let package = Package(
     ],
     targets: [
         .target(name: "HerdrKit", swiftSettings: strict),
-        .testTarget(name: "HerdrKitTests", dependencies: ["HerdrKit"], swiftSettings: strict),
+        .testTarget(
+            name: "HerdrKitTests",
+            dependencies: ["HerdrKit"],
+            resources: [.copy("Fixtures")],
+            swiftSettings: strict,
+        ),
     ],
 )

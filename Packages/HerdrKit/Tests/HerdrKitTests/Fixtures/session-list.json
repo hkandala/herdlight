@@ -1,0 +1,18 @@
+{
+  "sessions": [
+    {
+      "default": true,
+      "name": "default",
+      "running": true,
+      "session_dir": "/Users/hkandala/.config/herdr",
+      "socket_path": "/Users/hkandala/.config/herdr/herdr.sock"
+    },
+    {
+      "default": false,
+      "name": "hl-dev-fixtures-457dc9",
+      "running": true,
+      "session_dir": "/Users/hkandala/.config/herdr/sessions/hl-dev-fixtures-457dc9",
+      "socket_path": "/Users/hkandala/.config/herdr/sessions/hl-dev-fixtures-457dc9/herdr.sock"
+    }
+  ]
+}
