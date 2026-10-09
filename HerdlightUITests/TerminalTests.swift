@@ -97,6 +97,17 @@ extension HerdlightUITests {
         keepScreenshot("command 2")
         app.typeKey("[", modifierFlags: [.command, .shift])
         XCTAssertTrue(element("tab.w1:t1").wait(for: \.isSelected, toEqual: true, timeout: 2))
+        app.typeKey("]", modifierFlags: [.command, .shift])
+        XCTAssertTrue(element("tab.w1:t2").wait(for: \.isSelected, toEqual: true, timeout: 2))
+
+        // ⌘1 picks a tab of the workspace shown now, and leaves the other one's selection alone.
+        element("workspace.w2").click()
+        XCTAssertTrue(element("pane.w2:p1").wait(for: \.isHittable, toEqual: true, timeout: 2))
+        app.typeKey("1", modifierFlags: .command)
+        XCTAssertTrue(element("pane.w2:p1").wait(for: \.isHittable, toEqual: true, timeout: 2))
+        element("workspace.w1").click()
+        XCTAssertTrue(element("pane.w1:p4").wait(for: \.isHittable, toEqual: true, timeout: 2))
+        XCTAssertTrue(element("tab.w1:t2").isSelected)
     }
 
     func testSwitchingTabsKeepsTheLastTabAttached() async throws {

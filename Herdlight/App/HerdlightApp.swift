@@ -110,8 +110,13 @@ struct HerdlightApp: App {
                     .disabled(tabs.count < 2)
                 Divider()
                 ForEach(Array(tabs.prefix(9).enumerated()), id: \.element.id) { index, tab in
-                    Button(tab.label) { workspace?.selectedTabID = tab.id }
-                        .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")))
+                    // The workspace when the key is pressed: the menu may be older than a workspace switch.
+                    Button(tab.label) {
+                        if let workspace = store?.selectedWorkspace, workspace.tabs.indices.contains(index) {
+                            workspace.selectedTabID = workspace.tabs[index].id
+                        }
+                    }
+                    .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")))
                 }
             }
         }
