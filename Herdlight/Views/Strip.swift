@@ -7,7 +7,7 @@ struct Strip: View {
     let workspace: HostStore.Workspace
     let store: HostStore
     /// The page in view, as the scroll view has it.
-    @State private var shown: String?
+    @State private var position = ScrollPosition(idType: String.self)
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -32,7 +32,7 @@ struct Strip: View {
             #endif
         }
         .scrollTargetBehavior(.paging)
-        .scrollPosition(id: $shown, anchor: .leading)
+        .scrollPosition($position, anchor: .leading)
         .scrollIndicators(.never)
         .onScrollGeometryChange(for: Double.self) {
             // To a thousandth, so a page at rest is a whole number (one lit tab) despite rounding.
@@ -42,15 +42,22 @@ struct Strip: View {
         }
         .onScrollPhaseChange { _, phase in
             // Not a page of the workspace that was shown before a switch.
-            if phase == .idle, let shown, workspace.tabs.contains(where: { $0.id == shown }) {
+            if phase == .idle, let shown = position.viewID(type: String.self),
+               workspace.tabs.contains(where: { $0.id == shown })
+            {
                 workspace.selectedTabID = shown
             }
         }
         // One strip for every workspace: a new one jumps to its selected tab, a new tab in the same one scrolls.
         .onChange(of: [workspace.id, workspace.selectedTabID], initial: true) { old, new in
-            guard shown != workspace.selectedTabID else { return }
+            guard let target = workspace.selectedTabID, position.viewID(type: String.self) != target else { return }
             let animate = old != new && old.first == new.first && !reduceMotion
-            withAnimation(animate ? .smooth : nil) { shown = workspace.selectedTabID }
+            withAnimation(animate ? .smooth : nil) { position.scrollTo(id: target, anchor: .leading) }
+            if old.first != new.first {
+                // Another workspace's pages lay out in this same update, and a scroll to one of them can miss (a
+                // new workspace came up blank): scroll again once they have.
+                Task { position.scrollTo(id: target, anchor: .leading) }
+            }
         }
     }
 }
