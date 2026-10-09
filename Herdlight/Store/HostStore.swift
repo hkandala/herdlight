@@ -68,12 +68,18 @@ final class HostStore {
         let terminals = PaneViewRegistry()
         /// The tab whose terminal last got the keyboard from the app.
         @ObservationIgnored private var keyboardTabID: String?
-        /// The card that last had the keyboard in each tab.
-        @ObservationIgnored private var keyboardPanes: [String: String] = [:]
+        /// The terminal that last had the keyboard in each tab: the app's own, like the selection.
+        @ObservationIgnored private var keyboardTerminals: [String: String] = [:]
     #endif
 
     init(session: String) {
         self.session = session
+        #if os(macOS)
+            terminals.onKeyboard = { [weak self] terminalID in
+                guard let self, let tabID = panes.first(where: { $0.terminalID == terminalID })?.tabID else { return }
+                keyboardTerminals[tabID] = terminalID
+            }
+        #endif
     }
 
     /// "This Mac" for the default session, "This Mac · ‹session›" for the others.
@@ -103,16 +109,12 @@ final class HostStore {
     #if os(macOS)
         /// Streams the selected tab's terminals (see the registry), drops those of closed panes.
         func showTerminals() {
-            // The card the user last typed in, per tab: the app's own, like the selection.
-            if let paneID = terminals.keyboardPaneID, let tabID = pane(paneID)?.tabID {
-                keyboardPanes[tabID] = paneID
-            }
             terminals.show(shownTerminals, alive: Set(panes.compactMap(\.terminalID)))
             // A newly selected tab gives the keyboard back to the card it had; herdr's focused pane
             // only picks it the first time a tab is shown. Later snapshots leave it alone.
             guard let tab = selectedTab, tab.id != keyboardTabID else { return }
             let tabPanes = panes.filter { $0.tabID == tab.id && $0.terminalID != nil }
-            let pane = tabPanes.first { $0.id == keyboardPanes[tab.id] }
+            let pane = tabPanes.first { $0.terminalID == keyboardTerminals[tab.id] }
                 ?? tabPanes.first(where: \.focused) ?? tabPanes.first
             if let terminalID = pane?.terminalID {
                 keyboardTabID = tab.id

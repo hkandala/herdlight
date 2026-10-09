@@ -11,8 +11,8 @@
         /// The design's bound on live terminal surfaces.
         static let live = 24
         var client: HerdrClient?
-        /// The pane whose terminal last took the keyboard.
-        private(set) var keyboardPaneID: String?
+        /// A terminal took the keyboard (its terminal id).
+        var onKeyboard: ((String) -> Void)?
         private var terminals: [String: PaneTerminal] = [:]
         /// Streaming terminals, the most recently shown last.
         private var recent: [String] = []
@@ -26,7 +26,7 @@
             }
             guard let client else { return nil }
             let terminal = PaneTerminal(terminalID: terminalID, paneID: paneID, client: client)
-            terminal.view.onKeyboard = { [weak self, unowned terminal] in self?.keyboardPaneID = terminal.paneID }
+            terminal.view.onKeyboard = { [weak self] in self?.onKeyboard?(terminalID) }
             terminals[terminalID] = terminal
             return terminal
         }
