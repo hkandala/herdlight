@@ -5,4 +5,7 @@ excluded:
   - Packages/HerdrKit/.build
 disabled_rules:
   - trailing_comma # SwiftFormat owns trailing commas
+opening_brace: # SwiftFormat's wrapMultilineStatementBraces puts these braces on their own line
+  ignore_multiline_statement_conditions: true
+  ignore_multiline_function_signatures: true
 allow_zero_lintable_files: true # the hook may pass only excluded files

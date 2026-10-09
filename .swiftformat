@@ -2,3 +2,4 @@
 --swift-version 6.2
 --language-mode 6
 --exclude docs,resources,.build,**/.build
+--max-width 120
