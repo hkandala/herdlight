@@ -96,8 +96,9 @@ struct HerdlightApp: App {
             .background(FullScreenReader(fullScreen: $fullScreen))
             .navigationTitle(store.selectedTab?.label ?? HostStore.name(store.session))
             .preferredColorScheme(.dark)
+            .focusedSceneValue(\.store, $store)
             // The menu's ⌘1…⌘9 tabs step aside while the session list has its own ⌘1…⌘9.
-            .focusedSceneValue(\.store, picking ? nil : $store)
+            .focusedSceneValue(\.tabs, picking ? nil : store)
             .focusedSceneValue(\.palette, $palette)
             // The palette and the session list never show together; a closed palette gives the keys back.
             .onChange(of: palette) {
@@ -124,8 +125,7 @@ struct HerdlightApp: App {
                             + "\(count == 1 ? "it" : "them") will end, here and in every herdr client. "
                             + "This cannot be undone.")
             case let .pane(id, program):
-                let pane = store.pane(id)
-                return ("Close “\(pane?.label ?? pane?.cwd.map { ($0 as NSString).lastPathComponent } ?? id)”?",
+                return ("Close “\(store.pane(id)?.title ?? id)”?",
                         "\(program) is running in it and will end, here and in every herdr client. "
                             + "This cannot be undone.")
             case nil:
@@ -138,6 +138,8 @@ struct HerdlightApp: App {
         /// The window's store, for the menu commands.
         @Entry var store: Binding<HostStore>?
         @Entry var palette: Binding<Bool>?
+        /// The store for the tab commands; nil while the session list is open.
+        @Entry var tabs: HostStore?
     }
 
     /// The menu bar's actions on the window's store; the shortcuts work wherever the keyboard is.
@@ -190,7 +192,7 @@ struct HerdlightApp: App {
 
     /// In the Window menu: the selected workspace's tabs on ⌘1…⌘9, and ⇧⌘[ / ⇧⌘] for the one before or after.
     private struct TabCommands: Commands {
-        @FocusedBinding(\.store) private var store
+        @FocusedValue(\.tabs) private var store
 
         var body: some Commands {
             CommandGroup(after: .windowArrangement) {

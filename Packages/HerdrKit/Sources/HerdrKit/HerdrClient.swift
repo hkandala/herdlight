@@ -125,6 +125,11 @@ public actor HerdrClient {
         return try decode(SessionList.self, list).sessions
     }
 
+    /// One pane now (`pane.get`): its cwd follows a `cd` that no event reports.
+    public nonisolated func pane(_ paneID: String) async throws -> Pane {
+        try await (call("pane.get", ["pane_id": paneID]) as PaneResult).pane
+    }
+
     /// The program the pane runs besides its shell; nil when only the shell runs, so a close loses nothing
     /// (design D41).
     public nonisolated func program(_ paneID: String) async throws -> String? {
@@ -330,6 +335,10 @@ private struct Pong: Decodable {
 
 private struct SessionList: Decodable {
     let sessions: [Session]
+}
+
+struct PaneResult: Decodable {
+    let pane: Pane
 }
 
 struct SnapshotResult: Decodable {
