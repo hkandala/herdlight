@@ -26,8 +26,9 @@ Read first: [talking-to-herdr](../../docs/content/docs/talking-to-herdr.mdx),
      the process. herdr errors become a typed error with code and message.
    - `sessions()` from `herdr session list` (parse its output, or JSON if it has a flag).
    - `snapshot()` → lenient models: `Snapshot`, `Workspace`, `Tab`, `Pane`, `Agent`,
-     `Layout` (only fields the app uses: ids, labels, numbers, order, `terminal_id`,
-     agent status, `completion_seq`, layouts).
+     `Layout` (only fields the app uses: ids, labels, order, `terminal_id`,
+     workspace/tab agent status, agent pane ids, layouts; `completion_seq` and agent
+     details come with the status area, after v0).
    - `events()` → one long-lived `events.subscribe` bridge run with the design's
      subscription list; each line is just "changed". Resubscribe when the agent pane set
      changes, on `events_lost`, `pane_not_found`, or the process ending.
@@ -41,8 +42,8 @@ Read first: [talking-to-herdr](../../docs/content/docs/talking-to-herdr.mdx),
    control <id>` attach to session S, or does it need `HERDR_SOCKET_PATH`? Record the
    answer in this file; phase 4 uses it.
 6. **Fixtures**: record `session.snapshot` JSON from a throwaway session with 2
-   workspaces, several tabs, nested right/down splits, plus `ping` and `session list`
-   output. Put them in `Tests/HerdrKitTests/Fixtures/`.
+   workspaces, several tabs, nested right/down splits, plus a `layout.export` reply
+   (ping and session list are covered by the integration test). Put them in `Tests/HerdrKitTests/Fixtures/`.
 7. **Tests** (Swift Testing):
    - Unit: decoding (including unknown fields), split-tree rebuild (nested, single pane,
      mismatch), pacing (debounce, max wait, single flight, trailing read) with a fake
