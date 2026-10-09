@@ -53,7 +53,7 @@ final class HostStore {
     }
 
     /// A close waiting for the user's yes (design D41).
-    enum Close: Equatable {
+    enum Close {
         /// The pane and the program running in it.
         case pane(String, program: String)
         case tab(String)
@@ -156,7 +156,14 @@ final class HostStore {
             terminals.show(shownTerminals, alive: Set(panes.compactMap(\.terminalID)))
             // A newly selected tab gives the keyboard back to the card it had; herdr's focused pane
             // only picks it the first time a tab is shown. Later snapshots leave it alone.
-            guard let tab = selectedTab, tab.id != keyboardTabID else { return }
+            if selectedTab?.id != keyboardTabID {
+                focusKeyboardCard()
+            }
+        }
+
+        /// Gives the keyboard to the selected tab's card: the one it last had, else herdr's focused pane.
+        func focusKeyboardCard() {
+            guard let tab = selectedTab else { return }
             let tabPanes = panes.filter { $0.tabID == tab.id && $0.terminalID != nil }
             let pane = tabPanes.first { $0.terminalID == keyboardTerminals[tab.id] }
                 ?? tabPanes.first(where: \.focused) ?? tabPanes.first
@@ -245,6 +252,9 @@ final class HostStore {
             pane.tabID = new.tabID
             pane.terminalID = new.terminalID
         }
+        if let id = zoomedPaneID, pane(id) == nil {
+            zoomedPaneID = nil
+        }
         if let id = arriving, let workspace = workspaces.first(where: { $0.tabs.contains { $0.id == id } }) {
             arriving = nil
             selectedWorkspaceID = workspace.id
@@ -259,7 +269,9 @@ final class HostStore {
 
 /// Writes: each is one herdr call, then a snapshot read (design: writes are herdr calls).
 extension HostStore {
+    /// A split restores a zoomed layout first, as tmux does: the new pane shows.
     func split(_ paneID: String, _ direction: SplitNode.Direction) async {
+        zoomedPaneID = nil
         await write("pane.split", ["target_pane_id": paneID, "direction": direction.rawValue, "focus": false])
     }
 
@@ -311,7 +323,12 @@ extension HostStore {
 
     /// One write. No focus change; the snapshot after it draws the result, and selects a tab it made.
     private func write(_ method: String, _ params: [String: any Sendable]) async {
-        guard let client, !writing else { return }
+        guard let client else { return }
+        guard !writing else {
+            // A confirmed close must not vanish silently.
+            await show("Busy, try again")
+            return
+        }
         writing = true
         notice = nil
         do {
@@ -321,13 +338,16 @@ extension HostStore {
             await client.refresh()
         } catch {
             writing = false
-            let text = error.localizedDescription
-            notice = text
-            // Shown for a few seconds, unless a newer one replaced it.
-            try? await Task.sleep(for: .seconds(4))
-            if notice == text {
-                notice = nil
-            }
+            await show(error.localizedDescription)
+        }
+    }
+
+    /// A notice for a few seconds, unless a newer one replaced it.
+    private func show(_ text: String) async {
+        notice = text
+        try? await Task.sleep(for: .seconds(4))
+        if notice == text {
+            notice = nil
         }
     }
 }

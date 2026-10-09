@@ -98,6 +98,15 @@ struct HerdlightApp: App {
             .preferredColorScheme(.dark)
             // The menu's ⌘1…⌘9 tabs step aside while the session list has its own ⌘1…⌘9.
             .focusedSceneValue(\.store, picking ? nil : $store)
+            .focusedSceneValue(\.palette, $palette)
+            // The palette and the session list never show together; a closed palette gives the keys back.
+            .onChange(of: palette) {
+                if palette {
+                    picking = false
+                } else {
+                    store.focusKeyboardCard()
+                }
+            }
             // A new store (session switch) cancels the old one's run, which drops its client.
             .task(id: ObjectIdentifier(store)) { await store.run(exec: exec.value) }
             // Here, not in the detail: a failed or empty session must release its terminals too.
@@ -128,19 +137,19 @@ struct HerdlightApp: App {
     extension FocusedValues {
         /// The window's store, for the menu commands.
         @Entry var store: Binding<HostStore>?
+        @Entry var palette: Binding<Bool>?
     }
 
     /// The menu bar's actions on the window's store; the shortcuts work wherever the keyboard is.
     private struct ActionCommands: Commands {
         @FocusedBinding(\.store) private var store
+        @FocusedBinding(\.palette) private var palette
 
         var body: some Commands {
             CommandGroup(replacing: .newItem) {
                 Button("New Tab") { Task { await store?.newTab() } }
                     .keyboardShortcut("t")
                     .disabled(store?.selectedWorkspace == nil)
-                Button("New Workspace") { Task { await store?.newWorkspace() } }
-                    .disabled(store?.state != .live)
                 Button("New Session") {
                     if let sessions = store?.sessions {
                         store = HostStore(session: sessions.newName, start: true)
@@ -158,16 +167,13 @@ struct HerdlightApp: App {
                 }
                 .keyboardShortcut("w")
                 .disabled(store?.keyboardPane == nil)
-                Button("Close Tab") {
-                    if let store, let tab = store.selectedTab {
-                        store.closing = .tab(tab.id)
-                    }
-                }
-                .disabled(store?.selectedTab == nil)
                 Button("Close Window") { NSApp.keyWindow?.performClose(nil) }
                     .keyboardShortcut("w", modifiers: [.command, .shift])
             }
             CommandGroup(after: .sidebar) {
+                Button("Command Palette") { palette?.toggle() }
+                    .keyboardShortcut("k")
+                    .disabled(palette == nil)
                 Button("Zoom Pane") {
                     guard let store else { return }
                     if let zoomed = store.zoomedPaneID, store.pane(zoomed)?.tabID == store.selectedTab?.id {
