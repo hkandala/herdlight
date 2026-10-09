@@ -318,7 +318,6 @@ struct HerdlightApp: App {
                         .accessibilityIdentifier("detail.start")
                 }
             }
-            .accessibilityIdentifier("detail.message")
         }
     }
 #endif
