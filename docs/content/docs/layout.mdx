@@ -61,6 +61,12 @@ build(path) = split at path exists ? Split(dir, ratio, build(path+0), build(path
 ## Zoom is the app's own
 
 - One zoomed card, in memory.
+- It is drawn by the split tree itself: each split above the zoomed card
+  stacks its two sides, the zoomed side at the full size and the other hidden
+  at the size it has without zoom. The same views stay in place, so no
+  terminal view moves between hosts and no other PTY resizes. (Drawing the
+  zoomed card in a layer of its own moved its terminal view to a new host,
+  and SwiftUI did not give it back on restore.)
 - herdr's `pane.zoom` is not used. It moves herdr's focus, marks the whole tab
   seen, and makes herdr refuse moves into or out of that tab.
 - If a herdr TUI user zoomed a tab, the app ignores that flag and draws the

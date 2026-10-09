@@ -60,7 +60,9 @@ app's own), decisions D11, D39, D41.
 - **Close pane (D41).** `pane.process_info` lists the foreground process group. Only the shell
   there = close at once; anything else asks "Close ‹title›? ‹program› is running…". While a new
   shell starts, its rc files (e.g. `brew shellenv`) are in the foreground too, so a close right
-  after a split may ask once. A failed check asks. Native `.confirmationDialog` (a sheet with
+  after a split may ask once. A program the shell `exec`ed keeps the shell's pid, so the shell's
+  pid counts as "only the shell" only while it is still a shell (argv0 `-zsh`, or a shell name).
+  A write while another is in flight shows "Busy, try again" instead of dropping it. A failed check asks. Native `.confirmationDialog` (a sheet with
   Cancel), one per window, driven by `HostStore.closing`.
 - **Zoom (D11).** `HostStore.zoomedPaneID`, in memory. Each split above the zoomed card swaps its
   `AnyLayout` to a `ZStackLayout`: the zoomed side at full size, the other side hidden at the size
@@ -84,7 +86,12 @@ app's own), decisions D11, D39, D41.
   is launchd (ppid 1), it has its own process group, `responsibility_get_pid_responsible_for_pid`
   gives the server itself (pane shells give the server; a shell from a terminal gives the
   terminal app), and after `herdr session stop` the job stays loaded with `state = not running`.
-  A label loads once, so the app boots out an old job of that label first. A launchd server
+  A label loads once, so the app boots out an old job of that label first, unless the server
+  already answers `ping`. The job runs with `ProcessType` `Interactive` (launchd's default
+  throttles CPU and I/O for the server and every agent in it) and logs stderr to
+  `~/Library/Logs/Herdlight/<session>.log`. Session names are checked against herdr's rule
+  (ASCII letters, digits, `.`, `_`, `-`; at most 64 bytes; not `.` or `..`) before they reach the
+  label or a path. A launchd server
   gets launchd's small environment; herdr's panes still run login shells (PATH from the
   profile) and herdr sets `LANG=C.UTF-8`. `scripts/herdr-session.sh down` boots the job out.
 - **Session picker.** Running sessions only; "Show stopped" (a checkbox in the "This Mac"

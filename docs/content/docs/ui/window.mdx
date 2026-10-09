@@ -64,7 +64,9 @@ marker moves the same way.
   close. The view switch is chat|term on agents and terminals, plugin|term on
   plugin panes, and none on web pages.
 - On macOS the header controls show on hover. On iOS they always show. Every
-  card action is also in the card's context menu, the menu bar and ⌘K.
+  card action is also in the card's context menu and the menu bar; the ⌘K
+  palette jumps to tabs, workspaces and sessions, and gets card actions later
+  (D48).
 - Close asks first unless the pane runs only its shell.
 
 ## Pane card in chat view
@@ -76,9 +78,11 @@ How the messages, the reply box and the key buttons work:
 
 ## Zoom
 
-- The zoom button, a double-click on the header, or ⇧⌘↩ zooms a card. It is
-  drawn in an opaque layer over the whole window under the tab bar. Only the
-  zoomed card resizes.
+- The zoom button, a double-click on the header, or ⇧⌘↩ zooms a card. It
+  fills its tab's page in the strip, as if it were the only pane. Only the
+  zoomed card resizes; the others stay, hidden, at their size.
+- A split from the zoomed card restores the layout first, so the new pane
+  shows.
 - While a card is zoomed, the floating cards are hidden. They come back when
   the card is unzoomed.
 - The same button or ⇧⌘↩ restores the layout. Esc is not used, because the
