@@ -26,7 +26,7 @@ struct TitleBar: View {
             .accessibilityIdentifier("titlebar.sidebar")
             SessionPicker(store: store, open: $picking)
             if !sidebar, store.state == .live, let workspace = store.selectedWorkspace {
-                TabBar(workspace: workspace)
+                TabBar(workspace: workspace, page: store.page)
             }
             Spacer(minLength: 0)
             // ponytail: no-op until the command palette
@@ -49,6 +49,7 @@ struct TitleBar: View {
 /// capsules while the strip is between their pages. The tabs whose pages are in view are lit.
 private struct TabBar: View {
     let workspace: HostStore.Workspace
+    let page: Double
     @State private var hovered: String?
     /// Each capsule's frame in the bar, for the marker.
     @State private var frames: [String: CGRect] = [:]
@@ -56,7 +57,7 @@ private struct TabBar: View {
     var body: some View {
         let tabs = workspace.tabs
         // Pages floor(x/w) through ceil((x+w)/w) − 1, that is floor(page)...ceil(page).
-        let lit = Int(workspace.page.rounded(.down)) ... Int(workspace.page.rounded(.up))
+        let lit = Int(page.rounded(.down)) ... Int(page.rounded(.up))
         ScrollViewReader { proxy in
             ScrollView(.horizontal) {
                 HStack(spacing: 2) {
@@ -101,7 +102,7 @@ private struct TabBar: View {
 
     /// The marker: the capsule frame of the page in view, blended toward the next one by the scroll's fraction.
     private func marker(_ tabs: [HostStore.Tab]) -> some View {
-        let page = min(max(workspace.page, 0), Double(max(tabs.count - 1, 0)))
+        let page = min(max(page, 0), Double(max(tabs.count - 1, 0)))
         let index = Int(page), fraction = page - Double(index)
         let frame = { tabs.indices.contains($0) ? frames[tabs[$0].id] : nil }
         let from = frame(index) ?? .zero, next = frame(index + 1) ?? from
@@ -138,5 +139,6 @@ private struct TabCapsule: View {
         .buttonStyle(ChromeStyle(radius: 14))
         .accessibilityIdentifier("tab.\(tab.id)")
         .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityValue(lit ? "in view" : "")
     }
 }

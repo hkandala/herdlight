@@ -79,6 +79,22 @@ final class HerdlightUITests: XCTestCase {
         XCTAssertTrue(element("pane.w1:p4").wait(for: \.isHittable, toEqual: true, timeout: 2))
         XCTAssertTrue(element("tab.w1:t2").isSelected)
         XCTAssertFalse(element("pane.w1:p1").isHittable)
+
+        // Back to the first tab through another workspace: the title-bar marker is on it, and the second tab's
+        // capsule scrolls there.
+        element("workspace.w2").click()
+        XCTAssertTrue(element("pane.w2:p1").wait(for: \.isHittable, toEqual: true, timeout: 2))
+        element("tab.w1:t1").click()
+        XCTAssertTrue(element("pane.w1:p1").wait(for: \.isHittable, toEqual: true, timeout: 2))
+        element("titlebar.sidebar").click()
+        let first = element("tab.w1:t1"), second = element("tab.w1:t2")
+        XCTAssertTrue(first.wait(for: \.isSelected, toEqual: true, timeout: 2))
+        XCTAssertEqual(first.value as? String, "in view")
+        XCTAssertEqual(second.value as? String, "")
+        second.click()
+        XCTAssertTrue(element("pane.w1:p4").wait(for: \.isHittable, toEqual: true, timeout: 2))
+        let marked = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == 'in view'"), object: second)
+        XCTAssertEqual(XCTWaiter().wait(for: [marked], timeout: 2), .completed)
     }
 
     func testFollowsTabsMadeAndClosedInHerdr() async throws {
