@@ -125,12 +125,13 @@ private struct TabCapsule: View {
                 Text(tab.label).lineLimit(1).foregroundStyle(lit ? .primary : .secondary)
                 StatusGlyph(status: tab.status)
             }
-            .padding(.leading, 5)
+            // As in the reference: the tile sits in from the capsule's round end, more than above and below it.
+            .padding(.leading, 8)
             .padding(.trailing, 12)
-            .padding(.vertical, 6)
-            .frame(minWidth: 120, maxWidth: 220, alignment: .leading)
+            .padding(.vertical, 5)
+            .frame(maxWidth: 220, alignment: .leading)
         }
-        .buttonStyle(ChromeStyle(radius: 15))
+        .buttonStyle(ChromeStyle(radius: 14))
         .accessibilityIdentifier("tab.\(tab.id)")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
