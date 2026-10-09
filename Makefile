@@ -28,8 +28,8 @@ test:
 # Runs the UI tests against a throwaway herdr session, removed even when tests fail.
 e2e:
 	session=hl-e2e-$$(openssl rand -hex 3); \
-	trap 'scripts/herdr-session.sh down '$$session EXIT; \
 	scripts/herdr-session.sh up $$session; \
+	trap 'scripts/herdr-session.sh down '$$session EXIT; \
 	rm -rf $(DERIVED_DATA)/e2e.xcresult; \
 	TEST_RUNNER_HL_SESSION=$$session $(XCODEBUILD) -destination 'platform=macOS' \
 		-resultBundlePath $(DERIVED_DATA)/e2e.xcresult test $(BEAUTIFY)
