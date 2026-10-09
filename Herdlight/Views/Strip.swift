@@ -47,7 +47,9 @@ private struct SplitLayout: View {
         case let .split(direction, ratio, first, second):
             GeometryReader { geometry in
                 let right = direction == .right
-                let size = max(0, ((right ? geometry.size.width : geometry.size.height) - gap) * ratio)
+                // A NaN or out-of-range ratio from herdr must not break the layout.
+                let share = ratio.isNaN ? 0.5 : min(max(ratio, 0), 1)
+                let size = max(0, ((right ? geometry.size.width : geometry.size.height) - gap) * share)
                 let stack = right ? AnyLayout(HStackLayout(spacing: gap)) : AnyLayout(VStackLayout(spacing: gap))
                 stack {
                     SplitLayout(node: first, store: store)
