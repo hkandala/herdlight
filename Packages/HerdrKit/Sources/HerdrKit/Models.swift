@@ -87,14 +87,22 @@ struct PaneProcesses: Decodable {
     struct Process: Decodable {
         let pid: Int
         let name: String
+        let argv0: String?
+
+        /// A login shell (`-zsh`) or a known shell by name.
+        var isShell: Bool {
+            argv0?.hasPrefix("-") == true || ["sh", "bash", "zsh", "fish", "dash", "ksh", "tcsh", "csh", "nu"]
+                .contains(name)
+        }
     }
 
     let shellPID: Int
     let foregroundProcesses: [Process]
 
-    /// What runs in the foreground besides the shell; nil when nothing does (design D41).
+    /// What runs in the foreground besides the shell; nil when nothing does (design D41). A program the shell
+    /// `exec`ed has the shell's pid, so the shell's pid counts only while it is still a shell.
     var program: String? {
-        foregroundProcesses.first { $0.pid != shellPID }?.name
+        foregroundProcesses.first { $0.pid != shellPID || !$0.isShell }?.name
     }
 
     enum CodingKeys: String, CodingKey { case shellPID = "shell_pid", foregroundProcesses = "foreground_processes" }
@@ -103,6 +111,12 @@ struct PaneProcesses: Decodable {
 public struct Session: Decodable, Equatable, Sendable {
     public let name: String
     public let running: Bool
+
+    /// herdr's rule for session names: ASCII letters, digits, `.`, `_` and `-`, at most 64 bytes, not `.` or `..`.
+    public static func isValidName(_ name: String) -> Bool {
+        !name.isEmpty && name.utf8.count <= 64 && name != "." && name != ".."
+            && name.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || "._-".contains($0)) }
+    }
 }
 
 struct Layout: Decodable {

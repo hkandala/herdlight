@@ -131,37 +131,6 @@ public actor HerdrClient {
         try await (call("pane.process_info", ["pane_id": paneID]) as ProcessInfoResult).processInfo.program
     }
 
-    #if os(macOS)
-        /// Starts this session's server as a one-shot launchd job, so launchd, not the app, is its parent
-        /// and responsible process (design D47), and waits until it answers. No KeepAlive: once
-        /// `herdr session stop` ends it, launchd keeps the job loaded but never runs it again.
-        /// ponytail: This Mac only; remote machines start herdr over SSH.
-        public nonisolated func startServer() async throws {
-            let label = "dev.hkandala.herdlight.herdr.\(session)"
-            let domain = "gui/\(getuid())"
-            let plist = FileManager.default.temporaryDirectory.appending(path: "\(label).plist")
-            let job: [String: Any] = ["Label": label, "ProgramArguments": [herdr, "--session", session, "server"],
-                                      "RunAtLoad": true]
-            try PropertyListSerialization.data(fromPropertyList: job, format: .xml, options: 0).write(to: plist)
-            defer { try? FileManager.default.removeItem(at: plist) }
-            // The job of a server that stopped since is still loaded, and a label loads only once.
-            _ = try? await Self.output(exec, ["launchctl", "bootout", "\(domain)/\(label)"])
-            let channel = try await exec.run(["launchctl", "bootstrap", domain, plist.path])
-            channel.closeInput()
-            let (status, stderr) = await channel.exit()
-            guard status == 0 else {
-                throw HerdrError.failed("launchctl bootstrap exited \(status): \(stderr)")
-            }
-            for _ in 0 ..< 50 {
-                if await (try? ping()) != nil {
-                    return
-                }
-                try await Task.sleep(for: .milliseconds(100))
-            }
-            throw HerdrError.failed("herdr --session \(session) server did not start")
-        }
-    #endif
-
     /// One `session.snapshot`, with every tab's split tree.
     public nonisolated func snapshot() async throws -> Snapshot {
         var snapshot = try await (call("session.snapshot") as SnapshotResult).snapshot
@@ -322,7 +291,7 @@ public actor HerdrClient {
     }
 
     /// A command's whole stdout, trimmed.
-    private static func output(_ exec: any Exec, _ argv: [String]) async throws -> String {
+    static func output(_ exec: any Exec, _ argv: [String]) async throws -> String {
         let channel = try await exec.run(argv)
         channel.closeInput()
         return try await withTimeout(.seconds(10), onTimeout: channel.terminate) {
