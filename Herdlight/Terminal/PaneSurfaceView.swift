@@ -89,7 +89,8 @@
         private func mouse(_ action: TerminalStream.MouseAction, _ button: TerminalStream.MouseButton,
                            _ event: NSEvent)
         {
-            guard let cell = cell(event) else { return }
+            // Back and forward buttons are other buttons too, not middle clicks.
+            guard button != .middle || event.buttonNumber == 2, let cell = cell(event) else { return }
             if action == .drag, let dragged, dragged == cell {
                 return
             }
@@ -124,8 +125,8 @@
             98: "f7", 100: "f8", 101: "f9", 109: "f10", 103: "f11", 111: "f12",
         ]
 
-        /// The US character of each letter, digit and symbol key (kVK_ANSI_*), so Ctrl chords follow
-        /// the physical key on every layout, as Terminal does.
+        /// The US character of each letter, digit and symbol key (kVK_ANSI_*), for Ctrl chords on
+        /// layouts whose letters are not Latin.
         private static let ansi: [UInt16: String] = {
             var keys = [UInt16: String](uniqueKeysWithValues: zip(
                 0...,
@@ -164,9 +165,15 @@
                 }
                 return prefix + (shift && named != "esc" ? "shift+" : "") + named
             }
-            // Shift is dropped, as xterm does: Ctrl+Shift+C is Ctrl+C.
-            guard control, let character = ansi[event.keyCode] else { return nil }
-            return prefix + character
+            // The layout's letter (Dvorak, AZERTY), else the key's US character (Ctrl+С on a Russian
+            // layout is Ctrl+C). Shift is dropped, as xterm does: Ctrl+Shift+C is Ctrl+C.
+            guard control else { return nil }
+            if let letter = event.charactersIgnoringModifiers?.lowercased(), letter.count == 1,
+               letter.first?.isASCII == true, letter.first?.isLetter == true
+            {
+                return prefix + letter
+            }
+            return ansi[event.keyCode].map { prefix + $0 }
         }
     }
 
