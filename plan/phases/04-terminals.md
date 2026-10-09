@@ -87,9 +87,10 @@ Stage A (stream level, against throwaway sessions; no GUI yet).
   (`PaneSurfaceView.herdrKey`):
   - arrows, Esc and F1–F12, with or without modifiers (Shift+Esc is Esc);
   - Enter, Tab and Backspace with a modifier;
-  - Ctrl chords, named by the key's US character (key code), so they work on every layout
-    (Ctrl+С on a Russian layout is Ctrl+C). Shift is dropped, as xterm does: Ctrl+Shift+C is
-    Ctrl+C. Trade-off: an app with the kitty keyboard cannot tell the two apart;
+  - Ctrl chords, named by the layout's letter (Dvorak, AZERTY), or by the key's US character
+    when the layout's letters are not Latin (Ctrl+С on a Russian layout is Ctrl+C). Shift is
+    dropped, as xterm does: Ctrl+Shift+C is Ctrl+C. Trade-off: an app with the kitty keyboard
+    cannot tell the two apart;
   - macOS line editing that `keybind = clear` took from libghostty: Cmd+←/→/⌫ → Ctrl+A/E/U,
     Option+←/→ → Alt+B/F.
 
@@ -97,7 +98,9 @@ Stage A (stream level, against throwaway sessions; no GUI yet).
   Option characters (Ghostty's default), and plain Enter, Tab and Backspace (same bytes in every
   mode but kitty's report-all flag; kept off the slower path). Home/End/PgUp/PgDn/Delete have no
   herdr names; libghostty sends them as xterm does. Other Cmd keys stay with the menu.
-  Input goes out in order through one queue per card, only while the stream is live; a bridge
+  Sizes go to herdr 100 ms after the last change, so a window drag does not make the app
+  repaint at every step. Input goes out in order through one queue per card, only while the
+  stream is live (a failed card drops it); a bridge
   call takes about 60 ms here (median of 20, max 170), more than a held key's repeat, so keys
   that pile up meanwhile go as one `send_keys` call. Every key name the mapping makes is
   accepted by herdr 0.9.3.
