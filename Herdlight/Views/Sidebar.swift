@@ -34,8 +34,8 @@ struct Sidebar: View {
             }
             .padding(8)
         }
+        // On the window background, as in the reference: only the pane cards are frosted.
         .frame(width: 240)
-        .glassEffect(.regular, in: .rect(cornerRadius: 16))
     }
 
     /// The tabs whose label matches the filter; all of them when the workspace's label matches.

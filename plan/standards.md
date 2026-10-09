@@ -38,8 +38,8 @@ before writing code. In short:
 
 - Dark theme only, frosted (D44, `docs/content/docs/ui/theme-and-accessibility.mdx`): the
   window background is one behind-window `NSVisualEffectView` under a dark tint (the only
-  blur bridge to AppKit); pane cards are translucent with a hairline border; Liquid Glass on
-  chrome: sidebar, tab capsules, the session list.
+  blur bridge to AppKit); pane cards are translucent with a hairline border; the sidebar sits flat on
+  the window background; Liquid Glass on the tab marker and the session list.
 - Use the system glass APIs (`glassEffect`, `glassEffectID`, `GlassEffectContainer`). No
   other custom blur.
 - Every control and region an e2e test touches has an `accessibilityIdentifier`
