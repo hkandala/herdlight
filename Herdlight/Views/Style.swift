@@ -82,7 +82,8 @@ struct MenuRow: View {
         HStack(spacing: 8) {
             Image(systemName: symbol ?? "circle").opacity(symbol == nil ? 0 : 1).frame(width: 18)
                 .accessibilityHidden(true)
-            Text(title).lineLimit(1)
+            // A long typed name keeps both ends.
+            Text(title).lineLimit(1).truncationMode(.middle)
             Spacer()
             // Readable on the accent pill too.
             Text(detail).foregroundStyle(.white.opacity(selected ? 0.75 : 0.5)).lineLimit(1)
