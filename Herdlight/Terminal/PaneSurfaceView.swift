@@ -21,6 +21,9 @@
             }
         }
 
+        // Clicks go to herdr and to libghostty, for local selection and Copy in a plain shell.
+        // ponytail: in a mouse app a drag also draws libghostty's highlight; select locally only on
+        // Shift+drag if that noise bothers users.
         override func mouseDown(with event: NSEvent) {
             super.mouseDown(with: event)
             mouse(.down, .left, event)
@@ -107,6 +110,7 @@
         /// libghostty: text, IME, dead keys, Option characters, Cmd, and plain Enter, Tab and
         /// Backspace, which are the same bytes in every mode and stay off the slower bridge path.
         /// Home, End, Page Up/Down and Delete have no herdr names; libghostty sends them as xterm does.
+        /// ponytail: Option types characters (Ghostty's default); add an option-as-alt setting when asked.
         static func herdrKey(_ event: NSEvent) -> String? {
             let flags = event.modifierFlags
             guard !flags.contains(.command) else { return nil }
