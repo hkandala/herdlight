@@ -240,6 +240,10 @@ struct HerdlightApp: App {
                 observers.forEach(NotificationCenter.default.removeObserver)
                 observers = []
                 guard let window else { return }
+                // A window macOS restores in full screen keeps AppKit's empty title bar over the title row (the
+                // toolbar's on-hover full screen look holds only when the user enters). Its frame still comes back
+                // (frame autosave); full screen does not.
+                window.isRestorable = false
                 let notifications = [NSWindow.willEnterFullScreenNotification: true,
                                      NSWindow.willExitFullScreenNotification: false]
                 for (name, value) in notifications {
