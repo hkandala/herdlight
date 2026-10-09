@@ -42,6 +42,21 @@ extension HerdlightUITests {
         XCTAssertTrue(element("pane.\(first)").exists)
     }
 
+    func testClosingTheKeyboardCardHandsKeysToItsNeighbor() async throws {
+        XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
+        let (tab, left) = try await newTab("handoff")
+        let split = try await Self.call(one, "pane.split", ["target_pane_id": left, "direction": "right",
+                                                            "cwd": "/tmp", "focus": false])
+        let right = try XCTUnwrap((split["pane"] as? [String: Any])?["pane_id"] as? String)
+        element("tab.\(tab)").click()
+        try await waitForPrompt(left)
+        try await waitForPrompt(right)
+        element("terminal.\(left)").click()
+        app.typeKey("w", modifierFlags: .command)
+        XCTAssertTrue(element("pane.\(left)").waitForNonExistence(timeout: 3))
+        try await typeAndRead(right)
+    }
+
     func testClosingATabAsksFirst() async throws {
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
         let (tab, pane) = try await newTab("doomed", closeAfter: false)
