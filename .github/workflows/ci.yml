@@ -13,7 +13,7 @@ jobs:
     runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
-      - run: brew bundle
+      - run: brew update --quiet && brew bundle
       - run: make lint
 
   build-test:
@@ -24,7 +24,7 @@ jobs:
         with:
           path: .build/DerivedData/SourcePackages
           key: spm-${{ hashFiles('**/Package.resolved') }}
-      - run: brew bundle
+      - run: brew update --quiet && brew bundle
       - run: make build test
 
   e2e:
@@ -38,7 +38,7 @@ jobs:
         with:
           path: .build/DerivedData/SourcePackages
           key: spm-${{ hashFiles('**/Package.resolved') }}
-      - run: brew bundle
+      - run: brew update --quiet && brew bundle
       - name: install herdr
         run: |
           mkdir -p ~/.local/bin
