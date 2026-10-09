@@ -79,8 +79,32 @@ extension HerdlightUITests {
         try await waitForControl(new) { $0.contains("already has an attached client") }
         // The last tab stays attached at its size, so coming back to it resizes nothing.
         try await waitForControl(old) { $0.contains("already has an attached client") }
-        let after = try await viewportRows("w1:p1")
-        XCTAssertEqual(after, rows)
+        let away = try await viewportRows("w1:p1")
+        XCTAssertEqual(away, rows)
+
+        element("tab.w1:t1").click()
+        XCTAssertTrue(element("terminal.w1:p1").waitForExistence(timeout: 2))
+        try await waitForControl(old) { $0.contains("already has an attached client") }
+        let back = try await viewportRows("w1:p1")
+        XCTAssertEqual(back, rows)
+    }
+
+    func testEachTabKeepsItsKeyboardCard() async throws {
+        let terminal = element("terminal.w1:p2")
+        XCTAssertTrue(terminal.waitForExistence(timeout: connect))
+        try await waitForPrompt("w1:p2")
+        terminal.click()
+        XCTAssertTrue(hasKeyboard(terminal))
+        element("tab.w1:t2").click()
+        XCTAssertTrue(hasKeyboard(element("terminal.w1:p4")))
+        element("tab.w1:t1").click()
+        // Back on t1, the keyboard is on p2 again, not on herdr's focused p1.
+        XCTAssertTrue(hasKeyboard(terminal))
+        app.typeText("echo hl-$((40+3))")
+        app.typeKey(.return, modifierFlags: [])
+        try await waitFor("w1:p2") { $0.contains("\nhl-43") }
+        let other = try await read("w1:p1")
+        XCTAssertFalse(other.contains("hl-43"))
     }
 
     // MARK: Helpers
