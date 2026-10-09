@@ -1,10 +1,14 @@
 import HerdrKit
 import SwiftUI
 
-/// One full-size page per tab of the workspace, paged sideways, bound to the selected tab.
+/// One full-size page per tab of the workspace, paged sideways. The selection follows the page in view when the
+/// scroll stops; a new selection (a click, a key) scrolls there, so the tab marker moves the same way either time.
 struct Strip: View {
-    @Bindable var workspace: HostStore.Workspace
+    let workspace: HostStore.Workspace
     let store: HostStore
+    /// The page in view, as the scroll view has it.
+    @State private var shown: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ScrollView(.horizontal) {
@@ -25,12 +29,27 @@ struct Strip: View {
             .scrollTargetLayout()
         }
         .scrollTargetBehavior(.paging)
-        .scrollPosition(id: $workspace.selectedTabID, anchor: .leading)
+        .scrollPosition(id: $shown, anchor: .leading)
         .scrollIndicators(.never)
-        // A new workspace starts a new strip at its selected tab.
-        .id(workspace.id)
+        .onScrollGeometryChange(for: Double.self) {
+            // To a thousandth, so a page at rest is a whole number (one lit tab) despite rounding.
+            ($0.contentOffset.x / max($0.containerSize.width, 1) * 1000).rounded() / 1000
+        } action: {
+            workspace.page = $1
+        }
+        .onScrollPhaseChange { _, phase in
+            if phase == .idle, let shown {
+                workspace.selectedTabID = shown
+            }
+        }
+        // One strip for every workspace: a new one jumps to its selected tab, a new tab in the same one scrolls.
+        .onChange(of: [workspace.id, workspace.selectedTabID], initial: true) { old, new in
+            guard shown != workspace.selectedTabID else { return }
+            let animate = old != new && old.first == new.first && !reduceMotion
+            withAnimation(animate ? .smooth : nil) { shown = workspace.selectedTabID }
+        }
         #if os(macOS)
-            .onAppear { SwipeRouter.install() }
+        .onAppear { SwipeRouter.install() }
         #endif
     }
 }

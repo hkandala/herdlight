@@ -62,6 +62,31 @@ extension HerdlightUITests {
             let offset = (pane?["scroll"] as? [String: Any])?["offset_from_bottom"] as? Int ?? 0
             return offset > 0 ? offset : nil
         }
+        // Up and down do not page the strip.
+        XCTAssertTrue(element("tab.w1:t1").isSelected)
+        keepScreenshot("vertical scroll")
+    }
+
+    /// A sideways scroll over a terminal pages the strip, and the new tab's panes attach.
+    func testSwipingOverACardPagesToTheNextTab() async throws {
+        let terminal = element("terminal.w1:p1")
+        XCTAssertTrue(terminal.waitForExistence(timeout: connect))
+        try await waitForPrompt("w1:p1")
+        keepScreenshot("before the swipe")
+        // Which sign goes right follows the natural scrolling setting (see testScrollingMovesTheViewport); toward
+        // the first tab nothing moves, so try both.
+        let width = Double(terminal.frame.width)
+        var delta = -width
+        try await poll("the swipe to select the second tab", times: 6) { () async throws -> Bool? in
+            terminal.hover()
+            terminal.scroll(byDeltaX: delta, deltaY: 0)
+            delta = -delta
+            try await Task.sleep(for: .milliseconds(700))
+            return element("tab.w1:t2").isSelected ? true : nil
+        }
+        keepScreenshot("after the swipe")
+        XCTAssertTrue(app.windows.firstMatch.wait(for: \.title, toEqual: "second", timeout: 2))
+        try await expectPTYSize("w1:p4")
     }
 
     func testSwitchingTabsKeepsTheLastTabAttached() async throws {

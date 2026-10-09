@@ -70,6 +70,17 @@ final class HerdlightUITests: XCTestCase {
         keepScreenshot("second workspace")
     }
 
+    /// A row of another workspace shows its own tab, not the workspace's first one.
+    func testTabRowOfAnotherWorkspaceShowsThatTab() {
+        XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
+        element("workspace.w2").click()
+        XCTAssertTrue(element("page.w2:t1").waitForExistence(timeout: 2))
+        element("tab.w1:t2").click()
+        XCTAssertTrue(element("pane.w1:p4").wait(for: \.isHittable, toEqual: true, timeout: 2))
+        XCTAssertTrue(element("tab.w1:t2").isSelected)
+        XCTAssertFalse(element("pane.w1:p1").isHittable)
+    }
+
     func testFollowsTabsMadeAndClosedInHerdr() async throws {
         XCTAssertTrue(element("tab.w1:t2").waitForExistence(timeout: connect))
         let created = try await Self.call(one, "tab.create", ["workspace_id": "w1", "label": "live", "cwd": "/tmp",
