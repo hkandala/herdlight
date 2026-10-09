@@ -22,3 +22,17 @@ Goal: v0 is solid end to end and documented; CI green; nothing extra.
 
 - The orchestrator runs the full e2e suite, plays with the app against a throwaway session
   (and looks at `default` read only), and finds nothing broken.
+
+## Known issues carried in (fix or record)
+
+- **Window restored in full screen** loses the whole title row (no session button,
+  sidebar toggle or pills; hovering shows an empty gray bar) until ⌃⌘F twice. Appears
+  after quitting while in full screen. `.windowToolbarFullScreenVisibility(.onHover)` only
+  takes effect on an enter transition. Fix it (e.g. leave and re-enter full screen once on
+  restore, or don't restore full screen) and add a check. See phase 5 findings.
+- **IME composition** (marked text, e.g. Japanese kana) was not tested; only committed
+  text (Character Viewer) was. Test with an input source if it can be added and removed
+  cleanly, otherwise record.
+- **Phased trackpad gestures** are covered by hand checks only (e2e covers the wheel path).
+- `Package.resolved` `originHash` churns when Xcode resolves in another checkout; make
+  sure builds don't leave the tree dirty (or document it).
