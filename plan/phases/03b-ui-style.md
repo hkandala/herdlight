@@ -41,12 +41,11 @@ conflict (see "Changes to the design" below).
      an icon tile + title; the selected capsule raised on Liquid Glass; others flat with
      thin separators; scrolls sideways when they overflow; one glass marker that morphs
      between capsules (`glassEffectID`);
-   - right side: `+` (new tab is out of scope; leave it out until it works) and nothing
-     else that doesn't work.
+   - right side: `⌘` and `+` as in the references.
 3. **Session picker popover** (glass): "Filter or create…" field that filters as you type;
    sessions grouped under "This Mac" (remote hosts come later); running sessions
    selectable, stopped ones dimmed; ⌘1…⌘9 on the first nine; a check on the current one.
-   "New Session" and "Add Remote Host…" are out of v0 scope: leave them out.
+   Then "New Session ⇧⌘N" and "Add Remote Host…" rows.
 4. **Sidebar** (when shown): Liquid Glass, floating with rounded corners like macOS 26.
    - Workspaces are section headers; each workspace's tabs are rows (icon tile + tab
      label, agent status glyph on the right ▲ / ◔).
@@ -57,7 +56,7 @@ conflict (see "Changes to the design" below).
    with a dark tint, 8 pt gaps, inset from the window edges like the screenshots.
    - A header row inside the card: kind icon + pane title (the label or cwd), and on hover
      split right / split down buttons (`pane.split` with `focus:false`, then the snapshot
-     redraws; this is the only write added). Zoom and close stay out of v0.
+     redraws; this is the only write added), plus zoom and close buttons.
    - The focused card is fully bright; others slightly dimmed.
    - Phase 4 puts the terminal inside the card body with a transparent or translucent
      terminal background, so the frosted card shows through. Leave a clean slot for it.
@@ -68,6 +67,14 @@ conflict (see "Changes to the design" below).
    except the selection pill and status glyphs.
 8. Keep every accessibility identifier from phase 3 working (update the e2e tests where
    the structure changes, such as tabs moving between the sidebar and the title bar).
+
+## Placeholder controls
+
+The user wants the full look now. Controls shown in the references that v0 does not
+implement are present and styled but do nothing when clicked (a no-op, no alert):
+title-bar `⌘` and `+`, "New Session", "Add Remote Host…", the pane card's zoom and close,
+and the sidebar's bottom icon buttons. Mark each with a one-line `// ponytail: no-op until
+<feature>` comment so they are easy to find.
 
 ## Changes to the design
 
