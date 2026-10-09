@@ -73,6 +73,11 @@
         override func keyDown(with event: NSEvent) {
             if !hasMarkedText(), let key = Self.herdrKey(event) {
                 terminal?.keys([key])
+            } else if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command, .control],
+                      event.charactersIgnoringModifiers == "f"
+            {
+                // ⌃⌘F: AppKit's window toggles full screen only for keys no view takes; libghostty takes all.
+                window?.toggleFullScreen(nil)
             } else {
                 super.keyDown(with: event)
             }
