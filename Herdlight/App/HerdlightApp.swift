@@ -8,7 +8,8 @@ struct HerdlightApp: App {
             Window("Herdlight", id: "main") {
                 ContentView()
             }
-            .windowStyle(.hiddenTitleBar)
+            .windowToolbarStyle(.unifiedCompact)
+            .defaultSize(width: 1200, height: 760)
         #else
             WindowGroup {
                 ContentUnavailableView("Herdlight for iOS is coming", systemImage: "iphone")
@@ -25,19 +26,44 @@ struct HerdlightApp: App {
     struct ContentView: View {
         /// `-session <name>` on the command line lands in UserDefaults.
         @State private var store = HostStore(session: UserDefaults.standard.string(forKey: "session") ?? "default")
+        @State private var sidebar = true
 
         var body: some View {
-            NavigationSplitView {
-                Sidebar(store: $store)
-            } detail: {
-                Detail(store: store)
+            VStack(spacing: 0) {
+                TitleBar(store: $store, sidebar: $sidebar)
+                HStack(spacing: 0) {
+                    if sidebar {
+                        Sidebar(store: store)
+                            .padding([.leading, .bottom], gap)
+                            .transition(.move(edge: .leading).combined(with: .opacity))
+                    }
+                    Detail(store: store)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
+            // The title bar row takes the hidden title bar's line.
+            .ignoresSafeArea(edges: .top)
+            .containerBackground(for: .window) { Frosted().overlay(Color.tint) }
+            .toolbar { ToolbarSpacer(.flexible) }
+            .toolbar(removing: .title)
+            .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
             .navigationTitle(store.selectedTab?.label ?? HostStore.name(store.session))
-            .containerBackground(Color.window, for: .window)
             .preferredColorScheme(.dark)
             // A new store (session switch) cancels the old one's run, which drops its client.
             .task(id: ObjectIdentifier(store)) { await store.run(exec: exec.value) }
         }
+    }
+
+    /// The window's frosted background. SwiftUI's materials blur only what is inside the window.
+    private struct Frosted: NSViewRepresentable {
+        func makeNSView(context _: Context) -> NSVisualEffectView {
+            let view = NSVisualEffectView()
+            view.blendingMode = .behindWindow
+            view.material = .underWindowBackground
+            return view
+        }
+
+        func updateNSView(_: NSVisualEffectView, context _: Context) {}
     }
 
     /// The selected workspace's tabs, or why there is nothing to show.
@@ -50,12 +76,12 @@ struct HerdlightApp: App {
                 ProgressView("Connecting to \(HostStore.name(store.session))")
             case .live:
                 if let workspace = store.selectedWorkspace {
-                    VStack(spacing: 0) {
-                        TabBar(workspace: workspace)
-                        Strip(workspace: workspace, store: store)
-                    }
-                    // The tab bar takes the empty title bar line next to the sidebar.
-                    .ignoresSafeArea(edges: .top)
+                    Strip(workspace: workspace, store: store)
+                        .overlay(alignment: .bottom) {
+                            if let notice = store.notice {
+                                Text(notice).padding(8).glassEffect().padding(gap * 2)
+                            }
+                        }
                 } else {
                     message("No workspaces", "Create one in herdr:",
                             "herdr --session \(store.session) workspace create")

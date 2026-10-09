@@ -12,7 +12,7 @@ struct Strip: View {
                 ForEach(workspace.tabs) { tab in
                     Group {
                         if let tree = tab.tree {
-                            SplitLayout(node: tree, store: store).padding(gap)
+                            SplitLayout(node: tree, store: store).padding([.horizontal, .bottom], gap)
                         } else {
                             Text("No layout for this tab").foregroundStyle(.secondary)
                         }
@@ -43,7 +43,7 @@ private struct SplitLayout: View {
     var body: some View {
         switch node {
         case let .leaf(paneID):
-            PaneCard(id: paneID, pane: store.pane(paneID))
+            PaneCard(id: paneID, store: store)
         case let .split(direction, ratio, first, second):
             GeometryReader { geometry in
                 let right = direction == .right
@@ -59,22 +59,54 @@ private struct SplitLayout: View {
     }
 }
 
-/// An opaque placeholder card; phase 4 puts the terminal in it.
+/// A frosted card with a header; phase 4 puts the terminal in its body.
 private struct PaneCard: View {
     let id: String
-    let pane: HostStore.Pane?
+    let store: HostStore
+    @State private var hovering = false
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(Color.card)
-            .strokeBorder(.white.opacity(0.06))
-            .overlay {
-                VStack(spacing: 4) {
-                    Text(pane?.label ?? "terminal")
-                    Text(id).monospaced().foregroundStyle(.secondary)
+        let pane = store.pane(id)
+        let title = pane?.label ?? pane?.cwd.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? "terminal"
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "apple.terminal").foregroundStyle(.secondary)
+                Text(title)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 0)
+                HStack(spacing: 0) {
+                    IconButton(symbol: "rectangle.split.2x1", help: "Split Right") {
+                        Task { await store.split(id, .right) }
+                    }
+                    .accessibilityIdentifier("pane.\(id).split-right")
+                    IconButton(symbol: "rectangle.split.1x2", help: "Split Down") {
+                        Task { await store.split(id, .down) }
+                    }
+                    .accessibilityIdentifier("pane.\(id).split-down")
+                    // ponytail: no-op until zoom
+                    IconButton(symbol: "arrow.up.left.and.arrow.down.right", help: "Zoom") {}
+                    // ponytail: no-op until panes can be closed
+                    IconButton(symbol: "xmark", help: "Close") {}
                 }
+                .opacity(hovering ? 1 : 0)
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("pane.\(id)")
+            .font(.system(size: 13, weight: .medium))
+            .padding(.leading, 12)
+            .padding(.trailing, 4)
+            .frame(height: 34)
+            // The terminal's slot.
+            Text(id).monospaced().foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .opacity(pane?.focused ?? true || hovering ? 1 : 0.6)
+        // The card's element is its background: a container would merge into a one-pane page's.
+        .background {
+            shape.fill(Color.card).accessibilityElement().accessibilityLabel(title)
+                .accessibilityIdentifier("pane.\(id)")
+        }
+        .overlay(shape.strokeBorder(Color.hairline))
+        .onHover { hovering = $0 }
     }
 }
