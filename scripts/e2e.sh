@@ -25,8 +25,9 @@ up_two=1
 ports=$(mktemp)
 python3 scripts/e2e-helper.py "$one" "$two" >"$ports" &
 helper=$!
-for _ in $(seq 50); do
-    [ -s "$ports" ] && break
+# Up to 30 s: the first python3 run on a fresh CI runner is slow.
+for _ in $(seq 300); do
+    [ -s "$ports" ] || ! kill -0 "$helper" 2>/dev/null && break
     sleep 0.1
 done
 port=$(head -n1 "$ports")
