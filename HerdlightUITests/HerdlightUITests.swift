@@ -36,7 +36,8 @@ final class HerdlightUITests: XCTestCase {
             try await Self.call(one, "workspace.create", ["label": "beta", "cwd": "/tmp", "focus": false])
             try await Self.call(two, "workspace.create", ["label": "gamma", "cwd": "/tmp", "focus": false])
         }
-        app.launchArguments = ["-session", one]
+        // No restored window state: a window someone left in full screen hides the title row.
+        app.launchArguments = ["-session", one, "-ApplePersistenceIgnoreState", "YES"]
         app.launch()
     }
 
@@ -201,7 +202,7 @@ final class HerdlightUITests: XCTestCase {
     }
 
     /// Waits for the element to take the keyboard; focus lands a moment after it appears.
-    private func hasKeyboard(_ element: XCUIElement) -> Bool {
+    func hasKeyboard(_ element: XCUIElement) -> Bool {
         let focus = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "hasKeyboardFocus == true"),
             object: element,
