@@ -170,8 +170,9 @@ draws them. Keys go back as `terminal.input`.
    even after the other device lets go.
 5. A device sends `terminal.release` before it closes a `control` stream:
    when the card leaves the selected tab or the shown floating layer, when the
-   card switches to chat, when the user switches machines, when the window
-   closes, and when the app quits.
+   card switches to chat, when the user switches machines or sessions, and when
+   the window closes. On quit the Mac app kills its children instead: herdr
+   frees the pane of a killed `control` run at once, as if it had released it.
 6. **Background:** a Mac app that becomes inactive keeps its streams. An iOS
    app releases its streams when it goes to the background.
 
