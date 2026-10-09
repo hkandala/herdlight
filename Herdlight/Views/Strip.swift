@@ -106,9 +106,16 @@ private struct PaneCard: View {
             .padding(.trailing, 4)
             // A card narrower than its header cuts the header (the card clips) instead of growing.
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 34, maxHeight: 34, alignment: .leading)
-            // The terminal's slot.
-            Text(id).monospaced().foregroundStyle(.tertiary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Group {
+                #if os(macOS)
+                    if let terminalID = pane?.terminalID,
+                       let terminal = store.terminals.terminal(terminalID, pane: id)
+                    {
+                        TerminalCard(terminal: terminal).padding([.horizontal, .bottom], gap)
+                    }
+                #endif
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         // The card's element is its background: a container would merge into a one-pane page's.
         .background {

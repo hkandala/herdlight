@@ -1,0 +1,42 @@
+#if os(macOS)
+    import HerdrKit
+
+    /// Owns every pane's terminal of one session, keyed by `terminal_id`, so SwiftUI never destroys
+    /// one while the strip scrolls. Streams run for the selected tab only (design: what streams).
+    /// ponytail: no 24-surface LRU; a terminal stays until the session switches, add the LRU when
+    /// sessions with many panes show up.
+    @MainActor
+    final class PaneViewRegistry {
+        var client: HerdrClient?
+        private var terminals: [String: PaneTerminal] = [:]
+
+        /// The pane's terminal, made on first use.
+        func terminal(_ terminalID: String, pane paneID: String) -> PaneTerminal? {
+            if let terminal = terminals[terminalID] {
+                // A moved pane keeps its terminal under a new pane id.
+                terminal.paneID = paneID
+                return terminal
+            }
+            guard let client else { return nil }
+            let terminal = PaneTerminal(terminalID: terminalID, paneID: paneID, client: client)
+            terminals[terminalID] = terminal
+            return terminal
+        }
+
+        /// Streams these terminals (terminal id → pane id) and releases every other one.
+        func show(_ shown: [String: String]) {
+            for (terminalID, terminal) in terminals where shown[terminalID] == nil {
+                terminal.hide()
+            }
+            for (terminalID, paneID) in shown {
+                terminal(terminalID, pane: paneID)?.show()
+            }
+        }
+
+        /// Releases everything: the session switches or its store stops.
+        func closeAll() {
+            terminals.values.forEach { $0.close() }
+            terminals = [:]
+        }
+    }
+#endif
