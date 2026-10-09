@@ -96,6 +96,13 @@ final class HostStore {
         }, uniquingKeysWith: { first, _ in first })
     }
 
+    #if os(macOS)
+        /// Streams the selected tab's terminals, releases the others, drops those of closed panes.
+        func showTerminals() {
+            terminals.show(shownTerminals, alive: Set(panes.compactMap(\.terminalID)))
+        }
+    #endif
+
     /// False only when herdr lists the session as stopped (or not at all).
     var isRunning: Bool {
         sessions.isEmpty || sessions.contains { $0.name == session && $0.running }
@@ -116,6 +123,10 @@ final class HostStore {
                 switch update {
                 case let .snapshot(snapshot):
                     apply(snapshot)
+                    #if os(macOS)
+                        // Also retries a terminal whose stream failed.
+                        showTerminals()
+                    #endif
                     state = .live
                     // After the first snapshot, so the picker never delays the layout.
                     if !loadedSessions {

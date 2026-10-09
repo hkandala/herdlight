@@ -68,6 +68,8 @@ struct HerdlightApp: App {
             .preferredColorScheme(.dark)
             // A new store (session switch) cancels the old one's run, which drops its client.
             .task(id: ObjectIdentifier(store)) { await store.run(exec: exec.value) }
+            // Here, not in the detail: a failed or empty session must release its terminals too.
+            .onChange(of: store.shownTerminals) { store.showTerminals() }
         }
     }
 
@@ -102,7 +104,6 @@ struct HerdlightApp: App {
                                     .accessibilityIdentifier("detail.notice")
                             }
                         }
-                        .onChange(of: store.shownTerminals, initial: true) { store.terminals.show($1) }
                 } else {
                     message("No workspaces", "Create one in herdr:",
                             "herdr --session \(store.session) workspace create")
