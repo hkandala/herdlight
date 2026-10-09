@@ -101,3 +101,17 @@ Terminals, trackpad paging, divider drag, splits/close/new-tab actions, zoom.
 - The session list loads when a store starts and again after each error (to tell "not
   running" from other failures); a session started later shows up after the next switch or
   error. Good enough for v0.
+- **Lost EOF in `ProcessExec` (HerdrKit bug, fixed).** On CI, `locate` or `sessions()` often
+  timed out after 10 s, even though the child (`sh -c …`, `session list`) had exited in
+  milliseconds. The pipe's `readabilityHandler` did not keep its `FileHandle` alive. Once a
+  fast child's `Process` and `Pipe` were released, the handle went too, and EOF never
+  arrived. Now the handler holds the handle until EOF, or until the stream is dropped. The
+  test `output of fast commands always ends` (30 parallel `sh -c 'echo hi'`) fails without
+  the fix on this Mac. Extra logging in `spawn` hid the bug, so it was found with `os_log`.
+- **CI e2e details.** Python's `HTTPServer` calls `getfqdn()`, and that showed a Local
+  Network prompt for "Python" on the runner. The helper uses `socketserver.TCPServer`
+  instead. After a failed test, Xcode starts a new test runner process, so the layout is
+  built when herdr's snapshot has no workspaces, not behind a static flag. `make e2e` passes
+  `-default-test-execution-time-allowance 120`, so a hung test fails and keeps its result
+  bundle. The first launch on a runner takes up to about 12 s to connect, so the tests wait
+  30 s for it.
