@@ -7,6 +7,11 @@ extension HerdlightUITests {
         XCTAssertTrue(element("terminal.w1:p1").waitForExistence(timeout: connect))
         for pane in ["w1:p1", "w1:p2", "w1:p3"] {
             try await expectPTYSize(pane)
+            // The stream opened at that size: no resize after attach, so an agent draws once.
+            let terminal = try await terminalID(pane)
+            let line = try await streams(one).first { $0.contains(terminal) } ?? ""
+            let rows = line.firstMatch(of: /--rows (\d+)/)?.1, cols = line.firstMatch(of: /--cols (\d+)/)?.1
+            XCTAssertEqual("\(rows ?? "") \(cols ?? "")", element("terminal.\(pane)").value as? String, line)
         }
         keepScreenshot("terminals")
     }

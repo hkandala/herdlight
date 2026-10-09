@@ -240,26 +240,23 @@
 
         // MARK: Size and input
 
-        /// libghostty's grid for the card's size. herdr gets it once the layout settles, 100 ms after
-        /// the last change, so a window drag does not make the app repaint at every step.
+        /// libghostty's grid for the card's size, taken once the layout settles (100 ms after the last change):
+        /// a window drag does not make the app repaint at every step, and the first stream opens at the card's
+        /// real size, not at the surface's first guess before layout (50×17), which made an agent redraw twice.
         private func resized(_ size: InMemoryTerminalViewport) {
-            let first = grid == nil
-            grid = size
-            if first {
-                if shown {
-                    open()
-                }
-                return
-            }
             resizing?.cancel()
             resizing = Task {
                 try? await Task.sleep(for: .milliseconds(100))
-                guard !Task.isCancelled, let grid else { return }
-                if state == .watching {
+                guard !Task.isCancelled else { return }
+                let first = grid == nil
+                grid = size
+                if first {
+                    open()
+                } else if state == .watching {
                     // observe cannot resize: watch again at the new size.
                     open(observe: true)
                 } else if state == .live {
-                    stream?.resize(cols: Int(grid.columns), rows: Int(grid.rows),
+                    stream?.resize(cols: Int(size.columns), rows: Int(size.rows),
                                    cellWidth: Int(view.metrics?.cellWidthPixels ?? 0),
                                    cellHeight: Int(view.metrics?.cellHeightPixels ?? 0))
                 }

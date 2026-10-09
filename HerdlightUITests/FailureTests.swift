@@ -17,7 +17,8 @@ extension HerdlightUITests {
         XCTAssertTrue(terminal.waitForExistence(timeout: connect))
         try await poll("its stream") { () async throws -> Bool? in try await streams(five).count == 1 ? true : nil }
 
-        try await Self.post("\(five)/stop", Data())
+        let stopped = try await Self.post("\(five)/stop", Data())
+        XCTAssertEqual(stopped.status, 200, String(decoding: stopped.data, as: UTF8.self))
         // The "not running" page: its Start button.
         XCTAssertTrue(element("detail.start").waitForExistence(timeout: 10))
         XCTAssertFalse(terminal.exists)
@@ -25,11 +26,17 @@ extension HerdlightUITests {
         try await poll("no stream") { () async throws -> Bool? in try await streams(five).isEmpty ? true : nil }
 
         // Started in a terminal, not by the app: the app finds it again within seconds, with one stream.
-        try await Self.post("\(five)/start", Data())
+        let started = try await Self.post("\(five)/start", Data())
+        XCTAssertEqual(started.status, 200)
         XCTAssertTrue(terminal.waitForExistence(timeout: 10))
         try await poll("one stream again") { () async throws -> Bool? in
             try await streams(five).count == 1 ? true : nil
         }
+        // Live updates are back: a tab made in herdr shows up.
+        let created = try await Self.call(five, "tab.create", ["workspace_id": "w1", "label": "back", "cwd": "/tmp",
+                                                               "focus": false])
+        let tab = try XCTUnwrap((created["tab"] as? [String: Any])?["tab_id"] as? String)
+        XCTAssertTrue(element("tab.\(tab)").waitForExistence(timeout: 3))
     }
 
     func testPaneClosedInHerdrDropsItsCardAndStream() async throws {
@@ -80,12 +87,5 @@ extension HerdlightUITests {
             let counts = try await (streams(one).count, streams(two).count)
             return counts == (inOne, inTwo) ? true : nil
         }
-    }
-
-    /// The session's `terminal session` runs, any client's, as `pid argv` lines.
-    private func streams(_ session: String) async throws -> [String] {
-        let (data, status) = try await Self.post("\(session)/streams", Data())
-        XCTAssertEqual(status, 200)
-        return String(decoding: data, as: UTF8.self).split(separator: "\n").map(String.init)
     }
 }
