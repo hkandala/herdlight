@@ -5,7 +5,7 @@ import Observation
 /// skips fields that did not change, so one status change redraws one row (design D6).
 @MainActor @Observable
 final class HostStore {
-    enum State {
+    enum State: Equatable {
         case connecting, live
         case failed(HerdrError)
     }

@@ -66,7 +66,7 @@ public enum AgentStatus: String, Decodable, Sendable {
     }
 }
 
-public struct Session: Decodable, Sendable {
+public struct Session: Decodable, Equatable, Sendable {
     public let name: String
     public let running: Bool
 }
