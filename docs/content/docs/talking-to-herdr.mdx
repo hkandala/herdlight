@@ -142,7 +142,8 @@ draws them. Keys go back as `terminal.input`.
 - On the Mac, the panes of recently shown tabs keep their `control` streams,
   up to about 24 terminals, least recently shown first out (D46). Their
   surfaces stop drawing but keep reading: a surface draws only while its page
-  is in the window (in view, or next to it during a swipe).
+  is in the window (in view, or next to it: the strip keeps neighbor pages laid
+  out).
 - During a swipe the neighbor tab shows each card's last image (or one
   `pane.read visible` for a card never shown). Its streams start when the
   swipe stops.
