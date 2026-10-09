@@ -14,4 +14,4 @@ git checkout-index --prefix="$tmp/" .swiftformat .swiftlint.yml
 cd "$tmp"
 
 swiftformat --lint "${files[@]}"
-swiftlint lint --strict --quiet --force-exclude "${files[@]}"
+swiftlint lint --strict --quiet --no-cache --force-exclude "${files[@]}"

@@ -15,7 +15,7 @@ unset "${!HERDR_@}"
 
 exists() {
     local list
-    list=$(herdr session list --json)
+    list=$(herdr session list --json) || exit 1
     grep -qF "\"name\":\"$name\"" <<<"$list"
 }
 
@@ -30,6 +30,7 @@ up)
         sleep 0.1
     done
     kill "$pid" 2>/dev/null || true
+    herdr session delete "$name" >/dev/null 2>&1 || true
     echo "herdr session '$name' did not start:" >&2 && cat "$log" >&2 && exit 1
     ;;
 down)
