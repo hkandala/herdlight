@@ -46,8 +46,7 @@ struct SessionList: View {
                     if let first = sessions.first(where: \.running) ?? sessions.first {
                         pick(first)
                     } else if let typedNew {
-                        store = HostStore(session: typedNew, start: true)
-                        open = false
+                        create(typedNew)
                     }
                 }
                 .padding(.bottom, 4)
@@ -90,10 +89,7 @@ struct SessionList: View {
             .fixedSize(horizontal: false, vertical: true)
             Divider().padding(.horizontal, 4).padding(.vertical, 4)
             // ⇧⌘N is the menu's; the row only shows it.
-            Button {
-                store = HostStore(session: typedNew ?? store.sessions.newName, start: true)
-                open = false
-            } label: {
+            Button { create(typedNew ?? store.sessions.newName) } label: {
                 MenuRow(symbol: "rectangle.stack.badge.plus", title: typedNew.map { "New Session “\($0)”" }
                     ?? "New Session", detail: typedNew == nil ? "⇧⌘N" : "")
             }
@@ -114,6 +110,12 @@ struct SessionList: View {
         #endif
     }
 
+    /// Starts a new session and switches to it.
+    private func create(_ name: String) {
+        store = HostStore(session: name, start: true)
+        open = false
+    }
+
     /// Switches to the session; a stopped one starts (design D47).
     private func pick(_ session: Session) {
         if session.name != store.session {
@@ -126,10 +128,8 @@ struct SessionList: View {
 extension [Session] {
     /// A readable name no session has yet, like the references' `lunar-ridge`.
     var newName: String {
-        let first = ["amber", "brisk", "calm", "dusty", "early", "fern", "gentle", "hidden", "ivory", "jolly",
-                     "lunar", "misty", "noble", "quiet", "rapid", "sunny"]
-        let second = ["bay", "cedar", "dune", "ember", "field", "grove", "harbor", "isle", "lake", "meadow",
-                      "orchard", "peak", "ridge", "river", "stone", "willow"]
+        let first = ["amber", "brisk", "calm", "early", "lunar", "misty", "quiet", "sunny"]
+        let second = ["cedar", "dune", "grove", "harbor", "meadow", "peak", "ridge", "river"]
         let names = first.flatMap { word in second.map { "\(word)-\($0)" } }
         return names.shuffled().first { name in !contains { $0.name == name } } ?? "session-\(count + 1)"
     }

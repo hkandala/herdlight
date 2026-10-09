@@ -14,13 +14,11 @@ struct Palette: View {
         let symbol: String
         let title: String
         let detail: String
-        /// What the filter looks at: the title, and a tab's workspace.
-        var match = ""
         let jump: () -> Void
     }
 
     var body: some View {
-        let items = items.filter { "\($0.title) \($0.match)".matches(filter) }
+        let items = items.filter { "\($0.title) \($0.detail)".matches(filter) }
         let index = min(index, items.count - 1)
         VStack(alignment: .leading, spacing: 2) {
             FilterField(prompt: "Jump to a session, workspace or tab", text: $filter, identifier: "palette.filter",
@@ -75,14 +73,7 @@ struct Palette: View {
     private var items: [Item] {
         let tabs = store.workspaces.flatMap { workspace in
             workspace.tabs.map { tab in
-                let label = workspace.label
-                return Item(
-                    id: "tab.\(tab.id)",
-                    symbol: "apple.terminal",
-                    title: tab.label,
-                    detail: label,
-                    match: label,
-                ) {
+                Item(id: "tab.\(tab.id)", symbol: "apple.terminal", title: tab.label, detail: workspace.label) {
                     store.selectedWorkspaceID = workspace.id
                     workspace.selectedTabID = tab.id
                 }

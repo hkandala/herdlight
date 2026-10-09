@@ -201,7 +201,6 @@ private struct SplitLayout: View {
             .frame(width: zoomed ? page.width : size.width, height: zoomed ? page.height : size.height)
             // Under the zoomed side, so its terminal views take no clicks either.
             .opacity(away ? 0 : 1)
-            .allowsHitTesting(!away)
             .zIndex(away ? 0 : 1)
             .transformEnvironment(\.zoomedAway) { $0 = $0 || away }
     }
