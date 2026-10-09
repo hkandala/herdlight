@@ -81,3 +81,8 @@ Sidebar machine pages, iOS gestures, drag and drop.
 - **Tests.** XCUITest's `scroll(byDeltaX:)` sends wheel events, which page the strip.
   Synthesized trackpad gestures (CGEvent with scroll phases) page only with enough speed:
   ~600 pt in 8 events does, 400 pt in 12 snaps back, as a slow real swipe would.
+- **Open: a window that opens in full screen** (macOS restores it so) shows AppKit's empty
+  title-bar window over the title row; `windowToolbarFullScreenVisibility(.onHover)` holds
+  only for a window that enters full screen after it opened. Hiding the toolbar in full
+  screen (`.toolbar(.hidden, for: .windowToolbar)`) made the bar show every time. Leaving
+  and entering full screen again fixes it. Not fixed in phase 5.
