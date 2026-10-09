@@ -15,6 +15,14 @@
             /// Another client controls the pane: watch until the user acts (design D8).
             case watching
             case failed(String)
+
+            var isFailed: Bool {
+                if case .failed = self {
+                    true
+                } else {
+                    false
+                }
+            }
         }
 
         enum Input {
@@ -32,19 +40,16 @@
         @ObservationIgnored private let terminalID: String
         @ObservationIgnored private let client: HerdrClient
         @ObservationIgnored private let session: InMemoryTerminalSession
+        /// Input not sent yet; it goes out while the stream is live.
         @ObservationIgnored private var pending: [Input] = []
         @ObservationIgnored private var draining: Task<Void, Never>?
         @ObservationIgnored private var tasks: [Task<Void, Never>] = []
         @ObservationIgnored private var run: Task<Void, Never>?
-        @ObservationIgnored private var resizing: Task<Void, Never>?
         @ObservationIgnored private var stream: TerminalStream?
         @ObservationIgnored private var observing = false
         @ObservationIgnored private var shown = false
-        /// A stream is on its way to its first frame; input waits for it.
-        @ObservationIgnored private var opening = false
         /// Counts streams, so a stream that is ending cannot change the state of the next one.
         @ObservationIgnored private var generation = 0
-        @ObservationIgnored private var waiter: CheckedContinuation<Void, Never>?
 
         /// `keybind = clear`: app shortcuts reach the menu. Transparent, so the card shows through.
         /// No padding, so cells map from the view's origin; no scrollback, herdr keeps it.
@@ -73,7 +78,8 @@
             session.receive("\u{1B}[?2004h")
             view.terminal = self
             view.controller = Self.controller
-            view.configuration = TerminalSurfaceOptions(backend: .inMemory(session))
+            // Sizes reach herdr at most every 100 ms while a window or divider moves.
+            view.configuration = TerminalSurfaceOptions(backend: .inMemory(session), resizeThrottleMilliseconds: 100)
             tasks = [
                 Task { for await text in texts {
                     enqueue(.text(text))
@@ -84,9 +90,9 @@
             ]
         }
 
-        /// The card is on the selected tab: stream it.
+        /// The card is on the selected tab: stream it. Also retries a stream that failed.
         func show() {
-            guard !shown else { return }
+            guard !shown || state.isFailed else { return }
             shown = true
             open()
         }
@@ -94,6 +100,7 @@
         /// The card left the selected tab: let go (design: what streams). It keeps its last image.
         func hide() {
             shown = false
+            pending = []
             end()
         }
 
@@ -101,9 +108,6 @@
         func close() {
             hide()
             tasks.forEach { $0.cancel() }
-            draining?.cancel()
-            pending = []
-            wake()
         }
 
         /// Take back: control with `--takeover`.
@@ -137,7 +141,6 @@
             guard shown, let grid else { return }
             end()
             observing = observe
-            opening = true
             let generation = generation
             let previous = run
             run = Task {
@@ -150,7 +153,6 @@
                 } catch {
                     if generation == self.generation {
                         state = .failed(error.localizedDescription)
-                        wake()
                     }
                     return
                 }
@@ -162,13 +164,8 @@
                     switch event {
                     case let .frame(frame):
                         session.receive(frame.bytes)
-                        if opening {
-                            state = observe ? .watching : .live
-                            // The card may have changed size while the stream opened.
-                            if !observe, let now = self.grid, frame.width != now.columns || frame.height != now.rows {
-                                sendSize()
-                            }
-                            wake()
+                        if state == .idle {
+                            started(frame)
                         }
                     case let .closed(reason):
                         self.stream = nil
@@ -178,25 +175,41 @@
             }
         }
 
-        /// Ends the current stream: a controller releases (and its run drains), a watcher stops.
+        /// The first frame of a stream.
+        private func started(_ frame: TerminalStream.Frame) {
+            state = observing ? .watching : .live
+            // The card may have changed size while the stream opened.
+            if let grid, frame.width != grid.columns || frame.height != grid.rows {
+                resized(grid)
+            }
+            drain()
+        }
+
+        /// Ends the current stream: a controller releases (killed if herdr does not answer within
+        /// 500 ms), a watcher stops.
         private func end() {
             generation += 1
             if let stream, !observing {
                 stream.release()
+                Task { [run] in
+                    try? await Task.sleep(for: .milliseconds(500))
+                    run?.cancel()
+                }
             } else {
                 run?.cancel()
             }
             stream = nil
             state = .idle
-            wake()
         }
 
         private func closed(_ reason: TerminalStream.Closed, observe: Bool) {
             state = .idle
             switch reason {
             case .held:
-                // Watch; never take back by itself. A new task: `open` waits for this run to end.
-                Task { open(observe: true) }
+                // Watch, and never take back by itself, unless the user typed or clicked meanwhile
+                // (design D8). A new task: `open` waits for this run to end.
+                let takeover = !pending.isEmpty
+                Task { open(observe: !takeover, takeover: takeover) }
             case .liveUpdate:
                 // ponytail: one retry after 1 s; the design also pings and checks the version.
                 Task {
@@ -205,46 +218,35 @@
                 }
             case .ended:
                 // Gone: the next snapshot drops the card.
-                break
+                pending = []
             case let .failed(text):
+                pending = []
                 state = .failed(text)
             }
-            wake()
         }
 
         // MARK: Size and input
 
-        /// libghostty's grid for the card's size. Sent to herdr once the size settles.
+        /// libghostty's grid for the card's size.
         private func resized(_ size: InMemoryTerminalViewport) {
             let first = grid == nil
             grid = size
-            if first, shown {
-                open()
-                return
-            }
-            resizing?.cancel()
-            resizing = Task {
-                try? await Task.sleep(for: .milliseconds(100))
-                guard !Task.isCancelled else { return }
-                if state == .watching {
-                    // observe cannot resize: watch again at the new size.
-                    open(observe: true)
-                } else if state == .live {
-                    sendSize()
+            if first {
+                if shown {
+                    open()
                 }
+            } else if state == .watching {
+                // observe cannot resize: watch again at the new size.
+                open(observe: true)
+            } else if state == .live {
+                stream?.resize(cols: Int(size.columns), rows: Int(size.rows),
+                               cellWidth: Int(size.cellWidthPixels), cellHeight: Int(size.cellHeightPixels))
             }
         }
 
-        private func sendSize() {
-            guard let grid else { return }
-            stream?.resize(cols: Int(grid.columns), rows: Int(grid.rows),
-                           cellWidth: Int(grid.cellWidthPixels), cellHeight: Int(grid.cellHeightPixels))
-        }
-
-        /// Input goes out in order, one at a time: a key waits for herdr's answer before the next
-        /// text goes out. A bridge call takes about 60 ms, more than a held key's repeat, so what
-        /// piles up meanwhile goes as one call. ponytail: keys (main thread) and libghostty's text
-        /// (its IO thread) are ordered only as they arrive here, microseconds apart; enough for typing.
+        /// A bridge call takes about 60 ms, more than a held key's repeat, so what piles up
+        /// meanwhile goes as one call. ponytail: keys (main thread) and libghostty's text (its IO
+        /// thread) are ordered only as they arrive here, microseconds apart; enough for typing.
         private func enqueue(_ input: Input) {
             switch (pending.last, input) {
             case let (.keys(old)?, .keys(new)):
@@ -254,37 +256,27 @@
             default:
                 pending.append(input)
             }
-            if draining == nil {
-                draining = Task {
-                    while !pending.isEmpty {
-                        await send(pending.removeFirst())
-                    }
-                    draining = nil
-                }
-            }
-        }
-
-        private func send(_ input: Input) async {
             if state == .watching {
                 takeBack()
             }
-            // Typed before the first frame (after a take back): wait for it.
-            if opening {
-                await withCheckedContinuation { waiter = $0 }
-            }
-            guard state == .live, let stream else { return }
-            switch input {
-            case let .text(text):
-                stream.input(text)
-            case let .keys(keys):
-                _ = try? await client.call("pane.send_keys", ["pane_id": paneID, "keys": keys]) as Done
-            }
+            drain()
         }
 
-        private func wake() {
-            opening = false
-            waiter?.resume()
-            waiter = nil
+        /// Sends input in order, one at a time, while the stream is live: a key waits for herdr's
+        /// answer before the next text goes out. Input typed before the first frame waits for it.
+        private func drain() {
+            guard draining == nil else { return }
+            draining = Task {
+                while state == .live, let stream, !pending.isEmpty {
+                    switch pending.removeFirst() {
+                    case let .text(text):
+                        stream.input(text)
+                    case let .keys(keys):
+                        _ = try? await client.call("pane.send_keys", ["pane_id": paneID, "keys": keys]) as Done
+                    }
+                }
+                draining = nil
+            }
         }
     }
 
