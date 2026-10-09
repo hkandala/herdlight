@@ -82,6 +82,7 @@ final class HostStore {
 
     /// Follows the session until the calling task is cancelled.
     func run(exec: any Exec) async {
+        var loadedSessions = false
         do {
             let client = try await HerdrClient(herdr: HerdrClient.locate(exec: exec), session: session, exec: exec)
             for await update in await client.updates() {
@@ -90,7 +91,8 @@ final class HostStore {
                     apply(snapshot)
                     state = .live
                     // After the first snapshot, so the picker never delays the layout.
-                    if sessions.isEmpty {
+                    if !loadedSessions {
+                        loadedSessions = true
                         sessions = await (try? client.sessions()) ?? []
                     }
                 case let .error(error):
