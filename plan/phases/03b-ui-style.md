@@ -98,3 +98,25 @@ changed) once the look is settled.
   capsules; a split button adds a pane (throwaway session).
 - Ponytail still holds: system glass APIs first, no custom renderers, the minimum of
   AppKit bridging needed for the window (visual effect background, title bar).
+
+## Findings
+
+- **Frosted window.** `containerBackground(.ultraThinMaterial, for: .window)` does not blur the
+  desktop; SwiftUI materials blend within the window. The window background is one
+  `NSVisualEffectView` (`.behindWindow`, `.hudWindow`, `state = .active` so an inactive window
+  stays dark) under a black 40 % tint. Cards are white 4 % with a hairline, so they read lighter
+  than the window, as in the references. `screencapture -l` shows the window without what is
+  behind it (flat gray); capture the screen region (`-R`) to see the real look.
+- **Title-bar row.** With `.hiddenTitleBar` the traffic lights sit in a 28 pt bar, off-center
+  from a two-line session button. A `.unifiedCompact` toolbar holding only a `ToolbarSpacer`
+  (title removed, background hidden) gives a 40 pt bar with the lights centered. Our row is the
+  first content row under it (`ignoresSafeArea(.top)`), 78 pt from the left edge.
+- **Session picker.** SwiftUI's `.popover` always draws an arrow on macOS. The list is a glass
+  panel in a window overlay under the button, closed by a click outside or Esc.
+- **Accessibility.** A pane card that is an `.accessibilityElement(children: .contain)` merges
+  into a one-pane page's own container (the card id is lost). The card's element is its
+  background shape instead (a leaf with the title as label), so the buttons stay separate.
+- **Tabs.** Tabs are sidebar rows while the sidebar shows, title-bar capsules (120–220 pt,
+  truncating) while it is hidden; both carry `tab.<id>`. Workspace headers are buttons, so
+  their text is the `label`, not the `value`.
+- **⌘1…⌘9** work while the session list is open (shortcuts on its rows), not globally.
