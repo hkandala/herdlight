@@ -1,5 +1,14 @@
 # Herdlight v0 plan
 
+**Status: v0 is done** (phases 1–6 merged): the v0 subset of build-order step 1, This Mac only. See the root
+`README.md` for how to build, run and test.
+
+Deferred past v0 (in the design, not built): remote machines over SSH, the iOS app (the target only builds and
+shows an empty state), plugins and plugin cards, the chat view, floating panes, notifications, the status area
+and pills, drag and drop, divider drag, more machines in the sidebar ("Add Remote Host" is a placeholder), a
+text size setting, the "seen" state for finished agents, IME composition tests, and trackpad gestures in e2e
+(checked by hand).
+
 The working plan for the first app code. The design lives in `docs/content/docs/` and wins
 on any conflict, except where this file narrows the scope for v0.
 
