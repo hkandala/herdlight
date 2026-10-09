@@ -131,9 +131,10 @@ private struct PaneCard: View {
                 .accessibilityAction(named: "Split Down") { Task { await store.split(id, .down) } }
         }
         .overlay {
-            // Cards without the keyboard are a little darker; the terminal's text keeps its own contrast.
-            if !lit, !hovering {
-                shape.fill(.black.opacity(0.15)).allowsHitTesting(false)
+            // Cards without the keyboard are a little darker, a hovered one less so; the terminal's text
+            // keeps its own contrast.
+            if !lit {
+                shape.fill(.black.opacity(hovering ? 0.08 : 0.15)).allowsHitTesting(false)
             }
         }
         .overlay(shape.strokeBorder(Color.hairline))
