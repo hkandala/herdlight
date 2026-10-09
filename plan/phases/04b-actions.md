@@ -110,6 +110,22 @@ app's own), decisions D11, D39, D41.
   a strip made with `.id(workspace.id)`). The old split test only passed because XCUITest's
   `hover()` on an off-screen card scrolled it into view. Tests that click a new tab make it in
   the selected workspace.
+- **Review round 2.**
+  - A TextField keeps the `onSubmit` action of its first draw, so after ↓ Enter jumped to the
+    first row. Enter is an `onKeyPress(.return)` next to the arrows, reading the current index.
+  - A first responder set during a SwiftUI update is undone: after a palette jump or a new
+    workspace no card had the keyboard. `takeKeyboard` asks on the next turn of the run loop;
+    only the latest request wins. `focusKeyboardCard` makes the target's terminal if its card
+    has not drawn yet, so it takes the keyboard once it is in the window.
+  - The one strip for all workspaces sometimes stayed blank after + workspace (seen by the
+    reviewer, not here): a scroll to the new workspace's page in the same update as its pages
+    can miss. The strip uses a `ScrollPosition` and scrolls once more in a `Task` after a
+    workspace switch. The new-workspace e2e test hides and shows the sidebar first and checks
+    the card takes keys.
+  - ⌘T asks herdr for the keyboard card's cwd (`pane.get`): a `cd` sends no event, so the
+    snapshot's cwd can be old.
+  - The session list lights the row Enter picks while a filter is typed; the tab commands get
+    their own focused value (nil while the list is open), so ⇧⌘N works there.
 - **e2e.** Hover a card's header, not its center: XCUITest moves the pointer straight into the
   terminal view, which takes the mouse moves, so SwiftUI never sees the hover. A container's
   `accessibilityIdentifier` is copied onto its children (the palette's field lost its id). The
