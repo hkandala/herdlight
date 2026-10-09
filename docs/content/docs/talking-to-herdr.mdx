@@ -139,10 +139,8 @@ draws them. Keys go back as `terminal.input`.
 - The panes of the selected tab, plus the shown floating cards of the
   selected workspace, on the selected machine.
 - On the Mac, the panes of recently shown tabs keep their `control` streams,
-  up to about 24 surfaces, least recently shown first out (D46). Their
-  surfaces stop drawing but keep reading. Releasing a pane on leaving its tab
-  let a herdr TUI lay it out at its own size, and coming back resized it
-  again: two redraws of a full-screen app each time.
+  up to about 24 terminals, least recently shown first out (D46). Their
+  surfaces stop drawing but keep reading.
 - During a swipe the neighbor tab shows each card's last image (or one
   `pane.read visible` for a card never shown). Its streams start when the
   swipe stops.
@@ -174,7 +172,8 @@ draws them. Keys go back as `terminal.input`.
 4. Nothing else takes control. A watcher stays a watcher until its user acts,
    even after the other device lets go.
 5. A device sends `terminal.release` before it closes a `control` stream:
-   when the card leaves the selected tab or the shown floating layer, when the
+   when the card leaves the recently shown set (Mac, D46) or the selected tab
+   (iPhone and iPad) or the shown floating layer, when the
    card switches to chat, when the user switches machines or sessions, and when
    the window closes. On quit the Mac app kills its children instead: herdr
    frees the pane of a killed `control` run at once, as if it had released it.
