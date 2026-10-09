@@ -12,7 +12,7 @@ struct Sidebar: View {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(sections, id: \.0.id) { workspace, tabs in
                         WorkspaceHeader(workspace: workspace, store: store)
-                        ForEach(tabs) { TabRow(tab: $0, workspace: workspace, store: store) }
+                        ForEach(tabs) { TabButton(tab: $0, workspace: workspace, store: store) }
                     }
                     if sections.isEmpty, !store.workspaces.isEmpty {
                         Text("No matching tabs").foregroundStyle(.secondary).padding(8)
@@ -37,13 +37,13 @@ struct Sidebar: View {
             }
             .padding(8)
         }
-        // On the window background, as in the reference: only the pane cards are frosted.
+        // On the window background, as in the reference: only the pane cards are lighter.
         .frame(width: 240)
     }
 
     /// The tabs whose label matches the filter; all of them when the workspace's label matches.
     private func shown(_ workspace: HostStore.Workspace) -> [HostStore.Tab] {
-        filter.isEmpty || workspace.label.matches(filter) ? workspace.tabs : workspace.tabs
+        workspace.label.matches(filter) ? workspace.tabs : workspace.tabs
             .filter { $0.label.matches(filter) }
     }
 }
@@ -72,38 +72,52 @@ private struct WorkspaceHeader: View {
     }
 }
 
-/// One tab; its own view, so a status change redraws this row only (design D6).
-private struct TabRow: View {
+/// One tab: a sidebar row, or a title-bar capsule when `lit` is set. Its own view, so a status change redraws this
+/// tab only (design D6).
+struct TabButton: View {
     let tab: HostStore.Tab
     let workspace: HostStore.Workspace
     let store: HostStore
+    /// A capsule, lit while its page is in view.
+    var lit: Bool?
     @State private var hovering = false
 
     var body: some View {
         let selected = workspace.id == store.selectedWorkspaceID && tab.id == workspace.selectedTabID
+        let row = lit == nil
         Button {
             store.selectedWorkspaceID = workspace.id
+            // A capsule: the strip scrolls to the new selection and the marker follows, as during a swipe.
             workspace.selectedTabID = tab.id
         } label: {
             HStack(spacing: 8) {
                 IconTile()
-                Text(tab.label).lineLimit(1)
-                Spacer(minLength: 0)
+                Text(tab.label).lineLimit(1).foregroundStyle(lit == false ? .secondary : .primary)
+                if row {
+                    Spacer(minLength: 0)
+                }
                 // The one status slot: × while hovered (design D42).
-                if !hovering {
+                if hovering {
+                    Color.clear.frame(width: 16, height: 1)
+                } else {
                     StatusGlyph(status: tab.status)
                 }
             }
-            .padding(.horizontal, 7)
+            // A capsule's tile sits in from its round end, more than above and below it (as in the reference).
+            .padding(.leading, row ? 7 : 8)
+            .padding(.trailing, row ? 7 : 12)
             .padding(.vertical, 7)
+            .frame(maxWidth: row ? .infinity : 220, alignment: .leading)
         }
-        .buttonStyle(ChromeStyle(selected: selected, radius: 10))
+        // A capsule's selection is the tab bar's glass marker.
+        .buttonStyle(ChromeStyle(selected: row && selected, radius: row ? 10 : 16))
         .accessibilityIdentifier("tab.\(tab.id)")
         .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityValue(lit == true ? "in view" : "")
         .accessibilityAction(named: "Close Tab") { store.closing = .tab(tab.id) }
         .overlay(alignment: .trailing) {
             if hovering {
-                CloseTabButton(tab: tab, store: store).padding(.trailing, 4)
+                CloseTabButton(tab: tab, store: store).padding(.trailing, row ? 4 : 6)
             }
         }
         .onHover { hovering = $0 }
