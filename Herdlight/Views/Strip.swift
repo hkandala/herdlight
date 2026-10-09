@@ -114,6 +114,9 @@ private struct PaneCard: View {
         .background {
             shape.fill(Color.card).accessibilityElement().accessibilityLabel(title)
                 .accessibilityIdentifier("pane.\(id)")
+                // The split buttons show on hover only; VoiceOver splits from the card.
+                .accessibilityAction(named: "Split Right") { Task { await store.split(id, .right) } }
+                .accessibilityAction(named: "Split Down") { Task { await store.split(id, .down) } }
         }
         .overlay {
             // Cards without herdr's focus are a little darker; the terminal's text keeps its own contrast.

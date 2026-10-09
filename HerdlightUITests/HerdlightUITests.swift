@@ -47,6 +47,7 @@ final class HerdlightUITests: XCTestCase {
         XCTAssertTrue(element("tab.w1:t2").exists)
         // At launch no text field has the keyboard (phase 4 gives it to the terminal).
         XCTAssertEqual(app.textFields.matching(NSPredicate(format: "hasKeyboardFocus == true")).count, 0)
+        XCTAssertNotEqual(element("sidebar.filter").elementType, .textField)
 
         // p1 | (p2 / p3): p1 on the left with about 60 % of the width, p2 above p3.
         let first = element("pane.w1:p1").frame, second = element("pane.w1:p2").frame

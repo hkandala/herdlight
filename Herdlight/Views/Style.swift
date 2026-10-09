@@ -120,10 +120,12 @@ struct FilterField: View {
                     .onChange(of: focused) { editing = focused }
                     .accessibilityIdentifier(identifier)
             } else {
-                Text(prompt)
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityIdentifier(identifier)
+                // A button, not a field: it can't take the keyboard at launch, and VoiceOver can press it.
+                Button { editing = true } label: {
+                    Text(prompt).foregroundStyle(.tertiary).frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier(identifier)
             }
         }
         .padding(.horizontal, 8)
