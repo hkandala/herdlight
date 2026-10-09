@@ -84,16 +84,19 @@ final class HostStore {
     func run(exec: any Exec) async {
         do {
             let client = try await HerdrClient(herdr: HerdrClient.locate(exec: exec), session: session, exec: exec)
-            sessions = await (try? client.sessions()) ?? []
             for await update in await client.updates() {
                 switch update {
                 case let .snapshot(snapshot):
                     apply(snapshot)
                     state = .live
+                    // After the first snapshot, so the picker never delays the layout.
+                    if sessions.isEmpty {
+                        sessions = await (try? client.sessions()) ?? []
+                    }
                 case let .error(error):
-                    state = .failed(error)
-                    // To tell "not running" from other failures.
+                    // First, to tell "not running" from other failures without a flash of the other text.
                     sessions = await (try? client.sessions()) ?? sessions
+                    state = .failed(error)
                 }
             }
         } catch {
