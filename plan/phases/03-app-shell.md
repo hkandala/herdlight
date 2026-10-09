@@ -69,3 +69,35 @@ Read first: [ui/window](../../docs/content/docs/ui/window.mdx),
 ## Out of scope
 
 Terminals, trackpad paging, divider drag, splits/close/new-tab actions, zoom.
+
+## Findings
+
+- **Tab bar placement: top of the detail column** (spike S2 fallback). As a `ToolbarItem` with
+  `.sharedBackgroundVisibility(.hidden)` the bar shows while its tabs fit, but the toolbar
+  sizes an item to its ideal width: with 10 tabs the whole item vanished (moved to overflow),
+  and a flexible frame (`minWidth`, `maxWidth: .infinity`) did not make it fill the free
+  space; it stayed at its minimum. Only a fixed width worked. So the window uses
+  `.windowStyle(.hiddenTitleBar)` and the bar is the first row of the detail column, pulled
+  into the title bar line with `.ignoresSafeArea(edges: .top)`, with `WindowDragGesture` on
+  its empty space. The system sidebar toggle stays in the sidebar's toolbar; clicks on the
+  capsules under the (empty) detail toolbar area reach them (e2e clicks them).
+- **Observation skips equal values.** With Xcode 27, assigning an equal value to an
+  `@Observable` property does not notify (checked with `withObservationTracking`), so
+  `HostStore` assigns fields plainly; only the object lists compare ids before replacing.
+- **Strip and resizing.** `scrollPosition(id:anchor: .leading)` keeps the selected page in
+  place when the detail column changes width. Without the anchor a launch once showed the
+  strip half a page off and wrote the wrong tab back into the selection.
+- **e2e helper.** `scripts/e2e-helper.py` (stdlib `http.server`) takes one API request line
+  per `POST /<session>` and pipes it to `herdr --session <session> remote-api-bridge`. It
+  serves only the two sessions `make e2e` made (`scripts/e2e.sh`: `hl-e2e-<id>-a` and `-b`;
+  the second one is for the session switch). It binds 127.0.0.1 on a random port and is
+  killed by the script's exit trap. Tests reach it as `HL_HELPER`.
+- **Accessibility.** An identifier set on a container also lands on the first control in
+  `safeAreaInset` content (the session picker got the List's `sidebar` id), so only leaf
+  elements carry identifiers. Rows combine their text: a workspace row's text is its
+  `value`, not its `label`.
+- **The sidebar.** `NavigationSplitView`'s sidebar on macOS 27.0.1 draws full height, not as a
+  floating inset panel; it is the system one, unchanged.
+- The session list loads when a store starts and again after each error (to tell "not
+  running" from other failures); a session started later shows up after the next switch or
+  error. Good enough for v0.
