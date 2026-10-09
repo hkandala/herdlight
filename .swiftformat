@@ -1,0 +1,4 @@
+--min-version 0.63.1
+--swift-version 6.2
+--language-mode 6
+--exclude docs,resources,.build,**/.build

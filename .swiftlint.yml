@@ -1,0 +1,8 @@
+excluded:
+  - docs
+  - resources
+  - .build
+  - Packages/HerdrKit/.build
+disabled_rules:
+  - trailing_comma # SwiftFormat owns trailing commas
+allow_zero_lintable_files: true # the hook may pass only excluded files
