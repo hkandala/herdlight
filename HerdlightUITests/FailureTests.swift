@@ -35,9 +35,7 @@ extension HerdlightUITests {
     func testPaneClosedInHerdrDropsItsCardAndStream() async throws {
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
         let (tab, first) = try await newTab("gone")
-        let split = try await Self.call(one, "pane.split", ["target_pane_id": first, "direction": "right",
-                                                            "cwd": "/tmp", "focus": false])
-        let second = try XCTUnwrap((split["pane"] as? [String: Any])?["pane_id"] as? String)
+        let second = try await split(first)
         element("tab.\(tab)").click()
         let doomed = try await terminalID(second)
         try await poll("its stream") { () async throws -> Bool? in
@@ -73,10 +71,8 @@ extension HerdlightUITests {
     }
 
     private func pickSession(_ name: String) {
-        element("titlebar.session-picker").click()
-        let row = element("session.\(name)")
-        XCTAssertTrue(row.waitForExistence(timeout: 2))
-        row.click()
+        openSessions()
+        element("session.\(name)").click()
     }
 
     private func expectStreams(_ inOne: Int, _ inTwo: Int, _ two: String) async throws {

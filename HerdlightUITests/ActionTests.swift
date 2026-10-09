@@ -6,18 +6,14 @@ extension HerdlightUITests {
     func testClosingAPaneAsksUnlessOnlyItsShellRuns() async throws {
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
         let (tab, first) = try await newTab("close")
-        let split = try await Self.call(one, "pane.split", ["target_pane_id": first, "direction": "right",
-                                                            "cwd": "/tmp", "focus": false])
-        let second = try XCTUnwrap((split["pane"] as? [String: Any])?["pane_id"] as? String)
+        let second = try await split(first)
         element("tab.\(tab)").click()
         try await waitForPrompt(second)
 
         // Something besides the shell runs: the app asks, and Cancel keeps the pane.
         try await Self.call(one, "pane.send_text", ["pane_id": second, "text": "sleep 100\r"])
         try await poll("sleep to run") { () async throws -> Bool? in
-            let info = try await Self.call(one, "pane.process_info", ["pane_id": second])["process_info"]
-            let processes = (info as? [String: Any])?["foreground_processes"] as? [[String: Any]]
-            return processes?.contains { $0["name"] as? String == "sleep" } == true ? true : nil
+            try await foreground(second).contains("sleep") ? true : nil
         }
         hoverHeader(second)
         element("pane.\(second).close").click()
@@ -31,9 +27,7 @@ extension HerdlightUITests {
         // Only the shell: the card goes at once.
         try await Self.call(one, "pane.send_keys", ["pane_id": second, "keys": ["ctrl+c"]])
         try await poll("the shell to be back") { () async throws -> Bool? in
-            let info = try await Self.call(one, "pane.process_info", ["pane_id": second])["process_info"]
-            let processes = (info as? [String: Any])?["foreground_processes"] as? [[String: Any]]
-            return processes?.allSatisfy { $0["name"] as? String != "sleep" } == true ? true : nil
+            try await foreground(second).contains("sleep") ? nil : true
         }
         hoverHeader(second)
         element("pane.\(second).close").click()
@@ -45,9 +39,7 @@ extension HerdlightUITests {
     func testClosingTheKeyboardCardHandsKeysToItsNeighbor() async throws {
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
         let (tab, left) = try await newTab("handoff")
-        let split = try await Self.call(one, "pane.split", ["target_pane_id": left, "direction": "right",
-                                                            "cwd": "/tmp", "focus": false])
-        let right = try XCTUnwrap((split["pane"] as? [String: Any])?["pane_id"] as? String)
+        let right = try await split(left)
         element("tab.\(tab)").click()
         try await waitForPrompt(left)
         try await waitForPrompt(right)
@@ -60,8 +52,7 @@ extension HerdlightUITests {
     func testClosingATabAsksFirst() async throws {
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
         let (tab, pane) = try await newTab("doomed", closeAfter: false)
-        try await Self.call(one, "pane.split", ["target_pane_id": pane, "direction": "right", "cwd": "/tmp",
-                                                "focus": false])
+        try await split(pane)
         let row = element("tab.\(tab)")
         row.hover()
         element("tab.\(tab).close").click()
@@ -81,9 +72,7 @@ extension HerdlightUITests {
         XCTAssertTrue(element("tab.w1:t2").waitForExistence(timeout: connect))
         let before = try await tabIDs()
         element("titlebar.new-tab").click()
-        let tab = try await poll("a new tab in herdr") { () async throws -> String? in
-            try await tabIDs().first { !before.contains($0) }
-        }
+        let tab = try await newTabID(after: before)
         addTeardownBlock { [one] in _ = try? await Self.call(one, "tab.close", ["tab_id": tab]) }
         XCTAssertTrue(tab.hasPrefix("w1:"))
         XCTAssertTrue(element("tab.\(tab)").wait(for: \.isSelected, toEqual: true, timeout: 3))
@@ -120,9 +109,7 @@ extension HerdlightUITests {
     private func commandT() async throws -> String {
         let before = try await tabIDs()
         app.typeKey("t", modifierFlags: .command)
-        let tab = try await poll("a new tab") { () async throws -> String? in
-            try await tabIDs().first { !before.contains($0) }
-        }
+        let tab = try await newTabID(after: before)
         XCTAssertTrue(element("tab.\(tab)").wait(for: \.isSelected, toEqual: true, timeout: 3))
         let snapshot = try await Self.call(one, "session.snapshot", [:])["snapshot"] as? [String: Any]
         let pane = try XCTUnwrap((snapshot?["panes"] as? [[String: Any]])?.first { $0["tab_id"] as? String == tab })
@@ -145,9 +132,7 @@ extension HerdlightUITests {
         XCTAssertTrue(element("sidebar.new-workspace").waitForExistence(timeout: 2))
         let before = try await tabIDs()
         element("sidebar.new-workspace").click()
-        let tab = try await poll("a new workspace in herdr") { () async throws -> String? in
-            try await tabIDs().first { !before.contains($0) }
-        }
+        let tab = try await newTabID(after: before)
         let workspace = String(tab.prefix { $0 != ":" })
         addTeardownBlock { [one] in _ = try? await Self.call(one, "workspace.close", ["workspace_id": workspace]) }
         XCTAssertTrue(element("workspace.\(workspace)").waitForExistence(timeout: 3))
@@ -178,17 +163,10 @@ extension HerdlightUITests {
         element("terminal.w1:p2").click()
         app.typeText("echo hl-zoom-$((6*7))")
         app.typeKey(.return, modifierFlags: [])
-        try await poll("the zoomed card's output") { () async throws -> Bool? in
-            let read = try await Self.call(one, "pane.read", ["pane_id": "w1:p2", "source": "visible"])["read"]
-            return ((read as? [String: Any])?["text"] as? String)?.contains("\nhl-zoom-42") == true ? true : nil
-        }
+        try await waitFor("w1:p2") { $0.contains("\nhl-zoom-42") }
         // The hidden cards keep their size.
         try await Self.call(one, "pane.send_text", ["pane_id": "w1:p3", "text": "clear; stty size\r"])
-        try await poll("p3 to keep its size") { () async throws -> Bool? in
-            let read = try await Self.call(one, "pane.read", ["pane_id": "w1:p3", "source": "visible"])["read"]
-            let text = (read as? [String: Any])?["text"] as? String ?? ""
-            return text.split(separator: "\n").contains { $0 == neighbor } ? true : nil
-        }
+        try await waitFor("w1:p3") { $0.split(separator: "\n").contains { $0 == neighbor } }
 
         app.typeKey(.return, modifierFlags: [.command, .shift])
         XCTAssertTrue(element("pane.w1:p1").waitForExistence(timeout: 2))
@@ -200,10 +178,7 @@ extension HerdlightUITests {
     func testNewSessionFromTheFilterIsSelected() throws {
         let name = try XCTUnwrap(ProcessInfo.processInfo.environment["HL_SESSION4"])
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
-        element("titlebar.session-picker").click()
-        let filter = element("sessions.filter")
-        XCTAssertTrue(filter.waitForExistence(timeout: 2))
-        XCTAssertTrue(hasKeyboard(filter))
+        openSessions()
         app.typeText(name)
         XCTAssertTrue(element("sessions.new").label.contains(name))
         app.typeKey(.return, modifierFlags: [])
@@ -218,8 +193,8 @@ extension HerdlightUITests {
     func testShowStoppedRevealsStoppedSessionsAndPickingOneStartsIt() throws {
         let stopped = try XCTUnwrap(ProcessInfo.processInfo.environment["HL_SESSION3"])
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
-        element("titlebar.session-picker").click()
-        XCTAssertTrue(element("session.\(one)").waitForExistence(timeout: 2))
+        openSessions()
+        XCTAssertTrue(element("session.\(one)").exists)
         XCTAssertFalse(element("session.\(stopped)").exists)
         element("sessions.show-stopped").click()
         XCTAssertTrue(element("session.\(stopped)").waitForExistence(timeout: 2))
@@ -236,10 +211,7 @@ extension HerdlightUITests {
 
     func testPaletteFiltersAndJumps() {
         XCTAssertTrue(element("tab.w1:t2").waitForExistence(timeout: connect))
-        app.typeKey("k", modifierFlags: .command)
-        let filter = element("palette.filter")
-        XCTAssertTrue(filter.waitForExistence(timeout: 2))
-        XCTAssertTrue(hasKeyboard(filter))
+        let filter = openPalette()
         app.typeText("seco")
         XCTAssertTrue(element("palette.tab.w1:t1").waitForNonExistence(timeout: 2))
         XCTAssertTrue(element("palette.tab.w1:t2").exists)
@@ -260,18 +232,14 @@ extension HerdlightUITests {
         app.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(element("page.w2:t1").waitForExistence(timeout: 2))
 
-        app.typeKey("k", modifierFlags: .command)
-        XCTAssertTrue(filter.waitForExistence(timeout: 2))
+        openPalette()
         app.typeKey(.escape, modifierFlags: [])
         XCTAssertTrue(filter.waitForNonExistence(timeout: 2))
     }
 
     func testPaletteEnterTakesTheMovedRowAndKeysFollow() async throws {
         XCTAssertTrue(element("terminal.w1:p1").waitForExistence(timeout: connect))
-        app.typeKey("k", modifierFlags: .command)
-        let filter = element("palette.filter")
-        XCTAssertTrue(filter.waitForExistence(timeout: 2))
-        XCTAssertTrue(hasKeyboard(filter))
+        openPalette()
         // Rows start with w1's tabs: ↓ moves from t1 to t2.
         app.typeKey(.downArrow, modifierFlags: [])
         XCTAssertTrue(element("palette.tab.w1:t2").wait(for: \.isSelected, toEqual: true, timeout: 2))
@@ -284,51 +252,11 @@ extension HerdlightUITests {
     func testPaletteJumpsToAnotherWorkspacesSecondTab() async throws {
         XCTAssertTrue(element("tab.w1:t2").waitForExistence(timeout: connect))
         let (tab, _) = try await newTab("faraway")
-        app.typeKey("k", modifierFlags: .command)
-        let filter = element("palette.filter")
-        XCTAssertTrue(filter.waitForExistence(timeout: 2))
-        XCTAssertTrue(hasKeyboard(filter))
+        openPalette()
         app.typeText("faraway")
         XCTAssertTrue(element("palette.tab.\(tab)").waitForExistence(timeout: 2))
         app.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(element("tab.\(tab)").wait(for: \.isSelected, toEqual: true, timeout: 2))
         XCTAssertTrue(element("page.\(tab)").wait(for: \.isHittable, toEqual: true, timeout: 3))
-    }
-
-    // MARK: Helpers
-
-    /// Shows a card's header buttons. Over the header, not the card's center: SwiftUI does not see the
-    /// pointer jump straight into a terminal view, which takes the mouse moves.
-    func hoverHeader(_ pane: String) {
-        element("pane.\(pane)").coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 40, dy: 17)).hover()
-    }
-
-    /// A new tab in w2 (closed after the test), shown in the sidebar: its id and its pane's. In another workspace
-    /// than the selected one, so a click on it also crosses workspaces.
-    func newTab(_ label: String, closeAfter: Bool = true) async throws -> (tab: String, pane: String) {
-        let created = try await Self.call(one, "tab.create", ["workspace_id": "w2", "label": label, "cwd": "/tmp",
-                                                              "focus": false])
-        let tab = try XCTUnwrap((created["tab"] as? [String: Any])?["tab_id"] as? String)
-        let pane = try XCTUnwrap((created["root_pane"] as? [String: Any])?["pane_id"] as? String)
-        if closeAfter {
-            addTeardownBlock { [one] in _ = try? await Self.call(one, "tab.close", ["tab_id": tab]) }
-        }
-        XCTAssertTrue(element("tab.\(tab)").waitForExistence(timeout: 2))
-        return (tab, pane)
-    }
-
-    /// Types a command where the keyboard is and waits for its output in the pane.
-    func typeAndRead(_ pane: String) async throws {
-        app.typeText("echo hl-keys-$((6*7))")
-        app.typeKey(.return, modifierFlags: [])
-        try await poll("typed keys in \(pane)") { () async throws -> Bool? in
-            let read = try await Self.call(one, "pane.read", ["pane_id": pane, "source": "visible"])["read"]
-            return ((read as? [String: Any])?["text"] as? String)?.contains("\nhl-keys-42") == true ? true : nil
-        }
-    }
-
-    private func tabIDs() async throws -> [String] {
-        let snapshot = try await Self.call(one, "session.snapshot", [:])["snapshot"] as? [String: Any]
-        return (snapshot?["tabs"] as? [[String: Any]] ?? []).compactMap { $0["tab_id"] as? String }
     }
 }

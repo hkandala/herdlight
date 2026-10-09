@@ -36,7 +36,7 @@ final class HerdlightUITests: XCTestCase {
             try await Self.call(one, "workspace.create", ["label": "beta", "cwd": "/tmp", "focus": false])
             try await Self.call(two, "workspace.create", ["label": "gamma", "cwd": "/tmp", "focus": false])
         }
-        // No restored window state: a window someone left in full screen hides the title row.
+        // No window state from earlier runs.
         app.launchArguments = ["-session", one, "-ApplePersistenceIgnoreState", "YES"]
         app.launch()
     }
@@ -89,30 +89,21 @@ final class HerdlightUITests: XCTestCase {
         element("titlebar.sidebar").click()
         let first = element("tab.w1:t1"), second = element("tab.w1:t2")
         XCTAssertTrue(first.wait(for: \.isSelected, toEqual: true, timeout: 2))
-        XCTAssertEqual(first.value as? String, "in view")
-        XCTAssertEqual(second.value as? String, "")
+        // Once the strip's scroll to t1 has settled (on CI it was still between the pages).
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            first.value as? String == "in view" && second.value as? String == ""
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter().wait(for: [settled], timeout: 2), .completed)
         second.click()
         XCTAssertTrue(element("pane.w1:p4").wait(for: \.isHittable, toEqual: true, timeout: 2))
         let marked = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == 'in view'"), object: second)
         XCTAssertEqual(XCTWaiter().wait(for: [marked], timeout: 2), .completed)
     }
 
-    func testFollowsTabsMadeAndClosedInHerdr() async throws {
-        XCTAssertTrue(element("tab.w1:t2").waitForExistence(timeout: connect))
-        let created = try await Self.call(one, "tab.create", ["workspace_id": "w1", "label": "live", "cwd": "/tmp",
-                                                              "focus": false])
-        let tab = try XCTUnwrap((created["tab"] as? [String: Any])?["tab_id"] as? String)
-        XCTAssertTrue(element("tab.\(tab)").waitForExistence(timeout: 2))
-
-        try await Self.call(one, "tab.close", ["tab_id": tab])
-        XCTAssertTrue(element("tab.\(tab)").waitForNonExistence(timeout: 2))
-    }
-
     func testSwitchesSessions() {
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
-        element("titlebar.session-picker").click()
+        openSessions()
         let other = element("session.\(two)")
-        XCTAssertTrue(other.waitForExistence(timeout: 2))
         XCTAssertTrue(element("session.\(one)").exists)
         other.click()
 
@@ -123,12 +114,9 @@ final class HerdlightUITests: XCTestCase {
 
     func testSessionFilterNarrowsTheList() {
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
-        element("titlebar.session-picker").click()
-        let filter = element("sessions.filter")
-        XCTAssertTrue(filter.waitForExistence(timeout: 2))
-        XCTAssertTrue(element("session.\(one)").exists)
         // The field has the keyboard as soon as the list opens.
-        XCTAssertTrue(hasKeyboard(filter))
+        openSessions()
+        XCTAssertTrue(element("session.\(one)").exists)
         app.typeText(two)
         XCTAssertTrue(element("session.\(one)").waitForNonExistence(timeout: 2))
         XCTAssertTrue(element("session.\(two)").exists)
@@ -164,14 +152,8 @@ final class HerdlightUITests: XCTestCase {
 
     func testSplitButtonAddsAPane() async throws {
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
-        let created = try await Self.call(one, "tab.create", ["workspace_id": "w2", "label": "split", "cwd": "/tmp",
-                                                              "focus": false])
-        let tab = try XCTUnwrap((created["tab"] as? [String: Any])?["tab_id"] as? String)
-        addTeardownBlock { [one] in _ = try? await Self.call(one, "tab.close", ["tab_id": tab]) }
-        let pane = try XCTUnwrap((created["root_pane"] as? [String: Any])?["pane_id"] as? String)
-        let row = element("tab.\(tab)")
-        XCTAssertTrue(row.waitForExistence(timeout: 2))
-        row.click()
+        let (tab, pane) = try await newTab("split")
+        element("tab.\(tab)").click()
         XCTAssertTrue(element("page.\(tab)").wait(for: \.isHittable, toEqual: true, timeout: 3))
         hoverHeader(pane)
         element("pane.\(pane).split-right").click()
@@ -188,26 +170,19 @@ final class HerdlightUITests: XCTestCase {
 
     func testSessionListClosesOnEscapeAndOutsideClick() {
         XCTAssertTrue(element("pane.w1:p1").waitForExistence(timeout: connect))
-        let picker = element("titlebar.session-picker"), filter = element("sessions.filter")
-        picker.click()
-        XCTAssertTrue(filter.waitForExistence(timeout: 2))
-        XCTAssertTrue(hasKeyboard(filter))
+        let filter = openSessions()
         app.typeKey(.escape, modifierFlags: [])
         XCTAssertTrue(filter.waitForNonExistence(timeout: 2))
 
-        picker.click()
-        XCTAssertTrue(filter.waitForExistence(timeout: 2))
+        openSessions()
         element("pane.w1:p1").click()
         XCTAssertTrue(filter.waitForNonExistence(timeout: 2))
     }
 
     func testSelectsAnotherTabWhenTheSelectedOneCloses() async throws {
         XCTAssertTrue(element("tab.w1:t2").waitForExistence(timeout: connect))
-        let created = try await Self.call(one, "tab.create", ["workspace_id": "w1", "label": "doomed", "cwd": "/tmp",
-                                                              "focus": false])
-        let tab = try XCTUnwrap((created["tab"] as? [String: Any])?["tab_id"] as? String)
+        let (tab, _) = try await newTab("doomed", in: "w1", closeAfter: false)
         let row = element("tab.\(tab)")
-        XCTAssertTrue(row.waitForExistence(timeout: 2))
         row.click()
         XCTAssertTrue(row.wait(for: \.isSelected, toEqual: true, timeout: 2))
 
@@ -217,6 +192,134 @@ final class HerdlightUITests: XCTestCase {
         XCTAssertTrue(selected.firstMatch.waitForExistence(timeout: 2))
         let page = element("page.\(selected.firstMatch.identifier.dropFirst("tab.".count))")
         XCTAssertTrue(page.wait(for: \.isHittable, toEqual: true, timeout: 2))
+    }
+}
+
+/// Helpers shared by the test files.
+extension HerdlightUITests {
+    /// `stty size` in the pane prints the grid its card shows (the terminal's accessibility value).
+    func expectPTYSize(_ pane: String) async throws {
+        let terminal = element("terminal.\(pane)")
+        try await waitForPrompt(pane)
+        try await poll("stty size in \(pane) to match its card", times: 30) { () async throws -> String? in
+            guard terminal.exists, let grid = terminal.value as? String, !grid.isEmpty else { return nil }
+            try await Self.call(one, "pane.send_text", ["pane_id": pane, "text": "clear; stty size\r"])
+            try await Task.sleep(for: .milliseconds(200))
+            return try await read(pane).split(separator: "\n").contains { $0 == grid } ? grid : nil
+        }
+    }
+
+    func waitForPrompt(_ pane: String) async throws {
+        try await waitFor(pane) { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    /// Polls the pane's text until `done` passes. Escaping: the compiler rejects it otherwise across files.
+    func waitFor(_ pane: String, _ done: @escaping (String) -> Bool) async throws {
+        try await poll("pane \(pane) to show it") { () async throws -> String? in
+            let text = try await read(pane)
+            return done(text) ? text : nil
+        }
+    }
+
+    func read(_ pane: String) async throws -> String {
+        let read = try await Self.call(one, "pane.read", ["pane_id": pane, "source": "visible"])["read"]
+        return try XCTUnwrap((read as? [String: Any])?["text"] as? String)
+    }
+
+    func terminalID(_ pane: String) async throws -> String {
+        let pane = try await Self.call(one, "pane.get", ["pane_id": pane])["pane"] as? [String: Any]
+        return try XCTUnwrap(pane?["terminal_id"] as? String)
+    }
+
+    /// `probe` every 100 ms until it gives a value; the test fails after `times` tries.
+    @discardableResult
+    func poll<Value>(_ what: String, times: Int = 50,
+                     _ probe: () async throws -> Value?) async throws -> Value
+    {
+        for _ in 0 ..< times {
+            if let value = try await probe() {
+                return value
+            }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        XCTFail("waited for \(what)")
+        throw CancellationError()
+    }
+
+    /// Shows a card's header buttons. Over the header, not the card's center: SwiftUI does not see the
+    /// pointer jump straight into a terminal view, which takes the mouse moves.
+    func hoverHeader(_ pane: String) {
+        element("pane.\(pane)").coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 40, dy: 17)).hover()
+    }
+
+    /// A new tab (closed after the test unless told not to), shown in the sidebar: its id and its pane's. By
+    /// default in w2, another workspace than the selected one, so a click on it also crosses workspaces.
+    func newTab(_ label: String, in workspace: String = "w2",
+                closeAfter: Bool = true) async throws -> (tab: String, pane: String)
+    {
+        let created = try await Self.call(one, "tab.create", ["workspace_id": workspace, "label": label,
+                                                              "cwd": "/tmp", "focus": false])
+        let tab = try XCTUnwrap((created["tab"] as? [String: Any])?["tab_id"] as? String)
+        let pane = try XCTUnwrap((created["root_pane"] as? [String: Any])?["pane_id"] as? String)
+        if closeAfter {
+            addTeardownBlock { [one] in _ = try? await Self.call(one, "tab.close", ["tab_id": tab]) }
+        }
+        XCTAssertTrue(element("tab.\(tab)").waitForExistence(timeout: 2))
+        return (tab, pane)
+    }
+
+    /// Splits the pane to the right in herdr; the new pane's id.
+    @discardableResult
+    func split(_ pane: String) async throws -> String {
+        let split = try await Self.call(one, "pane.split", ["target_pane_id": pane, "direction": "right",
+                                                            "cwd": "/tmp", "focus": false])
+        return try XCTUnwrap((split["pane"] as? [String: Any])?["pane_id"] as? String)
+    }
+
+    /// The names of the pane's foreground processes.
+    func foreground(_ pane: String) async throws -> [String] {
+        let info = try await Self.call(one, "pane.process_info", ["pane_id": pane])["process_info"]
+        let processes = (info as? [String: Any])?["foreground_processes"] as? [[String: Any]] ?? []
+        return processes.compactMap { $0["name"] as? String }
+    }
+
+    func tabIDs() async throws -> [String] {
+        let snapshot = try await Self.call(one, "session.snapshot", [:])["snapshot"] as? [String: Any]
+        return (snapshot?["tabs"] as? [[String: Any]] ?? []).compactMap { $0["tab_id"] as? String }
+    }
+
+    /// The tab herdr has now and did not have `before`.
+    func newTabID(after before: [String]) async throws -> String {
+        try await poll("a new tab in herdr") { () async throws -> String? in
+            try await tabIDs().first { !before.contains($0) }
+        }
+    }
+
+    /// Types a command where the keyboard is and waits for its output in the pane.
+    func typeAndRead(_ pane: String) async throws {
+        app.typeText("echo hl-keys-$((6*7))")
+        app.typeKey(.return, modifierFlags: [])
+        try await waitFor(pane) { $0.contains("\nhl-keys-42") }
+    }
+
+    /// Opens the session list; its filter has the keyboard.
+    @discardableResult
+    func openSessions() -> XCUIElement {
+        element("titlebar.session-picker").click()
+        let filter = element("sessions.filter")
+        XCTAssertTrue(filter.waitForExistence(timeout: 2))
+        XCTAssertTrue(hasKeyboard(filter))
+        return filter
+    }
+
+    /// ⌘K; the palette's filter has the keyboard.
+    @discardableResult
+    func openPalette() -> XCUIElement {
+        app.typeKey("k", modifierFlags: .command)
+        let filter = element("palette.filter")
+        XCTAssertTrue(filter.waitForExistence(timeout: 2))
+        XCTAssertTrue(hasKeyboard(filter))
+        return filter
     }
 
     /// For people reviewing a run: the window, in the result bundle.
