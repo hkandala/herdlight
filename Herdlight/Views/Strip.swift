@@ -199,7 +199,7 @@ private struct SplitLayout: View {
     private func side(_ node: SplitNode, _ size: CGSize, zoomed: Bool, away: Bool, page: CGSize) -> some View {
         SplitLayout(node: node, store: store, natural: zoomed ? size : nil)
             .frame(width: zoomed ? page.width : size.width, height: zoomed ? page.height : size.height)
-            // Under the zoomed side, so its terminal views take no clicks either.
+            // Under the zoomed side (zIndex), which covers it, so its terminal views get no clicks.
             .opacity(away ? 0 : 1)
             .zIndex(away ? 0 : 1)
             .transformEnvironment(\.zoomedAway) { $0 = $0 || away }
@@ -229,7 +229,7 @@ private struct PaneCard: View {
 
     var body: some View {
         let pane = store.pane(id)
-        let title = pane?.label ?? pane?.cwd.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? "terminal"
+        let title = pane?.title ?? "terminal"
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         let zoomed = store.zoomedPaneID == id
         #if os(macOS)
@@ -241,14 +241,18 @@ private struct PaneCard: View {
         #endif
         VStack(spacing: 0) {
             HStack(spacing: 8) {
+                // Clicks pass through to the header's double-click.
                 Image(systemName: "apple.terminal").foregroundStyle(.secondary).accessibilityHidden(true)
+                    .allowsHitTesting(false)
                 Text(title)
                     .lineLimit(1)
                     // A path keeps its end, a label its start.
                     .truncationMode(pane?.label == nil ? .head : .tail)
+                    .allowsHitTesting(false)
                 Spacer(minLength: 0)
-                // Only on hover, so the hidden buttons take no width from a narrow card.
-                if hovering {
+                // Only on hover (and while zoomed, so Restore stays in sight); hidden, they take no width from a
+                // narrow card.
+                if hovering || zoomed {
                     HStack(spacing: 0) {
                         IconButton(symbol: "rectangle.split.2x1", help: "Split Right") {
                             Task { await store.split(id, .right) }
@@ -267,13 +271,13 @@ private struct PaneCard: View {
                     .disabled(store.writing)
                 }
             }
-            // Behind the header, so its buttons still take their own clicks.
-            .background { Color.clear.contentShape(.rect).onTapGesture(count: 2) { store.zoom(id) } }
             .fontWeight(.medium)
             .padding(.leading, 12)
             .padding(.trailing, 4)
             // A card narrower than its header cuts the header (the card clips) instead of growing.
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 34, maxHeight: 34, alignment: .leading)
+            // Behind the header, so its buttons still take their own clicks.
+            .background { Color.clear.contentShape(.rect).onTapGesture(count: 2) { store.zoom(id) } }
             Group {
                 #if os(macOS)
                     if let terminal {
