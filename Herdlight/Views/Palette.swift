@@ -23,16 +23,17 @@ struct Palette: View {
         VStack(alignment: .leading, spacing: 2) {
             FilterField(prompt: "Jump to a session, workspace or tab", text: $filter, identifier: "palette.filter",
                         autofocus: true)
-                // Here, not onSubmit: the field keeps the submit action of its first draw (the first row).
+                // Here, not onSubmit: a field's submit action is not refreshed when only the index changes, so ↓
+                // Enter took the first row. Each handler reads the list and the index as they are now.
                 .onKeyPress(.return) {
                     let items = filtered
-                    if items.indices.contains(self.index) {
-                        jump(items[self.index])
+                    if !items.isEmpty {
+                        jump(items[min(self.index, items.count - 1)])
                     }
                     return .handled
                 }
-                .onKeyPress(.downArrow) { move(1, items.count) }
-                .onKeyPress(.upArrow) { move(-1, items.count) }
+                .onKeyPress(.downArrow) { move(1) }
+                .onKeyPress(.upArrow) { move(-1) }
                 .padding(.bottom, 4)
             ScrollViewReader { proxy in
                 ScrollView {
@@ -99,8 +100,8 @@ struct Palette: View {
         return tabs + workspaces + sessions
     }
 
-    private func move(_ step: Int, _ count: Int) -> KeyPress.Result {
-        index = max(0, min(index + step, count - 1))
+    private func move(_ step: Int) -> KeyPress.Result {
+        index = max(0, min(index + step, filtered.count - 1))
         return .handled
     }
 
