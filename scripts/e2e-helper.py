@@ -1,16 +1,20 @@
 """Runs herdr API requests for the sandboxed UI tests, which cannot reach herdr's sockets.
 
-Usage: python3 scripts/e2e-helper.py <session>...  (prints its port, then serves on 127.0.0.1)
+Usage: python3 scripts/e2e-helper.py <session>... -- <test command>...
+Serves on 127.0.0.1 while the test command runs, then exits with its status.
 POST /<session> with one API request line as the body; the reply line comes back.
 Any session not named on the command line is refused.
 """
 
 import http.server
+import os
 import socketserver
 import subprocess
 import sys
+import threading
 
-sessions = set(sys.argv[1:])
+split = sys.argv.index("--")
+sessions, command = sys.argv[1:split], sys.argv[split + 1:]
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -34,5 +38,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 # Not HTTPServer: its getfqdn() lookup raised the Local Network prompt on CI.
 server = socketserver.TCPServer(("127.0.0.1", 0), Handler)
-print(server.server_address[1], flush=True)
-server.serve_forever()
+threading.Thread(target=server.serve_forever, daemon=True).start()
+# xcodebuild passes TEST_RUNNER_* to the tests without the prefix.
+env = {**os.environ, "TEST_RUNNER_HL_HELPER": f"http://127.0.0.1:{server.server_address[1]}",
+       "TEST_RUNNER_HL_SESSION": sessions[0], "TEST_RUNNER_HL_SESSION2": sessions[1]}
+sys.exit(subprocess.run(command, env=env).returncode)
