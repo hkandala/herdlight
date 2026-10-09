@@ -105,9 +105,11 @@ Terminals, trackpad paging, divider drag, splits/close/new-tab actions, zoom.
   timed out after 10 s, even though the child (`sh -c …`, `session list`) had exited in
   milliseconds. The pipe's `readabilityHandler` did not keep its `FileHandle` alive. Once a
   fast child's `Process` and `Pipe` were released, the handle went too, and EOF never
-  arrived. Now the handler holds the handle until EOF, or until the stream is dropped. The
-  test `output of fast commands always ends` (30 parallel `sh -c 'echo hi'`) fails without
-  the fix on this Mac. Extra logging in `spawn` hid the bug, so it was found with `os_log`.
+  arrived. Now the handler holds the handle until EOF. `terminate` (and a dropped stream)
+  also cancels both pipe readers, which clears the handlers, so a grandchild that keeps a
+  pipe open cannot keep a handle alive for the app's life. The tests `output of fast
+  commands always ends` (30 parallel `sh -c 'echo hi'`) and `terminate stops the readers
+  when a grandchild keeps the pipes open` fail without the fix on this Mac. Extra logging in `spawn` hid the bug, so it was found with `os_log`.
 - **CI e2e details.** Python's `HTTPServer` calls `getfqdn()`, and that showed a Local
   Network prompt for "Python" on the runner. The helper uses `socketserver.TCPServer`
   instead. After a failed test, Xcode starts a new test runner process, so the layout is

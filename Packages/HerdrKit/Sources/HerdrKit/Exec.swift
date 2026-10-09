@@ -78,7 +78,7 @@ public struct Channel: Sendable {
 
         /// Children alive now, so they can be killed by pid when the app quits.
         private static let children: Mutex<Set<pid_t>> = {
-            atexit { ProcessExec.children.withLock { $0.forEach { kill($0, SIGKILL) } } }
+            atexit { ProcessExec.children.withLock { $0.forEach { Darwin.kill($0, SIGKILL) } } }
             return Mutex([])
         }()
 
@@ -86,8 +86,9 @@ public struct Channel: Sendable {
         /// stalls (seen on macOS 27 with a second bridge run while the events stream is open).
         private static func chunks(_ handle: FileHandle) -> AsyncStream<Data> {
             let (stream, continuation) = AsyncStream<Data>.makeStream()
-            // The handler holds the handle until EOF: once a fast child's Process and Pipe are released,
-            // nothing else does, and EOF never arrived (seen on CI as a 10 s timeout after `sh -c` exited).
+            // The handler holds the handle until EOF or until the reader stops: once a fast child's Process
+            // and Pipe are released, nothing else does, and EOF never arrived (seen on CI as a 10 s timeout
+            // after `sh -c` exited).
             handle.readabilityHandler = { _ in
                 let data = handle.availableData
                 if data.isEmpty {
@@ -101,9 +102,11 @@ public struct Channel: Sendable {
             return stream
         }
 
-        private static func split(_ handle: FileHandle, into lines: AsyncStream<String>.Continuation) {
+        private static func split(_ handle: FileHandle,
+                                  into lines: AsyncStream<String>.Continuation) -> Task<Void, Never>
+        {
             let output = chunks(handle)
-            Task {
+            return Task {
                 var buffer = Data()
                 for await data in output {
                     buffer.append(data)
@@ -116,6 +119,27 @@ public struct Channel: Sendable {
                     lines.yield(String(decoding: buffer, as: UTF8.self))
                 }
                 lines.finish()
+            }
+        }
+
+        /// Kills the child unless it has ended: its pid may belong to another process by then.
+        private static func kill(_ pid: pid_t) {
+            children.withLock {
+                if $0.contains(pid) {
+                    Darwin.kill(pid, SIGKILL)
+                }
+            }
+        }
+
+        /// The end of a pipe's output as text. Only the tail: long-lived streams may log for hours.
+        private static func tail(_ handle: FileHandle) -> Task<String, Never> {
+            let output = chunks(handle)
+            return Task {
+                var data = Data()
+                for await chunk in output {
+                    data = (data + chunk).suffix(8192)
+                }
+                return String(decoding: data, as: UTF8.self)
             }
         }
 
@@ -143,25 +167,23 @@ public struct Channel: Sendable {
             }
 
             let (lines, linesContinuation) = AsyncStream<String>.makeStream()
-            // Ending the stream too, so a reader never waits on a child that ignores the signal.
+            let reader = split(stdout.fileHandleForReading, into: linesContinuation)
+            let errors = tail(stderr.fileHandleForReading)
+            // Ends the stream too, so a reader never waits on a child that ignores the signal, and stops
+            // both pipe readers, so a grandchild that keeps a pipe open cannot keep them alive.
             let terminate: @Sendable () -> Void = {
-                children.withLock {
-                    if $0.contains(pid) {
-                        kill(pid, SIGKILL)
-                    }
-                }
+                kill(pid)
                 linesContinuation.finish()
+                reader.cancel()
+                errors.cancel()
             }
-            linesContinuation.onTermination = { _ in terminate() }
-            split(stdout.fileHandleForReading, into: linesContinuation)
-            let errorOutput = chunks(stderr.fileHandleForReading)
-            let errors = Task {
-                var data = Data()
-                for await chunk in errorOutput {
-                    // Only the tail: long-lived streams may log for hours.
-                    data = (data + chunk).suffix(8192)
+            // A dropped stream terminates; one that ended at EOF leaves stderr to finish for `exit`.
+            linesContinuation.onTermination = { reason in
+                if case .cancelled = reason {
+                    terminate()
+                } else {
+                    kill(pid)
                 }
-                return String(decoding: data, as: UTF8.self)
             }
             let status = Task { await ended.first { _ in true } ?? -1 }
             let input = stdin.fileHandleForWriting

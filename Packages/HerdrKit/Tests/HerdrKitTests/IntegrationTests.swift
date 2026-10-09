@@ -79,3 +79,12 @@ func `talks to a throwaway herdr session`() async throws {
         }
     }
 }
+
+@Test func `terminate stops the readers when a grandchild keeps the pipes open`() async throws {
+    let exec = await ProcessExec()
+    let channel = try await exec.run(["sh", "-c", "sleep 30 & echo hi"])
+    #expect(await channel.lines.first { _ in true } == "hi")
+    channel.terminate()
+    // stderr is still open in `sleep`; without stopping its reader, this waits 30 s.
+    _ = try await withTimeout(.seconds(5), onTimeout: {}, { await channel.exit() })
+}
