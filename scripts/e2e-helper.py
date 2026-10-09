@@ -3,6 +3,9 @@
 Usage: python3 scripts/e2e-helper.py <session>... -- <test command>...
 Serves on 127.0.0.1 while the test command runs, then exits with its status.
 POST /<session> with one API request line as the body; the reply line comes back.
+POST /<session>/control with a terminal id as the body opens `terminal session control` on it
+without takeover, releases it at once, and gives back what the stream printed (a frame, or the
+reason it was refused).
 Any session not named on the command line is refused.
 """
 
@@ -19,13 +22,18 @@ sessions, command = sys.argv[1:split], sys.argv[split + 1:]
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
-        session = self.path.strip("/")
+        session, _, action = self.path.strip("/").partition("/")
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
         if session not in sessions:
             status, reply = 403, f"refusing session '{session}'".encode()
         else:
+            if action == "control":
+                argv = ["terminal", "session", "control", body.decode(), "--cols", "80", "--rows", "24"]
+                body = b'{"type":"terminal.release"}\n'
+            else:
+                argv = ["remote-api-bridge"]
             try:
-                run = subprocess.run(["herdr", "--session", session, "remote-api-bridge"],
+                run = subprocess.run(["herdr", "--session", session, *argv],
                                      input=body, capture_output=True, timeout=10)
                 status, reply = (200, run.stdout) if run.returncode == 0 else (500, run.stderr)
             except Exception as error:  # a timeout or no herdr: tell the test, keep serving
