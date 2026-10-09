@@ -19,31 +19,30 @@ public struct Snapshot: Decodable, Sendable {
 
 public struct Workspace: Decodable, Sendable, Identifiable {
     public let id: String
-    public let number: Int
     public let label: String
     public let activeTabID: String
     public let agentStatus: AgentStatus
 
     enum CodingKeys: String, CodingKey {
-        case id = "workspace_id", number, label, activeTabID = "active_tab_id", agentStatus = "agent_status"
+        case id = "workspace_id", label, activeTabID = "active_tab_id", agentStatus = "agent_status"
     }
 }
 
 public struct Tab: Decodable, Sendable, Identifiable {
     public let id: String
     public let workspaceID: String
-    public let number: Int
     public let label: String
     public let agentStatus: AgentStatus
 
     enum CodingKeys: String, CodingKey {
-        case id = "tab_id", workspaceID = "workspace_id", number, label, agentStatus = "agent_status"
+        case id = "tab_id", workspaceID = "workspace_id", label, agentStatus = "agent_status"
     }
 }
 
 public struct Pane: Decodable, Sendable, Identifiable {
     public let id: String
-    public let terminalID: String
+    /// Optional so one odd pane cannot fail the whole snapshot.
+    public let terminalID: String?
     public let tabID: String
     public let label: String?
 
@@ -52,17 +51,11 @@ public struct Pane: Decodable, Sendable, Identifiable {
     }
 }
 
+/// Only the pane: the events stream asks for status changes of agent panes.
 public struct Agent: Decodable, Sendable {
     public let paneID: String
-    /// The agent kind, like `pi` or `claude`.
-    public let agent: String?
-    public let agentStatus: AgentStatus
-    /// Set when the agent last finished (working or blocked → idle); null after its next change.
-    public let completionSeq: Int?
 
-    enum CodingKeys: String, CodingKey {
-        case paneID = "pane_id", agent, agentStatus = "agent_status", completionSeq = "completion_seq"
-    }
+    enum CodingKeys: String, CodingKey { case paneID = "pane_id" }
 }
 
 public enum AgentStatus: String, Decodable, Sendable {
