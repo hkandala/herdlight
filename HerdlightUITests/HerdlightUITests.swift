@@ -90,7 +90,9 @@ final class HerdlightUITests: XCTestCase {
         XCTAssertTrue(app.menuItems["This Mac · \(one)"].exists)
         other.click()
 
-        XCTAssertTrue(wait(timeout: connect) { element("workspace.w1").value as? String == "gamma" })
+        // Reading `value` of a missing element fails the test, so check that it exists first.
+        let row = element("workspace.w1")
+        XCTAssertTrue(wait(timeout: connect) { row.exists && row.value as? String == "gamma" })
         XCTAssertFalse(element("workspace.w2").exists)
     }
 
