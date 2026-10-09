@@ -52,3 +52,32 @@ Read first: [platform: making the strip work, tab bar and Liquid Glass](../../do
 ## Out of scope
 
 Sidebar machine pages, iOS gestures, drag and drop.
+
+## Findings
+
+- **Why a swipe over a terminal was slow and did not page.** The terminal passed on each
+  event that was more sideways than up or down, one by one. A gesture's begin and end
+  events carry no movement, so they went to the terminal: the strip saw a gesture with no
+  end and never snapped to a page. The monitor (`SwipeRouter` in `Strip.swift`) picks the
+  axis on a gesture's first moving event and sends the rest of it, momentum included, to
+  the scroll view under the pointer (`enclosingScrollView`; SwiftUI's horizontal
+  `ScrollView` is an `NSScrollView`, `SwiftUI.HostingScrollView`). A wheel picks per event,
+  so Shift+wheel pages too. The terminal now reads only up and down.
+- **Wrong tab after a workspace switch.** The strip was rebuilt per workspace
+  (`.id(workspace.id)`) with `scrollPosition(id:)` bound to the selection. A new scroll
+  view drops its first scroll position (its lazy pages are not laid out yet), so it showed
+  the first tab while the selection said the second, and a click on the first changed
+  nothing. Now one strip serves every workspace; the page in view is the strip's own state,
+  a new workspace or selection scrolls to it (no animation across workspaces), and the
+  selection follows the page in view only when the scroll stops.
+- **Marker.** The strip writes its offset in pages to `Workspace.page`; the title-bar tab
+  bar draws one glass capsule between the frames of the two capsules around it. Lit tabs
+  are `floor(page)...ceil(page)` (the design's formula); the page is rounded to a
+  thousandth so a page at rest lights one tab. No unit test: no branches.
+- **Keys.** ⌘1…⌘9, ⇧⌘[ and ⇧⌘] are Window menu items. They work while a terminal has the
+  keyboard. While the session list is open they are off, so its own ⌘1…⌘9 pick sessions.
+- **Full screen.** `NSWindow.willEnter/ExitFullScreenNotification` moves the title row to
+  the window edge (the traffic lights are not there).
+- **Tests.** XCUITest's `scroll(byDeltaX:)` sends wheel events, which page the strip.
+  Synthesized trackpad gestures (CGEvent with scroll phases) page only with enough speed:
+  ~600 pt in 8 events does, 400 pt in 12 snaps back, as a slow real swipe would.
