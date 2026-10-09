@@ -84,8 +84,8 @@ Stage A (stream level, against throwaway sessions; no GUI yet).
   and `^C`. `terminal.input` writes bytes to the PTY unchanged (herdr
   `apply_terminal_attach_input`).
 - **Input path (decision).** herdr-web's split. Keys whose bytes depend on modes go to
-  `pane.send_keys` by herdr name: arrows, Esc, F1–F12, Enter/Tab/Backspace with any modifier,
-  any of them with modifiers, and Ctrl chords (`PaneSurfaceView.herdrKey`). Everything else
+  `pane.send_keys` by herdr name: arrows, Esc and F1–F12 (with or without modifiers),
+  Enter/Tab/Backspace with a modifier, and Ctrl chords (`PaneSurfaceView.herdrKey`). Everything else
   goes through libghostty as text on `terminal.input`: typing, IME, dead keys, Option
   characters (macOS behavior), and plain Enter, Tab and Backspace (same bytes in every mode but
   kitty's report-all flag; kept off the slower path). Home/End/PgUp/PgDn/Delete have no herdr
