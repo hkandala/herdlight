@@ -132,6 +132,16 @@ private struct Read: Decodable {
     let read: Text
 }
 
+/// How a stream ends, past its frames.
+private func closedReason(_ events: inout AsyncStream<TerminalStream.Event>.Iterator) async -> TerminalStream.Closed? {
+    while let event = await events.next() {
+        if case let .closed(reason) = event {
+            return reason
+        }
+    }
+    return nil
+}
+
 @Test(.enabled(if: shell("which", "herdr") == 0, "herdr is not on PATH"))
 func `controls a throwaway terminal`() async throws {
     let session = "hl-e2e-\(UUID().uuidString.prefix(6).lowercased())"
@@ -175,11 +185,11 @@ func `controls a throwaway terminal`() async throws {
         }
         #expect(watched.full && watched.width == 60)
 
-        control.release()
-        while let event = await events.next() {
-            if case let .closed(reason) = event {
-                #expect(reason == .detached)
-            }
-        }
+        // Taken over: a controller with --takeover wins, the first one hears it.
+        let taker = try await client.terminal(terminal, cols: 60, rows: 12, takeover: true)
+        #expect(await closedReason(&events) == .held)
+        taker.release()
+        var takerEvents = taker.events.makeAsyncIterator()
+        #expect(await closedReason(&takerEvents) == .ended)
     })
 }

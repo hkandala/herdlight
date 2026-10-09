@@ -194,7 +194,7 @@
         private func closed(_ reason: TerminalStream.Closed, observe: Bool) {
             state = .idle
             switch reason {
-            case .held, .takenOver:
+            case .held:
                 // Watch; never take back by itself. A new task: `open` waits for this run to end.
                 Task { open(observe: true) }
             case .liveUpdate:
@@ -203,7 +203,7 @@
                     try? await Task.sleep(for: .seconds(1))
                     open(observe: observe)
                 }
-            case .gone, .detached:
+            case .ended:
                 // Gone: the next snapshot drops the card.
                 break
             case let .failed(text):

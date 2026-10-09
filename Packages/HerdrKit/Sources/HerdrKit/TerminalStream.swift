@@ -10,7 +10,6 @@ public struct TerminalStream: Sendable {
     }
 
     public struct Frame: Sendable, Equatable {
-        public let seq: Int
         /// The real PTY size on a `control` stream.
         public let width: Int
         public let height: Int
@@ -22,28 +21,20 @@ public struct TerminalStream: Sendable {
 
     /// Why a stream ended, from herdr's reason text (design: how a stream ends).
     public enum Closed: Sendable, Equatable {
-        /// Another client controls the pane.
+        /// Another client controls the pane, or took it with `--takeover`.
         case held
-        /// Another client took the pane with `--takeover`.
-        case takenOver
-        /// The terminal is not found or has exited.
-        case gone
-        /// We released it.
-        case detached
+        /// We released it, or the terminal is not found or has exited.
+        case ended
         /// herdr is replacing itself; open again after a moment.
         case liveUpdate
         /// Anything else, with herdr's text: a failed handshake, a stopped server.
         case failed(String)
 
         init(reason: String) {
-            self = if reason.contains("already has an attached client") {
+            self = if reason.contains("already has an attached client") || reason.contains("taken over") {
                 .held
-            } else if reason.contains("taken over") {
-                .takenOver
-            } else if reason.contains("not found") || reason.contains("exited") {
-                .gone
-            } else if reason.contains("detached") {
-                .detached
+            } else if reason.contains("not found") || reason.contains("exited") || reason.contains("detached") {
+                .ended
             } else if reason.contains("live update") {
                 .liveUpdate
             } else {
@@ -52,7 +43,7 @@ public struct TerminalStream: Sendable {
         }
     }
 
-    public enum MouseAction: String, Sendable { case down, up, drag, move } // swiftlint:disable:this identifier_name
+    public enum MouseAction: String, Sendable { case down, up, drag } // swiftlint:disable:this identifier_name
     public enum MouseButton: String, Sendable { case left, middle, right }
 
     /// Frames until one `.closed`, then the end. Dropping the iteration kills the run.
@@ -92,7 +83,7 @@ public struct TerminalStream: Sendable {
     static func event(_ line: String) -> Event? {
         struct Line: Decodable {
             let type: String
-            let seq: Int?, width: Int?, height: Int?, full: Bool?
+            let width: Int?, height: Int?, full: Bool?
             let bytes: String?, reason: String?
         }
         guard let line = try? JSONDecoder().decode(Line.self, from: Data(line.utf8)) else { return nil }
@@ -101,8 +92,7 @@ public struct TerminalStream: Sendable {
             guard let width = line.width, let height = line.height,
                   let bytes = line.bytes.flatMap({ Data(base64Encoded: $0) })
             else { return nil }
-            return .frame(Frame(seq: line.seq ?? 0, width: width, height: height, full: line.full ?? false,
-                                bytes: bytes))
+            return .frame(Frame(width: width, height: height, full: line.full ?? false, bytes: bytes))
         case "terminal.closed":
             return .closed(Closed(reason: line.reason ?? ""))
         default:
@@ -143,15 +133,11 @@ public struct TerminalStream: Sendable {
         channel.closeInput()
     }
 
-    private func send(_ command: [String: any Sendable]) {
-        channel.write(Self.line(command))
-    }
-
     /// Sorted keys, so tests can compare lines.
-    static func line(_ command: [String: any Sendable]) -> String {
+    private func send(_ command: [String: any Sendable]) {
         // Only strings and numbers: serializing cannot fail.
         let data = (try? JSONSerialization.data(withJSONObject: command, options: .sortedKeys)) ?? Data()
-        return String(decoding: data, as: UTF8.self)
+        channel.write(String(decoding: data, as: UTF8.self))
     }
 }
 
