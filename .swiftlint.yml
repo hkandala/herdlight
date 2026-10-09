@@ -5,6 +5,7 @@ excluded:
   - Packages/HerdrKit/.build
 disabled_rules:
   - trailing_comma # SwiftFormat owns trailing commas
+  - optional_data_string_conversion # lossy String(decoding:) is wanted: never drop a line of process output
 opening_brace: # SwiftFormat's wrapMultilineStatementBraces puts these braces on their own line
   ignore_multiline_statement_conditions: true
   ignore_multiline_function_signatures: true
