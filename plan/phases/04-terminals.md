@@ -100,19 +100,22 @@ Stage A (stream level, against throwaway sessions; no GUI yet).
   herdr names; libghostty sends them as xterm does. Other Cmd keys stay with the menu.
   Sizes go to herdr 100 ms after the last change, so a window drag does not make the app
   repaint at every step. Input goes out in order through one queue per card, only while the
-  stream is live (a failed card drops it); a bridge
-  call takes about 60 ms here (median of 20, max 170), more than a held key's repeat, so keys
+  stream is live (a failed card drops it); a bridge call takes about 60 ms here (median of 20, max 170), more than a held key's repeat, so keys
   that pile up meanwhile go as one `send_keys` call. Every key name the mapping makes is
   accepted by herdr 0.9.3.
 - **Paste.** A whole `ESC[200~…ESC[201~` on `terminal.input` is unwrapped by herdr and framed
   again for the app's own paste mode (checked both ways with `cat -v`). The surface gets
   `ESC[?2004h` once, so libghostty frames every paste (and keeps its file-URL → path handling).
   For an app without paste mode herdr writes the text as is, so line breaks arrive as LF where
-  a terminal would send CR. Harmless: shells and the tty treat LF as Enter.
+  a terminal would send CR. Harmless: shells and the tty treat LF as Enter. libghostty writes a
+  paste in three pieces (start mark, text, end mark); the card joins them into one
+  `terminal.input`, else herdr sees no whole paste and `cat -v` showed the marks (seen in the
+  app).
 - **Double replies: none possible at the stream level.** `printf '\e[c\e[6n\e]11;?\a'` in a
   pane: herdr's own terminal answers (the shell then shows `^[[?62;22c`, as in any terminal);
   the frames hold only the drawn result, never the queries, so libghostty has nothing to
-  answer. Stage B re-checks with the app attached (the output must match this baseline).
+  answer. Re-checked with the app attached: the same output as the baseline, and libghostty
+  wrote nothing that starts with ESC besides pastes.
 - **Closed reasons** (herdr 0.9.3, exact): `terminal attach failed: terminal <id> already has
   an attached client; retry with --takeover`, `terminal attach taken over`, `terminal session
   control failed: terminal target <id> not found`, `terminal <id> exited`, `detached`, `live
@@ -127,8 +130,25 @@ Stage A (stream level, against throwaway sessions; no GUI yet).
   blocks the main actor.
 - **Mouse.** Left, right and middle clicks and drags go to herdr as cells (`terminal.mouse`);
   herdr drops them when the app has no mouse mode. libghostty gets left and right too, for local
-  selection and Copy (not middle, which it could paste as input). The wheel goes to `terminal.scroll` (trackpad points ÷ cell height); libghostty keeps
-  no scrollback. Sideways scrolls pass to the strip (phase 5 adds the axis lock).
+  selection and Copy (not middle, which it could paste as input). The wheel goes to
+  `terminal.scroll` (trackpad points ÷ cell height); libghostty keeps no scrollback. Sideways
+  scrolls pass to the strip (phase 5 adds the axis lock).
+- **Cell size.** The in-memory session's resize callback carries cols, rows and pixel sizes,
+  but no cell size (0). The cell size for the pointer comes from the surface's
+  `TerminalSurfaceGridResizeDelegate`; the PTY size still follows the session's callback,
+  which libghostty sends from its IO thread after the grid reflowed.
+- **Keyboard.** A tab shown for the first time since it was selected gives the keyboard to
+  herdr's focused pane in it (`HostStore.showTerminals`); later snapshots leave it where the
+  user clicked. The lit card follows the keyboard (`PaneTerminal.hasKeyboard`), not herdr's
+  focus, so the bright card is the one keys go to.
+- **Checked in the app** (hl-dev-term, synthetic CGEvents): typing, Enter, Backspace, Ctrl+C,
+  Up for history, Tab completion, arrows in `less` and `vim`, Shift+Enter / Esc / Option+←
+  under kitty flags (`^[[13;2u`, `^[[27u`, `^[[98;3u`), paste in a shell and in `cat -v`,
+  clicks moving the keyboard between cards, a click in `vim` with `mouse=a` landing on the
+  right line, the wheel in long output (herdr's viewport moved) and in `vim`, window resize
+  (`stty size` 27 73 → 33 102 and back), Nerd Font icons and box drawing, `top`, tab switch
+  release, a split button making a live card, take over by another client then Take back by
+  typing. htop is not installed on this Mac; `top` stood in.
 
 ## User feedback round (after Stage B hand test)
 
