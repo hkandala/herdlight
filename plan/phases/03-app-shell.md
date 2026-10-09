@@ -40,7 +40,15 @@ Read first: [ui/window](../../docs/content/docs/ui/window.mdx),
    Plain text with the command to run (design D39: the app never starts herdr on This Mac).
 8. **Accessibility identifiers** on the session picker, each workspace row, each tab
    capsule, each strip page and each pane card.
-9. **e2e** (`HerdlightUITests`): against a throwaway session built with a known layout
+9. **e2e helper**: the XCUITest runner is sandboxed (phase 1 findings) and cannot reach
+   herdr, but it can make network client connections. `make e2e` starts a tiny localhost
+   helper outside the sandbox (stdlib only, e.g. `python3 -m`-style `http.server`, ~30
+   lines) that runs `herdr --session <the hl-e2e session> <args>` for the test and returns
+   stdout. It refuses any other session, binds 127.0.0.1 on a random port passed in as
+   `TEST_RUNNER_HL_HELPER`, and dies with the e2e run. Tests use it to build layouts,
+   make changes mid-test and check results (`session.snapshot`, `pane.read`). If you find
+   something simpler that works, use it and record why.
+10. **e2e** (`HerdlightUITests`): against a throwaway session built with a known layout
    (2 workspaces; one tab with a right split whose second child splits down; a second
    tab):
    - the sidebar lists both workspaces; the tab bar shows the tabs;
