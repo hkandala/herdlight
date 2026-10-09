@@ -72,12 +72,7 @@ struct HerdlightApp: App {
             .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
             // In full screen the empty toolbar would cover the title row; it shows on hover only.
             .windowToolbarFullScreenVisibility(.onHover)
-            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { _ in
-                fullScreen = true
-            }
-            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification)) { _ in
-                fullScreen = false
-            }
+            .background(FullScreenReader(fullScreen: $fullScreen))
             .navigationTitle(store.selectedTab?.label ?? HostStore.name(store.session))
             .preferredColorScheme(.dark)
             // The menu's ⌘1…⌘9 tabs step aside while the session list has its own ⌘1…⌘9.
@@ -118,6 +113,42 @@ struct HerdlightApp: App {
                     }
                     .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")))
                 }
+            }
+        }
+    }
+
+    /// Whether this view's window is in full screen (or on its way in), from its style and its notifications.
+    private struct FullScreenReader: NSViewRepresentable {
+        @Binding var fullScreen: Bool
+
+        func makeNSView(context _: Context) -> Reader {
+            Reader()
+        }
+
+        func updateNSView(_ reader: Reader, context _: Context) {
+            reader.changed = { fullScreen = $0 }
+        }
+
+        final class Reader: NSView {
+            var changed: (Bool) -> Void = { _ in }
+            private var observers: [NSObjectProtocol] = []
+
+            override func viewDidMoveToWindow() {
+                super.viewDidMoveToWindow()
+                observers.forEach(NotificationCenter.default.removeObserver)
+                observers = []
+                guard let window else { return }
+                let notifications = [NSWindow.willEnterFullScreenNotification: true,
+                                     NSWindow.willExitFullScreenNotification: false]
+                for (name, value) in notifications {
+                    let center = NotificationCenter.default
+                    observers.append(center.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
+                        MainActor.assumeIsolated { self?.changed(value) }
+                    })
+                }
+                // After SwiftUI's update, which may not change state.
+                let full = window.styleMask.contains(.fullScreen)
+                DispatchQueue.main.async { [weak self] in self?.changed(full) }
             }
         }
     }
