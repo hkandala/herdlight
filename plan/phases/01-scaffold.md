@@ -65,3 +65,35 @@ throwaway herdr session.
 ## Out of scope
 
 Any herdr calls from the app, libghostty, real UI.
+
+## Findings
+
+- **Project.** Xcode has no command line way to run its project templates, and driving the
+  New Project sheet by GUI scripting takes over the user's screen. So the project was
+  written by hand from Xcode 27's *Multiplatform → App* template definitions (the
+  `TemplateInfo.plist` chain under `Xcode.app/.../Project Templates/MultiPlatform`):
+  objectVersion 77, file-system synchronized groups, the template's build settings, with
+  only these changes: visionOS removed, deployment 26.0, Swift 6 + strict concurrency
+  complete + warnings as errors, sandbox off, Hardened Runtime on, `CODE_SIGN_IDENTITY = "-"`,
+  a local package reference to `Packages/HerdrKit`. Xcode 27 opened it with no prompt, no
+  issues and no file changes (`git status` clean after open and quit).
+- Xcode turns Hardened Runtime off for ad-hoc signed builds ("Disabling hardened runtime
+  with ad-hoc codesigning"); it applies once the app is signed with a real identity.
+- **Throwaway session.** `herdr --session <name> server` runs a headless server in the
+  foreground; `herdr session stop <name>` then `herdr session delete <name>` removes it.
+  `--session` wins over `HERDR_SOCKET_PATH`, but `scripts/herdr-session.sh` still unsets
+  the `HERDR_*` variables so a server started from inside a herdr pane does not inherit
+  them. The script refuses names outside `hl-e2e-*` / `hl-dev-*` and names that exist.
+- **UI test runner and processes.** The macOS UI test runner (`*-Runner.app`) is always
+  sandboxed by Xcode (app-sandbox, read-only file access, `network.client`; the test
+  target's `ENABLE_APP_SANDBOX` does not change it). `Process` runs, but the child is
+  sandboxed too: `HOME` is the runner's container, and it cannot connect to herdr's
+  sockets (`herdr session list` with the real `HOME` shows every session as stopped). So
+  herdr state is set up by `make e2e` before `xcodebuild test`, and the session name
+  reaches the test as `TEST_RUNNER_HL_SESSION` (read as `HL_SESSION`). Asserting through
+  herdr from inside a test (`pane.read`, `session.snapshot`) needs another path; phase 3
+  decides.
+- **Tool versions.** Homebrew cannot pin versions, so the `Brewfile` notes the versions in
+  use and `.swiftformat` sets `--min-version`. CI installs herdr 0.9.3 from its GitHub
+  release with the checksum from `herdr.dev/latest.json`, because the official installer
+  always installs the latest release.
