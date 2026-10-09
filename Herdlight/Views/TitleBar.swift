@@ -30,12 +30,9 @@ struct TitleBar: View {
                 TabBar(workspace: workspace, page: store.page, store: store)
             }
             Spacer(minLength: 0)
-            IconButton(symbol: "command", help: "Commands") {
-                picking = false
-                palette.toggle()
-            }
-            .keyboardShortcut("k")
-            .accessibilityIdentifier("titlebar.palette")
+            // ⌘K is the menu's.
+            IconButton(symbol: "command", help: "Commands") { palette.toggle() }
+                .accessibilityIdentifier("titlebar.palette")
             // ⌘T is the menu's.
             IconButton(symbol: "plus", help: "New Tab") { Task { await store.newTab() } }
                 .disabled(store.selectedWorkspace == nil || store.writing)
