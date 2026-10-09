@@ -1,6 +1,9 @@
 import HerdrKit
 import SwiftUI
 
+/// The gap between cards, the one fixed size.
+let gap: CGFloat = 8
+
 extension Color {
     /// Over the frosted window: dark, so the desktop shows through only softly.
     static let tint = Color.black.opacity(0.4)
@@ -61,7 +64,7 @@ struct ChromeStyle: ButtonStyle {
             let white = style.selected ? 0.16 : configuration.isPressed ? 0.1 : hovering && enabled ? 0.06 : 0
             configuration.label
                 .contentShape(shape)
-                .background(style.selected ? style.tint ?? .white.opacity(white) : .white.opacity(white), in: shape)
+                .background((style.selected ? style.tint : nil) ?? .white.opacity(white), in: shape)
                 .overlay(shape.strokeBorder(Color.hairline.opacity(style.selected ? 1 : 0)))
                 .shadow(color: .black.opacity(style.selected ? 0.3 : 0), radius: 4, y: 1)
                 .opacity(enabled ? 1 : 0.4)
@@ -97,15 +100,13 @@ struct MenuRow: View {
 struct IconButton: View {
     let symbol: String
     let help: String
-    /// Dimmer, for controls that do nothing yet.
-    var quiet = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .fontWeight(.medium)
-                .foregroundStyle(quiet ? HierarchicalShapeStyle.tertiary : .secondary)
+                .foregroundStyle(.secondary)
                 .frame(width: 28, height: 28)
         }
         .buttonStyle(ChromeStyle(radius: 7))
@@ -156,6 +157,19 @@ struct FilterField: View {
         .background(.white.opacity(0.07), in: .capsule)
         .contentShape(.capsule)
         .onTapGesture { editing = true }
+    }
+}
+
+extension View {
+    /// A panel over the window (the session list, the palette): a click outside it or Esc closes it.
+    func floatingPanel(open: Binding<Bool>, alignment: Alignment) -> some View {
+        Color.clear.contentShape(.rect).onTapGesture { open.wrappedValue = false }
+            .overlay(alignment: alignment) {
+                self
+                #if os(macOS)
+                    .onExitCommand { open.wrappedValue = false }
+                #endif
+            }
     }
 }
 

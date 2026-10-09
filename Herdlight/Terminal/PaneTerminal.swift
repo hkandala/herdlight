@@ -176,7 +176,7 @@
                         }
                     case let .closed(reason):
                         self.stream = nil
-                        closed(reason, observe: observe)
+                        closed(reason)
                     }
                 }
             }
@@ -209,7 +209,7 @@
             state = .idle
         }
 
-        private func closed(_ reason: TerminalStream.Closed, observe: Bool) {
+        private func closed(_ reason: TerminalStream.Closed) {
             // No frame yet: herdr refused the stream at open.
             let refused = state == .idle
             state = .idle
@@ -225,9 +225,9 @@
                 Task { open(observe: !takeover, takeover: takeover) }
             case .liveUpdate:
                 // ponytail: one retry after 1 s; the design also pings and checks the version.
-                Task {
+                Task { [observing] in
                     try? await Task.sleep(for: .seconds(1))
-                    open(observe: observe)
+                    open(observe: observing)
                 }
             case .ended:
                 // Gone: the next snapshot drops the card.
@@ -313,14 +313,12 @@
                     case let .text(text):
                         stream.input(text)
                     case let .keys(keys):
-                        _ = try? await client.call("pane.send_keys", ["pane_id": paneID, "keys": keys]) as Done
+                        // Any reply decodes as Created (its tab is optional).
+                        _ = try? await client.call("pane.send_keys", ["pane_id": paneID, "keys": keys]) as Created
                     }
                 }
                 draining = nil
             }
         }
     }
-
-    /// Any reply we do not read.
-    private nonisolated struct Done: Decodable {}
 #endif

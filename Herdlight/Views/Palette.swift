@@ -69,9 +69,6 @@ struct Palette: View {
         .shadow(color: .black.opacity(0.35), radius: 20, y: 8)
         .onChange(of: filter) { self.index = 0 }
         .task { await store.loadSessions() }
-        #if os(macOS)
-            .onExitCommand { open = false }
-        #endif
     }
 
     private var filtered: [Item] {
