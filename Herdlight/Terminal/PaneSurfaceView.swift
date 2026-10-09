@@ -10,8 +10,48 @@
     /// wheel go as cells; herdr encodes them for the app (phase 4 findings).
     final class PaneSurfaceView: AppTerminalView {
         weak var terminal: PaneTerminal?
+        /// libghostty's grid and cell size, for cells under the pointer. The in-memory session's own
+        /// sizes carry no cell size.
+        private(set) var metrics: TerminalGridMetrics?
         private var dragged: (column: Int, row: Int)?
         private var scrolled: CGFloat = 0
+
+        /// Asked for the keyboard before it was in a window.
+        private var wantsKeyboard = false
+
+        override init(frame: NSRect) {
+            super.init(frame: frame)
+            delegate = self
+        }
+
+        /// Gives this terminal the keyboard, now or once it is in a window.
+        func takeKeyboard() {
+            wantsKeyboard = window == nil
+            window?.makeFirstResponder(self)
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if wantsKeyboard, let window {
+                wantsKeyboard = false
+                // After SwiftUI's update: focus asked for mid-update is dropped.
+                DispatchQueue.main.async { window.makeFirstResponder(self) }
+            }
+        }
+
+        override func becomeFirstResponder() -> Bool {
+            let became = super.becomeFirstResponder()
+            terminal?.hasKeyboard = became
+            return became
+        }
+
+        override func resignFirstResponder() -> Bool {
+            let resigned = super.resignFirstResponder()
+            if resigned {
+                terminal?.hasKeyboard = false
+            }
+            return resigned
+        }
 
         override func keyDown(with event: NSEvent) {
             if !hasMarkedText(), let key = Self.herdrKey(event) {
@@ -74,10 +114,10 @@
                 nextResponder?.scrollWheel(with: event)
                 return
             }
-            guard let cell = cell(event), let grid = terminal?.grid, grid.cellHeightPixels > 0 else { return }
+            guard let cell = cell(event), let metrics else { return }
             // Trackpads report points, wheels report lines.
             scrolled += event.hasPreciseScrollingDeltas
-                ? event.scrollingDeltaY * scale / CGFloat(grid.cellHeightPixels) : event.scrollingDeltaY
+                ? event.scrollingDeltaY * scale / CGFloat(metrics.cellHeightPixels) : event.scrollingDeltaY
             let lines = Int(scrolled)
             scrolled -= CGFloat(lines)
             if lines != 0 {
@@ -104,11 +144,11 @@
 
         /// The 0-based cell under the pointer. No padding (see `PaneTerminal.controller`).
         private func cell(_ event: NSEvent) -> (column: Int, row: Int)? {
-            guard let grid = terminal?.grid, grid.cellWidthPixels > 0, grid.cellHeightPixels > 0 else { return nil }
+            guard let metrics, metrics.cellWidthPixels > 0, metrics.cellHeightPixels > 0 else { return nil }
             let point = convert(event.locationInWindow, from: nil)
-            let column = Int(point.x * scale) / Int(grid.cellWidthPixels)
-            let row = Int((bounds.height - point.y) * scale) / Int(grid.cellHeightPixels)
-            return (min(max(column, 0), Int(grid.columns) - 1), min(max(row, 0), Int(grid.rows) - 1))
+            let column = Int(point.x * scale) / Int(metrics.cellWidthPixels)
+            let row = Int((bounds.height - point.y) * scale) / Int(metrics.cellHeightPixels)
+            return (min(max(column, 0), Int(metrics.columns) - 1), min(max(row, 0), Int(metrics.rows) - 1))
         }
 
         /// crossterm bits: 1 shift, 2 ctrl, 4 alt.
@@ -174,6 +214,27 @@
                 return prefix + letter
             }
             return ansi[event.keyCode].map { prefix + $0 }
+        }
+    }
+
+    /// For e2e tests: the grid as `stty size` prints it (rows, columns).
+    extension PaneSurfaceView {
+        override func isAccessibilityElement() -> Bool {
+            true
+        }
+
+        override func accessibilityRole() -> NSAccessibility.Role? {
+            .group
+        }
+
+        override func accessibilityValue() -> Any? {
+            metrics.map { "\($0.rows) \($0.columns)" }
+        }
+    }
+
+    extension PaneSurfaceView: TerminalSurfaceGridResizeDelegate {
+        func terminalDidResize(_ size: TerminalGridMetrics) {
+            metrics = size
         }
     }
 

@@ -1,4 +1,5 @@
 #if os(macOS)
+    import AppKit
     import HerdrKit
 
     /// Owns every pane's terminal of one session, keyed by `terminal_id`, so SwiftUI never destroys
@@ -12,14 +13,17 @@
 
         /// The pane's terminal, made on first use.
         func terminal(_ terminalID: String, pane paneID: String) -> PaneTerminal? {
-            if let terminal = terminals[terminalID] {
+            let terminal: PaneTerminal
+            if let known = terminals[terminalID] {
                 // A moved pane keeps its terminal under a new pane id.
+                terminal = known
                 terminal.paneID = paneID
-                return terminal
+            } else {
+                guard let client else { return nil }
+                terminal = PaneTerminal(terminalID: terminalID, paneID: paneID, client: client)
+                terminals[terminalID] = terminal
             }
-            guard let client else { return nil }
-            let terminal = PaneTerminal(terminalID: terminalID, paneID: paneID, client: client)
-            terminals[terminalID] = terminal
+            terminal.view.setAccessibilityIdentifier("terminal.\(paneID)")
             return terminal
         }
 
@@ -36,6 +40,11 @@
             for (terminalID, paneID) in shown {
                 terminal(terminalID, pane: paneID)?.show()
             }
+        }
+
+        /// Gives the keyboard to this terminal.
+        func focus(_ terminalID: String) {
+            terminals[terminalID]?.view.takeKeyboard()
         }
 
         /// Releases everything: the session switches or its store stops.
