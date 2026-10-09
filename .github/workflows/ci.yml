@@ -21,15 +21,16 @@ jobs:
       - run: brew update --quiet && brew bundle
       - run: make lint
 
-  build-test:
+  build:
     runs-on: xcode-27
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - run: brew install xcbeautify
-      - run: make build test
+      - run: make build
 
-  e2e:
+  # HerdrKit's integration tests and the UI tests both need herdr.
+  test-e2e:
     runs-on: xcode-27
     timeout-minutes: 20
     env:
@@ -45,7 +46,7 @@ jobs:
           echo "$HERDR_SHA256  $HOME/.local/bin/herdr" | shasum -a 256 -c
           chmod +x ~/.local/bin/herdr
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - run: make e2e
+      - run: make test e2e
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
