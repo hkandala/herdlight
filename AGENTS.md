@@ -11,7 +11,7 @@ Herdlight: a native SwiftUI client for herdr (macOS now, iOS later).
 
 - Ponytail: the simplest code that works; no speculative abstractions or "for later" code.
 - `make lint build test e2e` before you push. Never `git commit --no-verify`.
-- Small atomic commits, conventional subjects (`feat(app): …`).
+- Small atomic commits.
 - e2e tests (XCUITest against a real herdr) over unit tests. Unit tests only for logic
   with branches.
 - herdr: existing sessions are read only. Never run the app or a `control` stream against

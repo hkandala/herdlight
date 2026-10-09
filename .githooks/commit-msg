@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Enforce conventional commit subjects of at most 72 characters.
+set -euo pipefail
+
+subject=$(head -n1 "$1")
+grep -qE '^(Merge|Revert|fixup!|squash!|amend!) ' <<<"$subject" && exit 0
+if ! grep -qE '^(feat|fix|chore|test|docs|refactor|perf|ci|build)(\([a-z0-9-]+\))?: .+$' <<<"$subject" ||
+    [ ${#subject} -gt 72 ]; then
+    echo "commit subject must be 'type(scope): summary', at most 72 characters:" >&2
+    echo "  $subject" >&2
+    exit 1
+fi
