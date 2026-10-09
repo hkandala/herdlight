@@ -138,6 +138,11 @@ draws them. Keys go back as `terminal.input`.
 
 - The panes of the selected tab, plus the shown floating cards of the
   selected workspace, on the selected machine.
+- On the Mac, the panes of recently shown tabs keep their `control` streams,
+  up to about 24 surfaces, least recently shown first out (D46). Their
+  surfaces stop drawing but keep reading. Releasing a pane on leaving its tab
+  let a herdr TUI lay it out at its own size, and coming back resized it
+  again: two redraws of a full-screen app each time.
 - During a swipe the neighbor tab shows each card's last image (or one
   `pane.read visible` for a card never shown). Its streams start when the
   swipe stops.

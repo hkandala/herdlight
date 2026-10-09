@@ -64,19 +64,23 @@ extension HerdlightUITests {
         }
     }
 
-    func testSwitchingTabsReleasesTheOldPanes() async throws {
+    func testSwitchingTabsKeepsTheLastTabAttached() async throws {
         XCTAssertTrue(element("terminal.w1:p1").waitForExistence(timeout: connect))
         let old = try await terminalID("w1:p1"), new = try await terminalID("w1:p4")
         // The app controls p1 (its PTY has the card's size), so a second controller is refused. A
         // probe before the app attached would win, and the app would only watch.
         try await expectPTYSize("w1:p1")
         try await waitForControl(old) { $0.contains("already has an attached client") }
+        let rows = try await viewportRows("w1:p1")
 
         element("tab.w1:t2").click()
         XCTAssertTrue(element("terminal.w1:p4").waitForExistence(timeout: 2))
-        try await waitForControl(old) { $0.contains("terminal.frame") }
         try await expectPTYSize("w1:p4")
         try await waitForControl(new) { $0.contains("already has an attached client") }
+        // The last tab stays attached at its size, so coming back to it resizes nothing.
+        try await waitForControl(old) { $0.contains("already has an attached client") }
+        let after = try await viewportRows("w1:p1")
+        XCTAssertEqual(after, rows)
     }
 
     // MARK: Helpers
@@ -107,6 +111,11 @@ extension HerdlightUITests {
     private func read(_ pane: String) async throws -> String {
         let read = try await Self.call(one, "pane.read", ["pane_id": pane, "source": "visible"])["read"]
         return try XCTUnwrap((read as? [String: Any])?["text"] as? String)
+    }
+
+    private func viewportRows(_ pane: String) async throws -> Int {
+        let pane = try await Self.call(one, "pane.get", ["pane_id": pane])["pane"] as? [String: Any]
+        return try XCTUnwrap((pane?["scroll"] as? [String: Any])?["viewport_rows"] as? Int)
     }
 
     private func terminalID(_ pane: String) async throws -> String {
