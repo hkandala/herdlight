@@ -27,6 +27,9 @@ struct Strip: View {
                 }
             }
             .scrollTargetLayout()
+            #if os(macOS)
+                .background(StripAnchor(store: store))
+            #endif
         }
         .scrollTargetBehavior(.paging)
         .scrollPosition(id: $shown, anchor: .leading)
@@ -56,37 +59,103 @@ struct Strip: View {
 }
 
 #if os(macOS)
-    /// The app's one scroll monitor (design D35). Each gesture picks its axis on its first move: a sideways one goes
-    /// to the scroll view under the pointer (the strip, over a card), so a terminal never sees it; any other goes to
-    /// the view under the pointer as usual. Its momentum follows. A wheel (Shift for sideways) picks per event.
+    /// The app's one scroll monitor (design D35). A gesture picks its axis once it moved 4 pt: a sideways one goes to
+    /// the scroll view under the pointer (the strip, over a card), so a terminal never sees it; any other goes to the
+    /// view under the pointer as usual. Its momentum follows. A wheel picks per event; Shift makes it sideways.
     @MainActor
-    private enum SwipeRouter {
-        /// Where the current sideways gesture goes; nil while it goes the usual way.
-        private weak static var target: NSScrollView?
-        private static var picked = false
-        private static var monitor: Any?
-
+    enum SwipeRouter {
+        /// Once, at launch.
         static func install() {
-            guard monitor == nil else { return }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+            NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
                 MainActor.assumeIsolated { route(event) } ? nil : event
             }
         }
 
-        /// Whether the event went to a scroll view.
+        /// The strip, for wheel clicks; it registers itself.
+        fileprivate weak static var strip: StripAnchor.Anchor?
+        /// Where the current sideways gesture goes; nil while it goes the usual way.
+        private weak static var target: NSScrollView?
+        private static var picked = false
+        private static var moved = 0.0
+        private static var wheeled = Date.distantPast
+
+        /// Whether the event went to a scroll view or turned the strip.
         private static func route(_ event: NSEvent) -> Bool {
-            let wheel = event.phase.isEmpty && event.momentumPhase.isEmpty
-            if event.phase == .mayBegin || event.phase == .began {
+            let deltaX = event.scrollingDeltaX, deltaY = event.scrollingDeltaY
+            if event.phase.isEmpty, event.momentumPhase.isEmpty {
+                return wheel(event, sideways: abs(deltaX) > abs(deltaY) ? deltaX : 0)
+            }
+            if event.phase == .began {
                 picked = false
                 target = nil
+                moved = 0
             }
-            if wheel || !picked, event.scrollingDeltaX != 0 || event.scrollingDeltaY != 0 {
-                picked = !wheel
-                target = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
-                    ? event.window?.contentView?.hitTest(event.locationInWindow)?.enclosingScrollView : nil
+            if !picked {
+                moved += abs(deltaX) + abs(deltaY)
+                if moved >= 4 {
+                    picked = true
+                    target = abs(deltaX) > abs(deltaY) ? scrollView(event) : nil
+                }
             }
             target?.scrollWheel(with: event)
             return target != nil
+        }
+
+        /// A sideways wheel step goes to the scroll view under the pointer; over the strip, a burst of line steps
+        /// (a mouse, which would only nudge a paged strip) turns one page.
+        private static func wheel(_ event: NSEvent, sideways deltaX: CGFloat) -> Bool {
+            guard deltaX != 0, let scrollView = scrollView(event) else { return false }
+            if !event.hasPreciseScrollingDeltas, let strip, strip.enclosingScrollView === scrollView {
+                if Date.now.timeIntervalSince(wheeled) > 0.3 {
+                    strip.step(deltaX > 0 ? -1 : 1)
+                }
+                wheeled = .now
+            } else {
+                scrollView.scrollWheel(with: event)
+            }
+            return true
+        }
+
+        private static func scrollView(_ event: NSEvent) -> NSScrollView? {
+            event.window?.contentView?.hitTest(event.locationInWindow)?.enclosingScrollView
+        }
+    }
+
+    /// Marks the strip's scroll view for the router, with the page turn for wheels.
+    private struct StripAnchor: NSViewRepresentable {
+        let store: HostStore
+
+        func makeNSView(context _: Context) -> Anchor {
+            Anchor(step: store.step)
+        }
+
+        func updateNSView(_ view: Anchor, context _: Context) {
+            view.step = store.step
+        }
+
+        final class Anchor: NSView {
+            var step: (Int) -> Void
+
+            init(step: @escaping (Int) -> Void) {
+                self.step = step
+                super.init(frame: .zero)
+            }
+
+            @available(*, unavailable)
+            required init?(coder _: NSCoder) {
+                nil
+            }
+
+            override func viewDidMoveToWindow() {
+                super.viewDidMoveToWindow()
+                if window != nil {
+                    SwipeRouter.strip = self
+                }
+            }
+
+            override func hitTest(_: NSPoint) -> NSView? {
+                nil
+            }
         }
     }
 #endif

@@ -3,6 +3,12 @@ import SwiftUI
 
 @main
 struct HerdlightApp: App {
+    #if os(macOS)
+        init() {
+            SwipeRouter.install()
+        }
+    #endif
+
     var body: some Scene {
         #if os(macOS)
             Window("Herdlight", id: "main") {
@@ -96,10 +102,10 @@ struct HerdlightApp: App {
                 let workspace = store?.selectedWorkspace
                 let tabs = workspace?.tabs ?? []
                 Divider()
-                Button("Show Previous Tab") { step(-1) }
+                Button("Show Previous Tab") { store?.step(-1) }
                     .keyboardShortcut("[", modifiers: [.command, .shift])
                     .disabled(tabs.count < 2)
-                Button("Show Next Tab") { step(1) }
+                Button("Show Next Tab") { store?.step(1) }
                     .keyboardShortcut("]", modifiers: [.command, .shift])
                     .disabled(tabs.count < 2)
                 Divider()
@@ -108,14 +114,6 @@ struct HerdlightApp: App {
                         .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")))
                 }
             }
-        }
-
-        /// The tab before or after the selected one, round the ends.
-        private func step(_ offset: Int) {
-            guard let workspace = store?.selectedWorkspace, !workspace.tabs.isEmpty else { return }
-            let tabs = workspace.tabs
-            let index = tabs.firstIndex { $0.id == workspace.selectedTabID } ?? 0
-            workspace.selectedTabID = tabs[(index + offset + tabs.count) % tabs.count].id
         }
     }
 
