@@ -34,6 +34,8 @@ up)
     echo "herdr session '$name' did not start:" >&2 && cat "$log" >&2 && exit 1
     ;;
 down)
+    # The app starts servers as one-shot launchd jobs (design D47); launchd keeps them loaded after they stop.
+    launchctl bootout "gui/$(id -u)/dev.hkandala.herdlight.herdr.$name" 2>/dev/null || true
     exists || exit 0
     herdr session stop "$name" >/dev/null 2>&1 || true
     for _ in $(seq 50); do

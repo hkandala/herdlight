@@ -10,11 +10,18 @@ unset "${!HERDR_@}"
 id=$(openssl rand -hex 3)
 one=hl-e2e-$id-a
 two=hl-e2e-$id-b
-# Each trap only after its session is up: a failed `up` must not remove a session it did not make.
-scripts/herdr-session.sh up "$one"
-trap 'scripts/herdr-session.sh down "$one"' EXIT
-scripts/herdr-session.sh up "$two"
-trap 'scripts/herdr-session.sh down "$one" || true; scripts/herdr-session.sh down "$two"' EXIT
+# Listed but stopped, for "Show stopped".
+three=hl-e2e-$id-c
+# Made by the app's New Session.
+four=hl-e2e-$id-d
+# A session joins the cleanup only once it is up: a failed `up` must not remove a session it did not make.
+made=("$four")
+trap 'for s in "${made[@]}"; do scripts/herdr-session.sh down "$s" || true; done' EXIT
+for s in "$one" "$two" "$three"; do
+    scripts/herdr-session.sh up "$s"
+    made+=("$s")
+done
+herdr session stop "$three" >/dev/null
 
 # The sandboxed test runner cannot reach herdr; the helper serves it on localhost while the tests run.
-python3 scripts/e2e-helper.py "$one" "$two" -- "$@"
+python3 scripts/e2e-helper.py "$one" "$two" "$three" "$four" -- "$@"
