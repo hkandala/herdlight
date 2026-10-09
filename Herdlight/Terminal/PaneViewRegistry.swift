@@ -8,7 +8,7 @@
     /// resizes nothing (design: what streams).
     @MainActor
     final class PaneViewRegistry {
-        /// The design's bound on live terminal surfaces.
+        /// The design's bound on streaming terminals (D46).
         static let live = 24
         var client: HerdrClient?
         /// A terminal took the keyboard (its terminal id).
