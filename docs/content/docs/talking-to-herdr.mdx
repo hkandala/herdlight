@@ -99,8 +99,9 @@ protocol Exec {
 - The stream is opened again, followed by a snapshot, when the set of agent
   panes changes, on `events_lost` (the reader fell behind herdr's 512-event
   buffer) and on `pane_not_found` (a listed pane closed first).
-- Every 30 s the app sends `ping`. A network change or a Mac wake forces a
-  check. A machine counts as live only while it answers.
+- Every 30 s the app sends `ping`, every 2 s while its last read failed, so a
+  session started again in a terminal comes back at once. A network change or a
+  Mac wake forces a check. A machine counts as live only while it answers.
 
 ## Reconcile
 
