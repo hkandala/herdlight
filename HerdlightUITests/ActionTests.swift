@@ -77,6 +77,12 @@ extension HerdlightUITests {
 
     func testNewWorkspaceAppearsSelected() async throws {
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
+        // From the second tab, after the sidebar was hidden and shown: a new workspace once came up blank then.
+        element("tab.w1:t2").click()
+        element("titlebar.sidebar").click()
+        XCTAssertTrue(element("sidebar.filter").waitForNonExistence(timeout: 2))
+        element("titlebar.sidebar").click()
+        XCTAssertTrue(element("sidebar.new-workspace").waitForExistence(timeout: 2))
         let before = try await tabIDs()
         element("sidebar.new-workspace").click()
         let tab = try await poll("a new workspace in herdr") { () async throws -> String? in
@@ -88,6 +94,11 @@ extension HerdlightUITests {
         // Only the selected workspace's pages are in the strip.
         XCTAssertTrue(element("page.\(tab)").waitForExistence(timeout: 3))
         XCTAssertFalse(element("page.w1:t1").exists)
+        // Its card shows and has the keyboard.
+        let pane = "\(workspace):p1"
+        XCTAssertTrue(element("pane.\(pane)").wait(for: \.isHittable, toEqual: true, timeout: 3))
+        try await waitForPrompt(pane)
+        try await typeAndRead(pane)
     }
 
     func testZoomFillsThePageAndRestores() async throws {
@@ -195,6 +206,21 @@ extension HerdlightUITests {
         XCTAssertTrue(filter.waitForNonExistence(timeout: 2))
     }
 
+    func testPaletteEnterTakesTheMovedRowAndKeysFollow() async throws {
+        XCTAssertTrue(element("terminal.w1:p1").waitForExistence(timeout: connect))
+        app.typeKey("k", modifierFlags: .command)
+        let filter = element("palette.filter")
+        XCTAssertTrue(filter.waitForExistence(timeout: 2))
+        XCTAssertTrue(hasKeyboard(filter))
+        // Rows start with w1's tabs: ↓ moves from t1 to t2.
+        app.typeKey(.downArrow, modifierFlags: [])
+        XCTAssertTrue(element("palette.tab.w1:t2").wait(for: \.isSelected, toEqual: true, timeout: 2))
+        app.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(element("tab.w1:t2").wait(for: \.isSelected, toEqual: true, timeout: 2))
+        try await waitForPrompt("w1:p4")
+        try await typeAndRead("w1:p4")
+    }
+
     func testPaletteJumpsToAnotherWorkspacesSecondTab() async throws {
         XCTAssertTrue(element("tab.w1:t2").waitForExistence(timeout: connect))
         let (tab, _) = try await newTab("faraway")
@@ -229,6 +255,16 @@ extension HerdlightUITests {
         }
         XCTAssertTrue(element("tab.\(tab)").waitForExistence(timeout: 2))
         return (tab, pane)
+    }
+
+    /// Types a command where the keyboard is and waits for its output in the pane.
+    private func typeAndRead(_ pane: String) async throws {
+        app.typeText("echo hl-keys-$((6*7))")
+        app.typeKey(.return, modifierFlags: [])
+        try await poll("typed keys in \(pane)") { () async throws -> Bool? in
+            let read = try await Self.call(one, "pane.read", ["pane_id": pane, "source": "visible"])["read"]
+            return ((read as? [String: Any])?["text"] as? String)?.contains("\nhl-keys-42") == true ? true : nil
+        }
     }
 
     private func tabIDs() async throws -> [String] {
