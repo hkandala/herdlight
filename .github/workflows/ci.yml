@@ -46,9 +46,11 @@ jobs:
           echo "$HERDR_SHA256  $HOME/.local/bin/herdr" | shasum -a 256 -c
           chmod +x ~/.local/bin/herdr
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - run: make test e2e
+      - run: |
+          (while true; do date +%T; ps -axo pid,ppid,pgid,etime,stat,command | grep -E "herdr|bash -lic|sh -c|Herdlight" | grep -v grep; sleep 1; done) > /tmp/ps.log 2>&1 &
+          make test e2e
       - if: always()
-        run: cat /tmp/hl-exec.log; ps -axo pid,ppid,etime,command | grep -i herdr; tail -50 $TMPDIR/herdr-hl-e2e-*.log || true
+        run: cat /tmp/ps.log; ps -axo pid,ppid,etime,command | grep -i herdr; tail -50 $TMPDIR/herdr-hl-e2e-*.log || true
       - if: failure() || cancelled()
         uses: actions/upload-artifact@v7
         with:
