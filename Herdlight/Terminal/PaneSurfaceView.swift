@@ -320,6 +320,7 @@
                     case .watching:
                         Button("In use elsewhere · Take back", action: terminal.takeBack)
                             .buttonStyle(.glass)
+                            .accessibilityIdentifier("pane.\(terminal.paneID).take-back")
                             .padding(gap)
                     case let .failed(text):
                         VStack {

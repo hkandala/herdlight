@@ -253,7 +253,8 @@ final class HerdlightUITests: XCTestCase {
         return try XCTUnwrap(reply["result"] as? [String: Any], "\(method): \(text)")
     }
 
-    /// One POST to the e2e helper: `<session>` for an API call, `<session>/control` for a probe.
+    /// One POST to the e2e helper: `<session>` for an API call, `<session>/<action>` for the others (see the helper).
+    @discardableResult
     nonisolated static func post(_ path: String, _ body: Data) async throws -> (data: Data, status: Int) {
         let helper = try XCTUnwrap(ProcessInfo.processInfo.environment["HL_HELPER"])
         var request = try URLRequest(url: XCTUnwrap(URL(string: "\(helper)/\(path)")))
