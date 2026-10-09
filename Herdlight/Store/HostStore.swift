@@ -66,6 +66,8 @@ final class HostStore {
     @ObservationIgnored private var client: HerdrClient?
     #if os(macOS)
         let terminals = PaneViewRegistry()
+        /// The tab whose terminal last got the keyboard from the app.
+        @ObservationIgnored private var keyboardTabID: String?
     #endif
 
     init(session: String) {
@@ -100,6 +102,14 @@ final class HostStore {
         /// Streams the selected tab's terminals, releases the others, drops those of closed panes.
         func showTerminals() {
             terminals.show(shownTerminals, alive: Set(panes.compactMap(\.terminalID)))
+            // A tab shown for the first time since it was selected gives the keyboard to herdr's
+            // focused pane; later snapshots leave it where the user clicked.
+            guard let tab = selectedTab, tab.id != keyboardTabID else { return }
+            let tabPanes = panes.filter { $0.tabID == tab.id }
+            if let terminalID = (tabPanes.first(where: \.focused) ?? tabPanes.first)?.terminalID {
+                keyboardTabID = tab.id
+                terminals.focus(terminalID)
+            }
         }
     #endif
 

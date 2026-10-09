@@ -33,8 +33,10 @@
         }
 
         private(set) var state = State.idle
-        /// The surface's last grid, for cells under the pointer.
-        @ObservationIgnored private(set) var grid: InMemoryTerminalViewport?
+        /// The terminal view is the first responder: keys go here.
+        var hasKeyboard = false
+        /// The surface's last grid.
+        @ObservationIgnored private var grid: InMemoryTerminalViewport?
         @ObservationIgnored let view = PaneSurfaceView(frame: .zero)
         @ObservationIgnored var paneID: String
         @ObservationIgnored private let terminalID: String
@@ -43,6 +45,8 @@
         /// Input not sent yet; it goes out while the stream is live.
         @ObservationIgnored private var pending: [Input] = []
         @ObservationIgnored private var draining: Task<Void, Never>?
+        /// A paste libghostty is still writing.
+        @ObservationIgnored private var paste: String?
         @ObservationIgnored private var tasks: [Task<Void, Never>] = []
         @ObservationIgnored private var run: Task<Void, Never>?
         @ObservationIgnored private var resizing: Task<Void, Never>?
@@ -253,23 +257,36 @@
                     open(observe: true)
                 } else if state == .live {
                     stream?.resize(cols: Int(grid.columns), rows: Int(grid.rows),
-                                   cellWidth: Int(grid.cellWidthPixels), cellHeight: Int(grid.cellHeightPixels))
+                                   cellWidth: Int(view.metrics?.cellWidthPixels ?? 0),
+                                   cellHeight: Int(view.metrics?.cellHeightPixels ?? 0))
                 }
             }
         }
 
-        /// A bridge call takes about 60 ms, more than a held key's repeat, so what piles up
-        /// meanwhile goes as one call. ponytail: keys (main thread) and libghostty's text (its IO
-        /// thread) are ordered only as they arrive here, microseconds apart; enough for typing.
+        /// libghostty writes a paste in pieces (start mark, text, end mark); herdr frames it for the
+        /// app's paste mode only when one write is the whole `ESC[200~…ESC[201~`.
         private func enqueue(_ input: Input) {
+            if case let .text(text) = input, paste != nil || text.hasPrefix("\u{1B}[200~") {
+                let whole = (paste ?? "") + text
+                paste = whole.hasSuffix("\u{1B}[201~") ? nil : whole
+                if paste == nil {
+                    queue(.text(whole))
+                }
+            } else {
+                queue(input)
+            }
+        }
+
+        /// A bridge call takes about 60 ms, more than a held key's repeat, so keys that pile up
+        /// meanwhile go as one call; text stays one write per piece, so a paste stays whole.
+        /// ponytail: keys (main thread) and libghostty's text (its IO thread) are ordered only as
+        /// they arrive here, microseconds apart; enough for typing.
+        private func queue(_ input: Input) {
             // A failed card shows why; typing there goes nowhere.
             guard !state.isFailed else { return }
-            switch (pending.last, input) {
-            case let (.keys(old)?, .keys(new)):
+            if case let (.keys(old)?, .keys(new)) = (pending.last, input) {
                 pending[pending.count - 1] = .keys(old + new)
-            case let (.text(old)?, .text(new)):
-                pending[pending.count - 1] = .text(old + new)
-            default:
+            } else {
                 pending.append(input)
             }
             if state == .watching {

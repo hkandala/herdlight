@@ -74,6 +74,13 @@ private struct PaneCard: View {
         let pane = store.pane(id)
         let title = pane?.label ?? pane?.cwd.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? "terminal"
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        #if os(macOS)
+            let terminal = pane?.terminalID.flatMap { store.terminals.terminal($0, pane: id) }
+            // The card that has the keyboard is lit; herdr's focus until a terminal exists.
+            let lit = terminal?.hasKeyboard ?? pane?.focused ?? true
+        #else
+            let lit = pane?.focused ?? true
+        #endif
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: "apple.terminal").foregroundStyle(.secondary).accessibilityHidden(true)
@@ -108,9 +115,7 @@ private struct PaneCard: View {
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 34, maxHeight: 34, alignment: .leading)
             Group {
                 #if os(macOS)
-                    if let terminalID = pane?.terminalID,
-                       let terminal = store.terminals.terminal(terminalID, pane: id)
-                    {
+                    if let terminal {
                         TerminalCard(terminal: terminal).padding([.horizontal, .bottom], gap)
                     }
                 #endif
@@ -126,8 +131,8 @@ private struct PaneCard: View {
                 .accessibilityAction(named: "Split Down") { Task { await store.split(id, .down) } }
         }
         .overlay {
-            // Cards without herdr's focus are a little darker; the terminal's text keeps its own contrast.
-            if !(pane?.focused ?? true), !hovering {
+            // Cards without the keyboard are a little darker; the terminal's text keeps its own contrast.
+            if !lit, !hovering {
                 shape.fill(.black.opacity(0.15)).allowsHitTesting(false)
             }
         }
