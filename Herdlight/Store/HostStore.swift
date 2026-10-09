@@ -1,0 +1,146 @@
+import HerdrKit
+import Observation
+
+/// The live model of one herdr session. Snapshots land on stable objects keyed by id; Observation
+/// skips fields that did not change, so one status change redraws one row (design D6).
+@MainActor @Observable
+final class HostStore {
+    enum State {
+        case connecting, live
+        case failed(HerdrError)
+    }
+
+    @MainActor @Observable
+    final class Workspace: Identifiable {
+        let id: String
+        var label = ""
+        var status = AgentStatus.idle
+        var tabs: [Tab] = []
+        /// The app's own selection, never herdr's focus. Starts at herdr's active tab.
+        var selectedTabID: String?
+
+        init(id: String) {
+            self.id = id
+        }
+    }
+
+    @MainActor @Observable
+    final class Tab: Identifiable {
+        let id: String
+        var label = ""
+        var status = AgentStatus.idle
+        var tree: SplitNode?
+
+        init(id: String) {
+            self.id = id
+        }
+    }
+
+    @MainActor @Observable
+    final class Pane: Identifiable {
+        let id: String
+        var label: String?
+
+        init(id: String) {
+            self.id = id
+        }
+    }
+
+    let session: String
+    private(set) var state = State.connecting
+    /// Every session herdr knows on this Mac, for the session picker.
+    private(set) var sessions: [Session] = []
+    private(set) var workspaces: [Workspace] = []
+    private(set) var panes: [Pane] = []
+    var selectedWorkspaceID: String?
+
+    init(session: String) {
+        self.session = session
+    }
+
+    /// "This Mac" for the default session, "This Mac · ‹session›" for the others.
+    static func name(_ session: String) -> String {
+        session == "default" ? "This Mac" : "This Mac · \(session)"
+    }
+
+    func pane(_ id: String) -> Pane? {
+        panes.first { $0.id == id }
+    }
+
+    var selectedWorkspace: Workspace? {
+        workspaces.first { $0.id == selectedWorkspaceID }
+    }
+
+    var selectedTab: Tab? {
+        selectedWorkspace.flatMap { workspace in workspace.tabs.first { $0.id == workspace.selectedTabID } }
+    }
+
+    /// False only when herdr lists the session as stopped (or not at all).
+    var isRunning: Bool {
+        sessions.isEmpty || sessions.contains { $0.name == session && $0.running }
+    }
+
+    /// Follows the session until the calling task is cancelled.
+    func run(exec: any Exec) async {
+        do {
+            let client = try await HerdrClient(herdr: HerdrClient.locate(exec: exec), session: session, exec: exec)
+            sessions = await (try? client.sessions()) ?? []
+            for await update in await client.updates() {
+                switch update {
+                case let .snapshot(snapshot):
+                    apply(snapshot)
+                    state = .live
+                case let .error(error):
+                    state = .failed(error)
+                    // To tell "not running" from other failures.
+                    sessions = await (try? client.sessions()) ?? sessions
+                }
+            }
+        } catch {
+            state = .failed(error as? HerdrError ?? .failed("\(error)"))
+        }
+    }
+
+    private func apply(_ snapshot: Snapshot) {
+        let tabs = Dictionary(grouping: snapshot.tabs, by: \.workspaceID)
+        reuse(self, \.workspaces, snapshot.workspaces, Workspace.init(id:)) { workspace, new in
+            workspace.label = new.label
+            workspace.status = new.agentStatus
+            reuse(workspace, \.tabs, tabs[new.id] ?? [], Tab.init(id:)) { tab, new in
+                tab.label = new.label
+                tab.status = new.agentStatus
+                tab.tree = snapshot.trees[new.id]
+            }
+            if !workspace.tabs.contains(where: { $0.id == workspace.selectedTabID }) {
+                workspace.selectedTabID = workspace.tabs.contains { $0.id == new.activeTabID }
+                    ? new.activeTabID : workspace.tabs.first?.id
+            }
+        }
+        reuse(self, \.panes, snapshot.panes, Pane.init(id:)) { $0.label = $1.label }
+        if selectedWorkspace == nil {
+            selectedWorkspaceID = workspaces.contains { $0.id == snapshot.focusedWorkspaceID }
+                ? snapshot.focusedWorkspaceID : workspaces.first?.id
+        }
+    }
+}
+
+/// Keeps the object of each id that stays, makes the new ones, and replaces the list only when its
+/// ids changed, so views of the list redraw only then.
+@MainActor
+private func reuse<Owner: AnyObject, Object: Identifiable<String>, Item: Identifiable<String>>(
+    _ owner: Owner,
+    _ list: ReferenceWritableKeyPath<Owner, [Object]>,
+    _ items: [Item],
+    _ make: (String) -> Object,
+    _ update: (Object, Item) -> Void,
+) {
+    let old = Dictionary(owner[keyPath: list].map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let new = items.map { item in
+        let object = old[item.id] ?? make(item.id)
+        update(object, item)
+        return object
+    }
+    if new.map(\.id) != owner[keyPath: list].map(\.id) {
+        owner[keyPath: list] = new
+    }
+}
