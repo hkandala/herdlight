@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
-# Lint staged Swift files. Install with `make setup`.
+# Lint the staged version of each Swift file. Install with `make setup`.
 set -euo pipefail
+export PATH="/opt/homebrew/bin:$PATH" # GUI git clients start without Homebrew on PATH
 
 files=()
 while IFS= read -r -d '' f; do files+=("$f"); done < <(git diff --cached --name-only --diff-filter=ACMR -z -- '*.swift')
 [ ${#files[@]} -eq 0 ] && exit 0
 
-# ponytail: checks the working tree copy, so a partly staged file is linted as it is on disk.
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+printf '%s\0' "${files[@]}" | git checkout-index -z --stdin --prefix="$tmp/"
+git checkout-index --prefix="$tmp/" .swiftformat .swiftlint.yml
+cd "$tmp"
+
 swiftformat --lint "${files[@]}"
 swiftlint lint --strict --quiet --force-exclude "${files[@]}"
