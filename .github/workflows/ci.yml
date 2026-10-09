@@ -50,7 +50,7 @@ jobs:
           (while true; do date +%T; ps -axo pid,ppid,pgid,etime,stat,command | grep -E "herdr|bash -lic|sh -c|Herdlight" | grep -v grep || true; sleep 1; done) > /tmp/ps.log 2>&1 &
           make test e2e
       - if: always()
-        run: cat /tmp/ps.log; ps -axo pid,ppid,etime,command | grep -i herdr; tail -50 $TMPDIR/herdr-hl-e2e-*.log || true
+        run: log show --last 10m --info --predicate 'subsystem == "dev.hkandala.herdlight"' --style compact | cut -c1-250; cat /tmp/ps.log; ps -axo pid,ppid,etime,command | grep -i herdr; tail -50 $TMPDIR/herdr-hl-e2e-*.log || true
       - if: failure() || cancelled()
         uses: actions/upload-artifact@v7
         with:

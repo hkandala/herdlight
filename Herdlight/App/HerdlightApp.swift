@@ -1,4 +1,5 @@
 import HerdrKit
+import os
 import SwiftUI
 
 @main
@@ -36,7 +37,12 @@ struct HerdlightApp: App {
             .containerBackground(Color.window, for: .window)
             .preferredColorScheme(.dark)
             // A new store (session switch) cancels the old one's run, which drops its client.
-            .task(id: ObjectIdentifier(store)) { await store.run(exec: exec.value) }
+            .task(id: ObjectIdentifier(store)) {
+                debugLog.notice("task start")
+                let exec = await exec.value
+                debugLog.notice("exec ready")
+                await store.run(exec: exec)
+            }
         }
     }
 

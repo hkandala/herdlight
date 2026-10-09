@@ -1,4 +1,8 @@
 import Foundation
+import os
+
+/// Temporary CI debugging, never merged.
+public let debugLog = Logger(subsystem: "dev.hkandala.herdlight", category: "debug")
 
 /// Runs argv on a machine. The one seam for This Mac, remote machines and iOS.
 public protocol Exec: Sendable {
@@ -126,7 +130,9 @@ public struct Channel: Sendable {
             process.standardOutput = stdout
             process.standardError = stderr
             let (ended, endedContinuation) = AsyncStream<Int32>.makeStream()
+            debugLog.notice("spawn \(argv, privacy: .public)")
             process.terminationHandler = {
+                debugLog.notice("end \($0.terminationStatus) \(argv, privacy: .public)")
                 let pid = $0.processIdentifier
                 children.withLock { _ = $0.remove(pid) }
                 endedContinuation.yield($0.terminationStatus)
