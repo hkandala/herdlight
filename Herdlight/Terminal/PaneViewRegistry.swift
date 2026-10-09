@@ -39,9 +39,13 @@
                 terminal.close()
                 terminals[terminalID] = nil
             }
-            recent = recent.filter { alive.contains($0) && shown[$0] == nil } + shown.keys.sorted()
-            while recent.count > Self.live {
-                terminals[recent.removeFirst()]?.hide()
+            recent = recent.filter { alive.contains($0) && shown[$0] == nil } + Array(shown.keys)
+            // Only hidden ones go: a tab with more than `live` panes keeps them all.
+            // ponytail: an evicted terminal keeps its surface (its last image) until its pane closes
+            // or the session switches.
+            while recent.count > Self.live, let terminalID = recent.first, shown[terminalID] == nil {
+                recent.removeFirst()
+                terminals[terminalID]?.hide()
             }
             for (terminalID, terminal) in terminals {
                 terminal.view.setSurfaceVisible(shown[terminalID] != nil)
