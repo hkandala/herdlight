@@ -158,10 +158,15 @@ final class HostStore {
     #if os(macOS)
         /// Streams the selected tab's terminals (see the registry), drops those of closed panes.
         func showTerminals() {
-            terminals.show(shownTerminals, alive: Set(panes.compactMap(\.terminalID)))
+            let alive = Set(panes.compactMap(\.terminalID))
+            terminals.show(shownTerminals, alive: alive)
             // A newly selected tab gives the keyboard back to the card it had; herdr's focused pane
-            // only picks it the first time a tab is shown. Later snapshots leave it alone.
-            if selectedTab?.id != keyboardTabID {
+            // only picks it the first time a tab is shown. Later snapshots leave it alone, unless the
+            // card with the keyboard closed: then the tab's next card takes it.
+            if let tab = selectedTab, let gone = keyboardTerminals[tab.id], !alive.contains(gone) {
+                keyboardTerminals[tab.id] = nil
+                focusKeyboardCard()
+            } else if selectedTab?.id != keyboardTabID {
                 focusKeyboardCard()
             }
         }
