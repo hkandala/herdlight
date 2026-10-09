@@ -185,3 +185,27 @@ Fix on the `terminals` branch before merge:
 3. **Hover must not look active.** Hovering an unfocused card lightens it a little, clearly
    less than the keyboard card.
 4. The held GUI checks: dead key, IME, htop.
+
+### Done (feedback round)
+
+1. **Flicker.** Confirmed at the stream level with a herdr TUI client on a pty (120×40) next
+   to the app: `control` at 60×20 gets its first frame at 60×20 already (no stale size), but
+   after `terminal.release` the TUI lays the pane out at its own size again (37 rows), so
+   each return to a tab resized the PTY twice. Now `PaneViewRegistry` keeps the streams of
+   the 24 most recently shown terminals; the others let go, least recently shown first.
+   Hidden surfaces get `setSurfaceVisible(false)` and keep reading. Checked in the app with
+   the TUI attached: a `WINCH` trap in a pane logged nothing over three t1 → t2 → t1 round
+   trips (one line at attach). The e2e test now checks that the last tab stays attached at
+   its size. Design: talking-to-herdr "What streams", D46.
+2. **Keyboard per tab.** `HostStore` keeps the last keyboard card per tab (from the
+   registry's `keyboardPaneID`); coming back to a tab gives it the keyboard again. herdr's
+   focused pane only picks it on a tab's first show (layout.mdx). Checked: click p2, go to
+   t2 and type there, come back, typing lands in p2.
+3. **Hover.** A hovered card without the keyboard gets a lighter dim (8 % instead of 15 %).
+   Measured on screenshots: 23.7 → 25.8 mean luminance on hover, the keyboard card 28.4.
+4. **Held checks.** Dead key (Option+E, E) typed `é`. The Character Viewer (Ctrl+Cmd+Space,
+   "rocket", Return) put 🚀 in the shell, through the same `insertText` path an IME commits
+   through; a Japanese input source was not switched on (it would change the user's input
+   sources), so marked text was not exercised. htop (installed with brew) renders in color
+   and moves its selection with arrows.
+
