@@ -244,10 +244,11 @@ public actor HerdrClient {
                     if message?.error != nil {
                         break
                     }
-                    if message?.event != nil {
-                        self.changed()
-                    } else {
+                    // The `result` line is subscription_started: catch up on what came before it.
+                    if message?.result != nil {
                         self.refresh()
+                    } else {
+                        self.changed()
                     }
                 }
                 channel.terminate()
@@ -334,7 +335,8 @@ private struct ReplyError: Decodable {
 }
 
 private struct EventLine: Decodable {
-    let event: String?
+    struct Present: Decodable {}
+    let result: Present?
     let error: ReplyError?
 }
 
