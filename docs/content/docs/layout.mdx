@@ -79,6 +79,9 @@ build(path) = split at path exists ? Split(dir, ratio, build(path+0), build(path
 - The selected machine, workspace, tab and focused card live in memory, plus
   `@SceneStorage` to restore the window. A restore id that is gone falls back
   to herdr's focused workspace.
+- herdr's focused pane only picks which card of a newly shown tab gets the
+  keyboard first, the same kind of fallback. After that the keyboard stays
+  where the user clicks, and the app never tells herdr.
 - **The app never calls herdr's focus methods** (`pane.focus`, `tab.focus`,
   `workspace.focus`, `agent.focus`). Each of them moves every attached herdr
   TUI to that tab and marks the tab seen (herdr source, and seen in our
