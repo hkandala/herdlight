@@ -2,17 +2,16 @@ SHELL := /bin/bash -eo pipefail
 .PHONY: setup format lint build test e2e run
 
 DERIVED_DATA ?= .build/DerivedData
-SESSION ?=
 XCODEBUILD := xcodebuild -project Herdlight.xcodeproj -scheme Herdlight -derivedDataPath $(DERIVED_DATA)
-BEAUTIFY := $(if $(shell command -v xcbeautify),| xcbeautify)
+BEAUTIFY := $(if $(shell command -v xcbeautify),| xcbeautify $(if $(CI),--renderer github-actions))
 
 setup:
 	brew bundle
 	git config core.hooksPath .githooks
 
 format:
-	swiftformat .
 	swiftlint lint --fix --quiet
+	swiftformat .
 
 lint:
 	swiftformat --lint .
