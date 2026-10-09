@@ -5,10 +5,11 @@ import XCTest
 /// xcodebuild strips the TEST_RUNNER_ prefix from the names.
 @MainActor
 final class HerdlightUITests: XCTestCase {
-    private static var built = false
     private var one = ""
     private var two = ""
     private let app = XCUIApplication()
+    /// The app's first snapshot: login shell, herdr checks and a few herdr runs; slow on CI runners.
+    private let connect: TimeInterval = 30
 
     /// Session one: w1 "alpha" with t1 = p1 | (p2 / p3) at 0.6 and t2 "second"; w2 "beta".
     /// Session two: w1 "gamma".
@@ -17,8 +18,9 @@ final class HerdlightUITests: XCTestCase {
         let env = ProcessInfo.processInfo.environment
         one = try XCTUnwrap(env["HL_SESSION"], "run through make e2e")
         two = try XCTUnwrap(env["HL_SESSION2"], "run through make e2e")
-        if !Self.built {
-            Self.built = true
+        // Once per session; the runner may restart between tests, so ask herdr, not a static.
+        let snapshot = try await call(one, "session.snapshot", [:])["snapshot"] as? [String: Any]
+        if (snapshot?["workspaces"] as? [Any])?.isEmpty ?? true {
             try await call(one, "workspace.create", ["label": "alpha", "cwd": "/tmp", "focus": false])
             try await call(one, "pane.split", ["target_pane_id": "w1:p1", "direction": "right", "ratio": 0.6,
                                                "cwd": "/tmp", "focus": false])
@@ -37,7 +39,7 @@ final class HerdlightUITests: XCTestCase {
     }
 
     func testShowsWorkspacesTabsAndSplits() {
-        XCTAssertTrue(element("workspace.w1").waitForExistence(timeout: 10))
+        XCTAssertTrue(element("workspace.w1").waitForExistence(timeout: connect))
         XCTAssertTrue(element("workspace.w2").exists)
         XCTAssertTrue(element("tab.w1:t1").exists)
         XCTAssertTrue(element("tab.w1:t2").exists)
@@ -69,7 +71,7 @@ final class HerdlightUITests: XCTestCase {
     }
 
     func testFollowsTabsMadeAndClosedInHerdr() async throws {
-        XCTAssertTrue(element("tab.w1:t2").waitForExistence(timeout: 10))
+        XCTAssertTrue(element("tab.w1:t2").waitForExistence(timeout: connect))
         let created = try await call(one, "tab.create", ["workspace_id": "w1", "label": "live", "cwd": "/tmp",
                                                          "focus": false])
         let tab = try XCTUnwrap((created["tab"] as? [String: Any])?["tab_id"] as? String)
@@ -81,15 +83,14 @@ final class HerdlightUITests: XCTestCase {
 
     func testSwitchesSessions() {
         let picker = element("sidebar.session-picker")
-        XCTAssertTrue(picker.waitForExistence(timeout: 10))
-        XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: 10))
+        XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
         picker.click()
         let other = app.menuItems["This Mac · \(two)"]
         XCTAssertTrue(other.waitForExistence(timeout: 2))
         XCTAssertTrue(app.menuItems["This Mac · \(one)"].exists)
         other.click()
 
-        XCTAssertTrue(wait(timeout: 5) { element("workspace.w1").value as? String == "gamma" })
+        XCTAssertTrue(wait(timeout: connect) { element("workspace.w1").value as? String == "gamma" })
         XCTAssertFalse(element("workspace.w2").exists)
     }
 
