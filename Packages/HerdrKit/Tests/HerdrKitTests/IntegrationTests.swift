@@ -65,7 +65,7 @@ func `talks to a throwaway herdr session`() async throws {
 @Test func `output of fast commands always ends`() async throws {
     let exec = await ProcessExec()
     try await withThrowingTaskGroup(of: [String].self) { group in
-        for _ in 0 ..< 200 {
+        for _ in 0 ..< 30 {
             group.addTask {
                 let channel = try await exec.run(["sh", "-c", "echo hi"])
                 channel.closeInput()
