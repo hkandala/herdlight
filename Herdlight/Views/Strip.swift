@@ -29,8 +29,47 @@ struct Strip: View {
         .scrollIndicators(.never)
         // A new workspace starts a new strip at its selected tab.
         .id(workspace.id)
+        #if os(macOS)
+            .onAppear { SwipeRouter.install() }
+        #endif
     }
 }
+
+#if os(macOS)
+    /// The app's one scroll monitor (design D35). Each gesture picks its axis on its first move: a sideways one goes
+    /// to the scroll view under the pointer (the strip, over a card), so a terminal never sees it; any other goes to
+    /// the view under the pointer as usual. Its momentum follows. A wheel (Shift for sideways) picks per event.
+    @MainActor
+    private enum SwipeRouter {
+        /// Where the current sideways gesture goes; nil while it goes the usual way.
+        private weak static var target: NSScrollView?
+        private static var picked = false
+        private static var monitor: Any?
+
+        static func install() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+                MainActor.assumeIsolated { route(event) } ? nil : event
+            }
+        }
+
+        /// Whether the event went to a scroll view.
+        private static func route(_ event: NSEvent) -> Bool {
+            let wheel = event.phase.isEmpty && event.momentumPhase.isEmpty
+            if event.phase == .mayBegin || event.phase == .began {
+                picked = false
+                target = nil
+            }
+            if wheel || !picked, event.scrollingDeltaX != 0 || event.scrollingDeltaY != 0 {
+                picked = !wheel
+                target = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
+                    ? event.window?.contentView?.hitTest(event.locationInWindow)?.enclosingScrollView : nil
+            }
+            target?.scrollWheel(with: event)
+            return target != nil
+        }
+    }
+#endif
 
 /// The 8 pt gap between cards is the one fixed size; it is also where dividers go later.
 let gap: CGFloat = 8
