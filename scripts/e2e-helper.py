@@ -11,6 +11,7 @@ Any session not named on the command line is refused.
 
 import http.server
 import os
+import re
 import socketserver
 import subprocess
 import sys
@@ -26,6 +27,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
         if session not in sessions:
             status, reply = 403, f"refusing session '{session}'".encode()
+        elif action not in ("", "control"):
+            status, reply = 404, f"no action '{action}'".encode()
+        elif action == "control" and not re.fullmatch(rb"\w[\w-]*", body):
+            status, reply = 400, b"the body must be a terminal id"
         else:
             if action == "control":
                 argv = ["terminal", "session", "control", body.decode(), "--cols", "80", "--rows", "24"]

@@ -4,9 +4,10 @@ import XCTest
 /// `control` stream from the helper. Session one's t1 is p1 | (p2 / p3), t2 holds p4.
 extension HerdlightUITests {
     func testCardsAttachAtTheirSize() async throws {
-        let terminal = element("terminal.w1:p1")
-        XCTAssertTrue(terminal.waitForExistence(timeout: connect))
-        try await expectPTYSize("w1:p1", terminal)
+        XCTAssertTrue(element("terminal.w1:p1").waitForExistence(timeout: connect))
+        for pane in ["w1:p1", "w1:p2", "w1:p3"] {
+            try await expectPTYSize(pane)
+        }
         keepScreenshot("terminals")
     }
 
@@ -31,7 +32,7 @@ extension HerdlightUITests {
     func testResizingACardResizesThePTY() async throws {
         let terminal = element("terminal.w1:p1")
         XCTAssertTrue(terminal.waitForExistence(timeout: connect))
-        try await expectPTYSize("w1:p1", terminal)
+        try await expectPTYSize("w1:p1")
         let before = terminal.value as? String
         // Hiding the sidebar widens the cards. Not the window: CI's window already fills the screen
         // (Zoom changes nothing there), and a drag on its corner does not resize it under XCUITest.
@@ -39,7 +40,7 @@ extension HerdlightUITests {
         let changed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value != %@", before ?? ""),
                                                 object: terminal)
         XCTAssertEqual(XCTWaiter().wait(for: [changed], timeout: 3), .completed)
-        try await expectPTYSize("w1:p1", terminal)
+        try await expectPTYSize("w1:p1")
     }
 
     func testScrollingMovesTheViewport() async throws {
@@ -52,46 +53,44 @@ extension HerdlightUITests {
         // scrolling setting (up for negative here, down on CI), so try both; at the bottom, down
         // does nothing.
         terminal.hover()
-        var offset = 0
-        for delta in [-100.0, 100.0] where offset == 0 {
+        var delta = -100.0
+        try await poll("the viewport to move", times: 10) { () async throws -> Int? in
             terminal.scroll(byDeltaX: 0, deltaY: delta)
-            for _ in 0 ..< 10 where offset == 0 {
-                try await Task.sleep(for: .milliseconds(100))
-                let pane = try await Self.call(one, "pane.get", ["pane_id": "w1:p1"])["pane"] as? [String: Any]
-                offset = (pane?["scroll"] as? [String: Any])?["offset_from_bottom"] as? Int ?? 0
-            }
+            delta = -delta
+            try await Task.sleep(for: .milliseconds(300))
+            let pane = try await Self.call(one, "pane.get", ["pane_id": "w1:p1"])["pane"] as? [String: Any]
+            let offset = (pane?["scroll"] as? [String: Any])?["offset_from_bottom"] as? Int ?? 0
+            return offset > 0 ? offset : nil
         }
-        XCTAssertGreaterThan(offset, 0)
     }
 
     func testSwitchingTabsReleasesTheOldPanes() async throws {
         XCTAssertTrue(element("terminal.w1:p1").waitForExistence(timeout: connect))
         let old = try await terminalID("w1:p1"), new = try await terminalID("w1:p4")
-        // The app controls p1, so a second controller is refused.
+        // The app controls p1 (its PTY has the card's size), so a second controller is refused. A
+        // probe before the app attached would win, and the app would only watch.
+        try await expectPTYSize("w1:p1")
         try await waitForControl(old) { $0.contains("already has an attached client") }
 
         element("tab.w1:t2").click()
         XCTAssertTrue(element("terminal.w1:p4").waitForExistence(timeout: 2))
         try await waitForControl(old) { $0.contains("terminal.frame") }
+        try await expectPTYSize("w1:p4")
         try await waitForControl(new) { $0.contains("already has an attached client") }
     }
 
     // MARK: Helpers
 
-    /// `stty size` in the pane prints the grid the card shows (its accessibility value).
-    private func expectPTYSize(_ pane: String, _ terminal: XCUIElement) async throws {
+    /// `stty size` in the pane prints the grid its card shows (the terminal's accessibility value).
+    private func expectPTYSize(_ pane: String) async throws {
+        let terminal = element("terminal.\(pane)")
         try await waitForPrompt(pane)
-        var size: String?
-        for _ in 0 ..< 30 {
+        try await poll("stty size in \(pane) to match its card", times: 30) { () async throws -> String? in
             let grid = try XCTUnwrap(terminal.value as? String)
             try await Self.call(one, "pane.send_text", ["pane_id": pane, "text": "clear; stty size\r"])
-            try await Task.sleep(for: .milliseconds(300))
-            size = try await read(pane).split(separator: "\n").map(String.init).first { $0 == grid }
-            if size != nil {
-                break
-            }
+            try await Task.sleep(for: .milliseconds(200))
+            return try await read(pane).split(separator: "\n").contains { $0 == grid } ? grid : nil
         }
-        XCTAssertNotNil(size, "stty size never matched the card's grid \(terminal.value ?? "nil")")
     }
 
     private func waitForPrompt(_ pane: String) async throws {
@@ -99,15 +98,10 @@ extension HerdlightUITests {
     }
 
     private func waitFor(_ pane: String, _ done: (String) -> Bool) async throws {
-        var text = ""
-        for _ in 0 ..< 50 {
-            text = try await read(pane)
-            if done(text) {
-                return
-            }
-            try await Task.sleep(for: .milliseconds(100))
+        try await poll("pane \(pane) to show it") { () async throws -> String? in
+            let text = try await read(pane)
+            return done(text) ? text : nil
         }
-        XCTFail("pane \(pane) never showed it:\n\(text)")
     }
 
     private func read(_ pane: String) async throws -> String {
@@ -122,18 +116,24 @@ extension HerdlightUITests {
 
     /// A `control` stream from the helper, released at once, until its output passes `done`.
     private func waitForControl(_ terminal: String, _ done: (String) -> Bool) async throws {
-        let helper = try XCTUnwrap(ProcessInfo.processInfo.environment["HL_HELPER"])
-        var request = try URLRequest(url: XCTUnwrap(URL(string: "\(helper)/\(one)/control")))
-        request.httpMethod = "POST"
-        request.httpBody = Data(terminal.utf8)
-        var text = ""
-        for _ in 0 ..< 20 {
-            text = try await String(decoding: URLSession.shared.data(for: request).0, as: UTF8.self)
-            if done(text) {
-                return
-            }
-            try await Task.sleep(for: .milliseconds(200))
+        try await poll("control of \(terminal)", times: 20) { () async throws -> String? in
+            let text = try await String(decoding: Self.post("\(one)/control", Data(terminal.utf8)).data, as: UTF8.self)
+            return done(text) ? text : nil
         }
-        XCTFail("control of \(terminal) printed: \(text)")
+    }
+
+    /// `probe` every 100 ms until it gives a value; the test fails after `times` tries.
+    @discardableResult
+    private func poll<Value>(_ what: String, times: Int = 50,
+                             _ probe: () async throws -> Value?) async throws -> Value
+    {
+        for _ in 0 ..< times {
+            if let value = try await probe() {
+                return value
+            }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        XCTFail("waited for \(what)")
+        throw CancellationError()
     }
 }
