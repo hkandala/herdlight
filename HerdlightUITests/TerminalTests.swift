@@ -86,7 +86,7 @@ extension HerdlightUITests {
         let terminal = element("terminal.\(pane)")
         try await waitForPrompt(pane)
         try await poll("stty size in \(pane) to match its card", times: 30) { () async throws -> String? in
-            let grid = try XCTUnwrap(terminal.value as? String)
+            guard terminal.exists, let grid = terminal.value as? String, !grid.isEmpty else { return nil }
             try await Self.call(one, "pane.send_text", ["pane_id": pane, "text": "clear; stty size\r"])
             try await Task.sleep(for: .milliseconds(200))
             return try await read(pane).split(separator: "\n").contains { $0 == grid } ? grid : nil
