@@ -26,7 +26,9 @@ Build the first, very basic version of the Herdlight app:
    sideways trackpad swipe pages between tabs.
 7. **Session picker.** The sidebar lets the user pick a herdr session
    (`herdr session list`). Default: `default`.
-8. **Liquid Glass** on all chrome (sidebar, tab bar, toolbar, menus). Dark theme.
+8. **Liquid Glass**, dark theme, and the look of the reference screenshots in
+   `resources/inspirations/ui-target/` (frosted window, glass sidebar with filter, session
+   picker with filter, title-bar tabs, frosted pane cards). See phase 3b.
 9. **Clear modules**, easy to extend later (machines, iOS, plugins come after v0).
 10. **Ponytail, strictly.** The simplest thing that works. No speculative code.
 11. **End-to-end tests first.** The app must be testable end to end, by agents too: launch
@@ -77,6 +79,7 @@ JSON. That seam is where remote machines and iOS plug in later.
 | 1 | Scaffold, tooling, CI, e2e harness | [phases/01-scaffold.md](phases/01-scaffold.md) |
 | 2 | HerdrKit control plane | [phases/02-herdrkit.md](phases/02-herdrkit.md) |
 | 3 | App shell: sidebar, tabs, strip, splits | [phases/03-app-shell.md](phases/03-app-shell.md) |
+| 3b | UI style: match the reference look | [phases/03b-ui-style.md](phases/03b-ui-style.md) |
 | 4 | Live terminals | [phases/04-terminals.md](phases/04-terminals.md) |
 | 5 | Swipe across tabs, glass polish | [phases/05-strip-and-glass.md](phases/05-strip-and-glass.md) |
 | 6 | Hardening and v0 wrap-up | [phases/06-hardening.md](phases/06-hardening.md) |

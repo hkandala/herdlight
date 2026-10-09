@@ -20,9 +20,8 @@ Read first: [platform: making the strip work, tab bar and Liquid Glass](../../do
    scroll stops, the selection changes inside `withAnimation` and the marker morphs
    (`glassEffectID`). Unit test the lit-tab math if it has branches.
 4. **Keyboard paths**: ⌘1…⌘9 and ⇧⌘[ / ⇧⌘] switch tabs; also in the menu bar.
-5. **Glass and theme**: window background `#0e0f12` opaque; sidebar and tab bar glass
-   tinted dark; cards opaque; no double glass; cards without focus slightly dimmed.
-   Reduce Motion turns off page and morph animations.
+5. **Glass polish**: the look from phase 3b holds during swipes (no double glass, no
+   flicker of frosted cards). Reduce Motion turns off page and morph animations.
 6. **e2e**: synthesize horizontal scroll gestures (XCUITest `scroll(byDeltaX:deltaY:)` or a
    `CGEvent` scroll with phases) over a terminal card → the next tab becomes selected and
    its panes attach; a vertical scroll over the same card scrolls the terminal and does not

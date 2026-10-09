@@ -28,7 +28,8 @@ mouse and pane size.
    Frames from the stream are written into the surface. Card size ÷ cell size → cols ×
    rows, sent as `terminal.resize` when the size settles; keep the old frame until herdr's
    full frame at the new size arrives. `keybind = clear` so app shortcuts keep working;
-   dark palette.
+   dark palette; transparent or translucent terminal background so the frosted card from
+   phase 3b shows through (text stays crisp and readable).
 5. **Input**: decide the simplest correct path and record it here. Test at least: plain
    typing, Enter, Backspace, Ctrl+C, arrows in a shell and in `less`/`vim`, Tab
    completion, Shift+Enter, paste, IME/dead keys. If libghostty's own key encoding is
