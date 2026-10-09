@@ -44,9 +44,28 @@
             mouse(.down, .right, event)
         }
 
+        override func rightMouseDragged(with event: NSEvent) {
+            super.rightMouseDragged(with: event)
+            mouse(.drag, .right, event)
+        }
+
         override func rightMouseUp(with event: NSEvent) {
             super.rightMouseUp(with: event)
             mouse(.up, .right, event)
+        }
+
+        /// Middle clicks skip libghostty, which could paste its selection as typed input.
+        override func otherMouseDown(with event: NSEvent) {
+            window?.makeFirstResponder(self)
+            mouse(.down, .middle, event)
+        }
+
+        override func otherMouseDragged(with event: NSEvent) {
+            mouse(.drag, .middle, event)
+        }
+
+        override func otherMouseUp(with event: NSEvent) {
+            mouse(.up, .middle, event)
         }
 
         override func scrollWheel(with event: NSEvent) {
@@ -105,33 +124,49 @@
             98: "f7", 100: "f8", 101: "f9", 109: "f10", 103: "f11", 111: "f12",
         ]
 
+        /// The US character of each letter, digit and symbol key (kVK_ANSI_*), so Ctrl chords follow
+        /// the physical key on every layout, as Terminal does.
+        private static let ansi: [UInt16: String] = {
+            var keys = [UInt16: String](uniqueKeysWithValues: zip(
+                0...,
+                "asdfhgzxcv_bqweryt123465=97-80]ou[ip_lj'k;\\,/nm.",
+            )
+            .filter { $0.1 != "_" }
+            .map { (UInt16($0.0), String($0.1)) })
+            keys[49] = "space"
+            keys[50] = "`"
+            return keys
+        }()
+
         /// herdr's name (`pane.send_keys`) for a key whose bytes depend on the app's input modes:
-        /// arrows, Esc, F-keys, any of them with modifiers, Ctrl chords. nil leaves the key to
-        /// libghostty: text, IME, dead keys, Option characters, Cmd, and plain Enter, Tab and
-        /// Backspace, which are the same bytes in every mode and stay off the slower bridge path.
-        /// Home, End, Page Up/Down and Delete have no herdr names; libghostty sends them as xterm does.
+        /// arrows, Esc, F-keys, any of them with modifiers, Ctrl chords; plus macOS line editing
+        /// (Cmd+←/→/⌫, Option+←/→), which `keybind = clear` took from libghostty. nil leaves the
+        /// key to libghostty: text, IME, dead keys, Option characters, other Cmd keys, and plain
+        /// Enter, Tab and Backspace, which are the same bytes in every mode and stay off the slower
+        /// bridge path. Home, End, Page Up/Down and Delete have no herdr names; libghostty sends
+        /// them as xterm does.
         /// ponytail: Option types characters (Ghostty's default); add an option-as-alt setting when asked.
         static func herdrKey(_ event: NSEvent) -> String? {
             let flags = event.modifierFlags
-            guard !flags.contains(.command) else { return nil }
-            let control = flags.contains(.control), option = flags.contains(.option)
-            var shift = flags.contains(.shift)
-            var name = names[event.keyCode]
-            if let key = name {
-                if !control, !option, !shift, ["enter", "tab", "backspace"].contains(key) {
+            let control = flags.contains(.control), option = flags.contains(.option), shift = flags.contains(.shift)
+            let named = names[event.keyCode]
+            if flags.contains(.command) {
+                guard !control, !option else { return nil }
+                return ["left": "ctrl+a", "right": "ctrl+e", "backspace": "ctrl+u"][named ?? ""]
+            }
+            if option, !control, !shift, let word = ["left": "alt+b", "right": "alt+f"][named ?? ""] {
+                return word
+            }
+            let prefix = (control ? "ctrl+" : "") + (option ? "alt+" : "")
+            if let named {
+                if !control, !option, !shift, ["enter", "tab", "backspace"].contains(named) {
                     return nil
                 }
-            } else if control, let character = event.charactersIgnoringModifiers?.lowercased(), character.count == 1 {
-                // A shifted symbol already says shift (ctrl+@); a letter keeps it as a modifier.
-                shift = shift && character.first?.isLetter == true
-                name = switch character {
-                case " ": "space"
-                case "+": "plus"
-                default: character
-                }
+                return prefix + (shift && named != "esc" ? "shift+" : "") + named
             }
-            guard let name else { return nil }
-            return (control ? "ctrl+" : "") + (option ? "alt+" : "") + (shift ? "shift+" : "") + name
+            // Shift is dropped, as xterm does: Ctrl+Shift+C is Ctrl+C.
+            guard control, let character = ansi[event.keyCode] else { return nil }
+            return prefix + character
         }
     }
 
@@ -144,7 +179,6 @@
         func makeNSView(context _: Context) -> NSView {
             let host = NSView()
             let view = terminal.view
-            view.removeFromSuperview()
             view.frame = host.bounds
             view.autoresizingMask = [.width, .height]
             host.addSubview(view)
@@ -160,6 +194,8 @@
 
         var body: some View {
             TerminalHost(terminal: terminal)
+                // A new terminal in the same spot (panes swapped) needs a new host to adopt it.
+                .id(ObjectIdentifier(terminal))
                 .overlay(alignment: .bottom) {
                     switch terminal.state {
                     case .watching:
