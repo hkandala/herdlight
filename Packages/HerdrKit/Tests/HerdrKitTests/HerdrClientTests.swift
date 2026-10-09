@@ -147,6 +147,8 @@ private func started(_ client: HerdrClient, _ exec: FakeExec) async -> AsyncStre
     await #expect(throws: HerdrError.unsupported("herdr 0.9.2 is too old; 0.9.3 or newer needed")) {
         try await old.ping()
     }
+    let candidate = client(FakeExec { _ in #"{"id":"1","result":{"type":"pong","version":"0.9.4-rc1"}}"# })
+    try await candidate.ping()
 }
 
 @Test func `subscription lists lifecycle events and one status entry per agent pane`() throws {
@@ -238,6 +240,22 @@ private func started(_ client: HerdrClient, _ exec: FakeExec) async -> AsyncStre
     var errors = await broken.updates().makeAsyncIterator()
     guard case .error(.failed) = await errors.next() else {
         Issue.record("expected an error")
+        return
+    }
+}
+
+@Test func `a herdr that is too old gets one error and no snapshot`() async {
+    let exec = FakeExec { line in
+        line.contains("ping")
+            ? #"{"id":"1","result":{"type":"pong","version":"0.9.2"}}"#
+            : #"{"id":"1","result":{"snapshot":{"workspaces":[],"tabs":[],"panes":[],"layouts":[],"agents":[]}}}"#
+    }
+    var updates: [Update] = []
+    for await update in await client(exec).updates() {
+        updates.append(update)
+    }
+    guard updates.count == 1, case .error(.unsupported) = updates[0] else {
+        Issue.record("expected only .unsupported, got \(updates)")
         return
     }
 }

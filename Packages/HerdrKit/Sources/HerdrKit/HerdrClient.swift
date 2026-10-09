@@ -32,7 +32,8 @@ public actor HerdrClient {
     nonisolated let maxWait: Duration
 
     private var out: AsyncStream<Update>.Continuation?
-    private var failing = false
+    /// No good snapshot since the start or the last failure.
+    private var stale = true
     private var reading = false
     private var readAgain = false
     private var firstEvent: ContinuousClock.Instant?
@@ -108,8 +109,11 @@ public actor HerdrClient {
     /// Checks that the server answers and is new enough.
     public nonisolated func ping() async throws {
         let pong: Pong = try await call("ping")
-        let have = pong.version.split(separator: ".").map { Int($0) ?? 0 }
-        let need = herdrVersion.split(separator: ".").map { Int($0) ?? 0 }
+        // Leading digits per part, so 0.9.4-rc1 counts as 0.9.4.
+        let numbers = { (version: String) in
+            version.split(separator: ".").map { Int($0.prefix(while: \.isNumber)) ?? 0 }
+        }
+        let have = numbers(pong.version), need = numbers(herdrVersion)
         if have.lexicographicallyPrecedes(need) {
             throw HerdrError.unsupported("herdr \(pong.version) is too old; \(herdrVersion) or newer needed")
         }
@@ -143,11 +147,11 @@ public actor HerdrClient {
 
     /// Snapshots as herdr changes, paced, until the stream is dropped. Call once per client.
     public func updates() -> AsyncStream<Update> {
+        precondition(out == nil, "updates() is called once per client")
         let (stream, out) = AsyncStream<Update>.makeStream()
         self.out = out
         out.onTermination = { _ in Task { await self.stop() } }
         keepalive = Task { await self.keepAlive() }
-        refresh()
         return stream
     }
 
@@ -209,14 +213,14 @@ public actor HerdrClient {
         reading = false
         switch result {
         case let .success(snapshot):
-            failing = false
+            stale = false
             out?.yield(.snapshot(snapshot))
             let agentPanes = snapshot.agents.map(\.paneID).sorted()
             if out != nil, agentPanes != subscribed {
                 subscribe(agentPanes)
             }
         case let .failure(error):
-            failing = true
+            stale = true
             out?.yield(.error(error))
         }
         if readAgain {
@@ -260,26 +264,24 @@ public actor HerdrClient {
         refresh()
     }
 
-    /// Pings every 30 s; the first ping also checks the version.
+    /// Pings now and every 30 s. The first good ping starts the reads, so a herdr that is too old
+    /// never delivers a snapshot; a stale session reads again once it answers.
     private func keepAlive() async {
-        do {
-            try await ping()
-        } catch let HerdrError.unsupported(message) {
-            out?.yield(.error(.unsupported(message)))
-            out?.finish()
-            return
-        } catch {}
-        while await (try? Task.sleep(for: .seconds(30))) != nil {
+        repeat {
             do {
                 try await ping()
-                if failing {
+                if stale {
                     refresh()
                 }
+            } catch let HerdrError.unsupported(message) {
+                out?.yield(.error(.unsupported(message)))
+                out?.finish()
+                return
             } catch {
-                failing = true
+                stale = true
                 out?.yield(.error(error as? HerdrError ?? .failed("\(error)")))
             }
-        }
+        } while await (try? Task.sleep(for: .seconds(30))) != nil
     }
 
     static func subscribeRequest(_ agentPanes: [String]) -> String {
