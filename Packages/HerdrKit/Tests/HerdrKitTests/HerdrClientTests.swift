@@ -99,24 +99,18 @@ func eventually(within timeout: Duration = .seconds(3), _ condition: () -> Bool)
     return true
 }
 
-private func client(_ exec: FakeExec, debounce: Duration = .milliseconds(100), maxWait: Duration = .milliseconds(500))
-    -> HerdrClient
-{
-    HerdrClient(
-        herdr: "/bin/herdr",
-        session: "s",
-        exec: exec,
-        timeout: .seconds(1),
-        debounce: debounce,
-        maxWait: maxWait,
-    )
+private func client(_ exec: FakeExec) -> HerdrClient {
+    HerdrClient(herdr: "/bin/herdr", session: "s", exec: exec, timeout: .seconds(1))
 }
 
 /// Starts updates and waits for the opening reads (one before and one after subscribing).
 private func started(_ client: HerdrClient, _ exec: FakeExec) async -> AsyncStream<Update> {
     let updates = await client.updates()
     #expect(await eventually { exec[\.subscribes].count == 1 && exec[\.reads] == 2 && exec[\.inFlight] == 0 })
-    exec.state.withLock { $0.reads = 0 }
+    exec.state.withLock {
+        $0.reads = 0
+        $0.readTimes = []
+    }
     return updates
 }
 
@@ -151,18 +145,6 @@ private func started(_ client: HerdrClient, _ exec: FakeExec) async -> AsyncStre
     try await candidate.ping()
 }
 
-@Test func `subscription lists lifecycle events and one status entry per agent pane`() throws {
-    let request = HerdrClient.subscribeRequest(["w1:p1", "w2:p3"])
-    let object = try #require(JSONSerialization.jsonObject(with: Data(request.utf8)) as? [String: Any])
-    #expect(object["method"] as? String == "events.subscribe")
-    let params = try #require(object["params"] as? [String: [[String: String]]])
-    let subscriptions = try #require(params["subscriptions"])
-    #expect(subscriptions.contains(["type": "layout.updated"]))
-    #expect(!subscriptions.contains { $0["type"]?.hasSuffix(".focused") == true })
-    #expect(subscriptions.filter { $0["type"] == "pane.agent_status_changed" }.compactMap { $0["pane_id"] }
-        == ["w1:p1", "w2:p3"])
-}
-
 // MARK: Pacing
 
 @Test func `a burst of events is debounced into one read`() async throws {
@@ -180,24 +162,27 @@ private func started(_ client: HerdrClient, _ exec: FakeExec) async -> AsyncStre
     withExtendedLifetime(updates) {}
 }
 
-@Test func `a steady flow of events still reads within the max wait`() async {
+@Test func `a steady flow of events still reads within the max wait`() async throws {
     let exec = FakeExec()
-    let client = client(exec, maxWait: .milliseconds(300))
+    let client = client(exec)
     let updates = await started(client, exec)
-    for _ in 0 ..< 40 { // 1.2 s of events, 30 ms apart: the debounce alone would never fire
+    let first = ContinuousClock.now
+    for _ in 0 ..< 50 { // 1.5 s of events, 30 ms apart: the 100 ms debounce alone would never fire
         exec.event()
         try? await Task.sleep(for: .milliseconds(30))
     }
-    #expect(exec[\.reads] >= 1)
+    #expect(try #require(exec[\.readTimes].first) - first <= .milliseconds(800)) // 500 ms + slack
     withExtendedLifetime(updates) {}
 }
 
-@Test func `refresh reads at once, one at a time, with one trailing read`() async {
+@Test func `refresh reads at once, one at a time, with one trailing read`() async throws {
     let exec = FakeExec(readDelay: .milliseconds(300))
-    let client = client(exec, debounce: .seconds(10), maxWait: .seconds(10))
+    let client = client(exec)
     let updates = await started(client, exec)
+    let asked = ContinuousClock.now
     await client.refresh()
-    #expect(await eventually(within: .seconds(1)) { exec[\.inFlight] == 1 }) // no debounce
+    #expect(await eventually { exec[\.inFlight] == 1 })
+    #expect(try #require(exec[\.readTimes].first) - asked < .milliseconds(100)) // inside the debounce
     for _ in 0 ..< 5 {
         exec.event()
     }

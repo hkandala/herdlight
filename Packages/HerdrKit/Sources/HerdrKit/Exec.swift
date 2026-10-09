@@ -15,20 +15,6 @@ public struct Channel: Sendable {
     public let terminate: @Sendable () -> Void
     /// Waits for the command to end and gives back its exit status and stderr.
     public let exit: @Sendable () async -> (status: Int32, stderr: String)
-
-    public init(
-        lines: AsyncStream<String>,
-        write: @escaping @Sendable (String) -> Void,
-        closeInput: @escaping @Sendable () -> Void,
-        terminate: @escaping @Sendable () -> Void,
-        exit: @escaping @Sendable () async -> (status: Int32, stderr: String),
-    ) {
-        self.lines = lines
-        self.write = write
-        self.closeInput = closeInput
-        self.terminate = terminate
-        self.exit = exit
-    }
 }
 
 #if os(macOS)
@@ -187,26 +173,3 @@ public struct Channel: Sendable {
         }
     }
 #endif
-
-/// Runs body; past the deadline, calls onTimeout (which must make body end) and throws `.timeout`.
-func withTimeout<T: Sendable>(
-    _ duration: Duration,
-    onTimeout: @escaping @Sendable () -> Void,
-    _ body: @escaping @Sendable () async throws -> T,
-) async throws -> T {
-    try await withThrowingTaskGroup(of: T.self) { group in
-        group.addTask(operation: body)
-        group.addTask {
-            try await Task.sleep(for: duration)
-            throw HerdrError.timeout
-        }
-        defer { group.cancelAll() }
-        do {
-            guard let value = try await group.next() else { throw HerdrError.timeout }
-            return value
-        } catch {
-            onTimeout()
-            throw error
-        }
-    }
-}

@@ -39,8 +39,8 @@ public actor HerdrClient {
     nonisolated let herdr: String
     nonisolated let exec: any Exec
     nonisolated let timeout: Duration
-    nonisolated let debounce: Duration
-    nonisolated let maxWait: Duration
+    private let debounce = Duration.milliseconds(100)
+    private let maxWait = Duration.milliseconds(500)
 
     private var out: AsyncStream<Update>.Continuation?
     /// No good snapshot since the start or the last failure.
@@ -54,35 +54,21 @@ public actor HerdrClient {
     /// Agent panes of the open events stream; nil when no stream is open.
     private var subscribed: [String]?
 
-    /// `herdr` is the path from `locate(exec:)`.
-    public init(herdr: String, session: String, exec: any Exec) {
-        self.init(herdr: herdr, session: session, exec: exec, timeout: .seconds(10))
-    }
-
-    init(
-        herdr: String,
-        session: String,
-        exec: any Exec,
-        timeout: Duration,
-        debounce: Duration = .milliseconds(100),
-        maxWait: Duration = .milliseconds(500),
-    ) {
+    /// `herdr` is the path from `locate(exec:)`; `timeout` bounds each request.
+    public init(herdr: String, session: String, exec: any Exec, timeout: Duration = .seconds(10)) {
         self.herdr = herdr
         self.session = session
         self.exec = exec
         self.timeout = timeout
-        self.debounce = debounce
-        self.maxWait = maxWait
     }
 
     /// Finds the herdr binary and checks that it has the API bridge.
     public static func locate(exec: any Exec) async throws -> String {
         let find = #"command -v herdr || for p in "$HOME/.local/bin/herdr" /opt/homebrew/bin/herdr "#
             + #"/usr/local/bin/herdr; do [ -x "$p" ] && echo "$p" && break; done"#
-        guard let path = try await firstLine(exec, ["sh", "-c", find]), !path.isEmpty else {
-            throw HerdrError.notFound
-        }
-        guard try await firstLine(exec, [path, "--session", "default", "remote-api-bridge", "--check"])
+        let path = try await output(exec, ["sh", "-c", find])
+        guard !path.isEmpty else { throw HerdrError.notFound }
+        guard try await output(exec, [path, "--session", "default", "remote-api-bridge", "--check"])
             == "herdr-api-bridge-v1"
         else {
             throw HerdrError.unsupported("\(path) has no remote-api-bridge; herdr \(herdrVersion) or newer needed")
@@ -135,12 +121,8 @@ public actor HerdrClient {
 
     /// Every session herdr knows on this machine, running or not.
     public nonisolated func sessions() async throws -> [Session] {
-        let channel = try await exec.run([herdr, "--session", session, "session", "list", "--json"])
-        channel.closeInput()
-        let output = try await withTimeout(timeout, onTimeout: channel.terminate) {
-            await channel.lines.reduce("") { $0 + $1 }
-        }
-        return try decode(SessionList.self, output).sessions
+        let list = try await Self.output(exec, [herdr, "--session", session, "session", "list", "--json"])
+        return try decode(SessionList.self, list).sessions
     }
 
     /// One `session.snapshot`, with every tab's split tree.
@@ -194,16 +176,12 @@ public actor HerdrClient {
         let first = firstEvent ?? now
         firstEvent = first
         timer?.cancel()
-        timer = Task { [deadline = min(now + debounce, first + maxWait)] in
-            do { try await Task.sleep(until: deadline) } catch { return }
-            self.timerFired()
-        }
-    }
-
-    private func timerFired() {
-        // A timer cancelled while it waited for the actor must not read.
-        if !Task.isCancelled {
-            refresh()
+        timer = Task { [self, deadline = min(now + debounce, first + maxWait)] in
+            try? await Task.sleep(until: deadline)
+            // Also covers a timer cancelled while it waited for the actor.
+            if !Task.isCancelled {
+                refresh()
+            }
         }
     }
 
@@ -214,32 +192,24 @@ public actor HerdrClient {
             return
         }
         reading = true
-        Task {
+        Task { [self] in
             do {
-                try await self.finished(.success(self.snapshot()))
+                let snapshot = try await snapshot()
+                stale = false
+                out?.yield(.snapshot(snapshot))
+                let agentPanes = snapshot.agents.map(\.paneID).sorted()
+                if out != nil, agentPanes != subscribed {
+                    subscribe(agentPanes)
+                }
             } catch {
-                self.finished(.failure(error as? HerdrError ?? .failed("\(error)")))
+                stale = true
+                out?.yield(.error(error as? HerdrError ?? .failed("\(error)")))
             }
-        }
-    }
-
-    private func finished(_ result: Result<Snapshot, HerdrError>) {
-        reading = false
-        switch result {
-        case let .success(snapshot):
-            stale = false
-            out?.yield(.snapshot(snapshot))
-            let agentPanes = snapshot.agents.map(\.paneID).sorted()
-            if out != nil, agentPanes != subscribed {
-                subscribe(agentPanes)
+            reading = false
+            if readAgain {
+                readAgain = false
+                read()
             }
-        case let .failure(error):
-            stale = true
-            out?.yield(.error(error))
-        }
-        if readAgain {
-            readAgain = false
-            read()
         }
     }
 
@@ -247,8 +217,23 @@ public actor HerdrClient {
     private func subscribe(_ agentPanes: [String]) {
         events?.cancel()
         subscribed = agentPanes
-        let request = Self.subscribeRequest(agentPanes)
-        events = Task {
+        let types = [
+            "workspace.created", "workspace.updated", "workspace.metadata_updated", "workspace.renamed",
+            "workspace.moved", "workspace.reordered", "workspace.closed",
+            "tab.created", "tab.closed", "tab.renamed", "tab.moved",
+            "pane.created", "pane.closed", "pane.updated", "pane.moved", "pane.exited", "pane.agent_detected",
+            "layout.updated",
+        ]
+        // No *.focused: the app ignores herdr's focus. Each agent entry makes herdr poll that pane
+        // every 100 ms, so plain shells are left out.
+        let subscriptions = types.map { ["type": $0] }
+            + agentPanes.map { ["type": "pane.agent_status_changed", "pane_id": $0] }
+        let params = ["subscriptions": subscriptions]
+        // Only strings: serializing cannot fail.
+        let data = (try? JSONSerialization.data(withJSONObject: ["id": "events", "method": "events.subscribe",
+                                                                 "params": params])) ?? Data()
+        let request = String(decoding: data, as: UTF8.self)
+        events = Task { [self] in
             do {
                 let channel = try await exec.run(bridge)
                 channel.write(request)
@@ -260,23 +245,19 @@ public actor HerdrClient {
                     }
                     // The `result` line is subscription_started: catch up on what came before it.
                     if message?.result != nil {
-                        self.refresh()
+                        refresh()
                     } else {
-                        self.changed()
+                        changed()
                     }
                 }
                 channel.terminate()
             } catch {}
             // The stream ended on its own: wait a little, then a fresh snapshot opens it again.
-            guard await (try? Task.sleep(for: .seconds(1))) != nil else { return }
-            self.eventsEnded()
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            subscribed = nil
+            refresh()
         }
-    }
-
-    private func eventsEnded() {
-        guard !Task.isCancelled else { return }
-        subscribed = nil
-        refresh()
     }
 
     /// Pings now and every 30 s. The first good ping starts the reads, so a herdr that is too old
@@ -299,34 +280,17 @@ public actor HerdrClient {
         } while await (try? Task.sleep(for: .seconds(30))) != nil
     }
 
-    static func subscribeRequest(_ agentPanes: [String]) -> String {
-        let types = [
-            "workspace.created", "workspace.updated", "workspace.metadata_updated", "workspace.renamed",
-            "workspace.moved", "workspace.reordered", "workspace.closed",
-            "tab.created", "tab.closed", "tab.renamed", "tab.moved",
-            "pane.created", "pane.closed", "pane.updated", "pane.moved", "pane.exited", "pane.agent_detected",
-            "layout.updated",
-        ]
-        // Each agent entry makes herdr poll that pane every 100 ms, so plain shells are left out.
-        let subscriptions = types.map { ["type": $0] }
-            + agentPanes.map { ["type": "pane.agent_status_changed", "pane_id": $0] }
-        let request: [String: Any] = ["id": "events", "method": "events.subscribe",
-                                      "params": ["subscriptions": subscriptions]]
-        // Only strings: serializing cannot fail.
-        let data = (try? JSONSerialization.data(withJSONObject: request, options: .sortedKeys)) ?? Data()
-        return String(decoding: data, as: UTF8.self)
-    }
-
     private nonisolated var bridge: [String] {
         [herdr, "--session", session, "remote-api-bridge"]
     }
 
-    private static func firstLine(_ exec: any Exec, _ argv: [String]) async throws -> String? {
+    /// A command's whole stdout, trimmed.
+    private static func output(_ exec: any Exec, _ argv: [String]) async throws -> String {
         let channel = try await exec.run(argv)
         channel.closeInput()
         return try await withTimeout(.seconds(10), onTimeout: channel.terminate) {
-            await channel.lines.first { _ in true }
-        }
+            await channel.lines.reduce("") { $0 + $1 + "\n" }
+        }.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -338,12 +302,12 @@ private func decode<T: Decodable>(_ type: T.Type, _ text: String) throws -> T {
     }
 }
 
-private struct Reply<Result: Decodable>: Decodable {
+struct Reply<Result: Decodable>: Decodable {
     let result: Result?
     let error: ReplyError?
 }
 
-private struct ReplyError: Decodable {
+struct ReplyError: Decodable {
     let code: String
     let message: String
 }
@@ -362,11 +326,34 @@ private struct SessionList: Decodable {
     let sessions: [Session]
 }
 
-private struct SnapshotResult: Decodable {
+struct SnapshotResult: Decodable {
     let snapshot: Snapshot
 }
 
-private struct ExportResult: Decodable {
+struct ExportResult: Decodable {
     struct Layout: Decodable { let root: SplitNode }
     let layout: Layout
+}
+
+/// Runs body; past the deadline, calls onTimeout (which must make body end) and throws `.timeout`.
+func withTimeout<T: Sendable>(
+    _ duration: Duration,
+    onTimeout: @escaping @Sendable () -> Void,
+    _ body: @escaping @Sendable () async throws -> T,
+) async throws -> T {
+    try await withThrowingTaskGroup(of: T.self) { group in
+        group.addTask(operation: body)
+        group.addTask {
+            try await Task.sleep(for: duration)
+            throw HerdrError.timeout
+        }
+        defer { group.cancelAll() }
+        do {
+            guard let value = try await group.next() else { throw HerdrError.timeout }
+            return value
+        } catch {
+            onTimeout()
+            throw error
+        }
+    }
 }
