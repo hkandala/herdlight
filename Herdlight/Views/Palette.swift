@@ -8,6 +8,8 @@ struct Palette: View {
     @Binding var open: Bool
     @State private var filter = ""
     @State private var index = 0
+    /// The rows' own height: the list is as tall as its rows, up to 360 pt, then scrolls.
+    @State private var rowsHeight: CGFloat = 0
 
     private struct Item: Identifiable {
         let id: String
@@ -51,10 +53,10 @@ struct Palette: View {
                             Text("No matches").foregroundStyle(.secondary).padding(8)
                         }
                     }
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { rowsHeight = $0 }
                 }
                 .scrollIndicators(.never)
-                .frame(maxHeight: 360)
-                .fixedSize(horizontal: false, vertical: true)
+                .frame(height: min(rowsHeight, 360))
                 .onChange(of: index) {
                     if items.indices.contains(index) {
                         proxy.scrollTo(items[index].id)

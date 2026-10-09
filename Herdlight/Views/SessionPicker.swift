@@ -29,6 +29,8 @@ struct SessionList: View {
     @Binding var open: Bool
     @State private var filter = ""
     @State private var showStopped = false
+    /// The rows' own height: the list is as tall as its rows, up to about ten of them, then scrolls.
+    @State private var rowsHeight: CGFloat = 0
 
     var body: some View {
         // ⌘1…⌘9 go to the first nine running sessions, numbered before filtering so each keeps its number.
@@ -83,11 +85,10 @@ struct SessionList: View {
                         .accessibilityAddTraits(current ? .isSelected : [])
                     }
                 }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { rowsHeight = $0 }
             }
             .scrollIndicators(.never)
-            // As tall as the rows, up to about ten of them.
-            .frame(maxHeight: 320)
-            .fixedSize(horizontal: false, vertical: true)
+            .frame(height: min(rowsHeight, 320))
             Divider().padding(.horizontal, 4).padding(.vertical, 4)
             // ⇧⌘N is the menu's; the row only shows it.
             Button { create(typedNew ?? store.sessions.newName) } label: {
@@ -108,9 +109,12 @@ struct SessionList: View {
         .task { await store.loadSessions() }
     }
 
-    /// The rows: running sessions (stopped ones on request) that pass the filter.
+    /// The rows: running sessions, then stopped ones on request, that pass the filter.
     private var shown: [Session] {
-        store.sessions.filter { ($0.running || showStopped || $0.name == store.session) && $0.name.matches(filter) }
+        let sessions = store.sessions.filter {
+            ($0.running || showStopped || $0.name == store.session) && $0.name.matches(filter)
+        }
+        return sessions.filter(\.running) + sessions.filter { !$0.running }
     }
 
     /// The row Enter picks, lit while a filter is typed.
