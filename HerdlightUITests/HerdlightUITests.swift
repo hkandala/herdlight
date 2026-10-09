@@ -164,7 +164,7 @@ final class HerdlightUITests: XCTestCase {
 
     func testSplitButtonAddsAPane() async throws {
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
-        let created = try await Self.call(one, "tab.create", ["workspace_id": "w2", "label": "split", "cwd": "/tmp",
+        let created = try await Self.call(one, "tab.create", ["workspace_id": "w1", "label": "split", "cwd": "/tmp",
                                                               "focus": false])
         let tab = try XCTUnwrap((created["tab"] as? [String: Any])?["tab_id"] as? String)
         addTeardownBlock { [one] in _ = try? await Self.call(one, "tab.close", ["tab_id": tab]) }
@@ -172,9 +172,8 @@ final class HerdlightUITests: XCTestCase {
         let row = element("tab.\(tab)")
         XCTAssertTrue(row.waitForExistence(timeout: 2))
         row.click()
-        let card = element("pane.\(pane)")
-        XCTAssertTrue(card.waitForExistence(timeout: 2))
-        card.hover()
+        XCTAssertTrue(element("page.\(tab)").wait(for: \.isHittable, toEqual: true, timeout: 3))
+        hoverHeader(pane)
         element("pane.\(pane).split-right").click()
 
         // The app draws a second card to the right of the first, and herdr has two panes in the tab.

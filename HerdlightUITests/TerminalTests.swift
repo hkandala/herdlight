@@ -156,7 +156,7 @@ extension HerdlightUITests {
     // MARK: Helpers
 
     /// `stty size` in the pane prints the grid its card shows (the terminal's accessibility value).
-    private func expectPTYSize(_ pane: String) async throws {
+    func expectPTYSize(_ pane: String) async throws {
         let terminal = element("terminal.\(pane)")
         try await waitForPrompt(pane)
         try await poll("stty size in \(pane) to match its card", times: 30) { () async throws -> String? in
@@ -167,7 +167,7 @@ extension HerdlightUITests {
         }
     }
 
-    private func waitForPrompt(_ pane: String) async throws {
+    func waitForPrompt(_ pane: String) async throws {
         try await waitFor(pane) { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
@@ -203,8 +203,8 @@ extension HerdlightUITests {
 
     /// `probe` every 100 ms until it gives a value; the test fails after `times` tries.
     @discardableResult
-    private func poll<Value>(_ what: String, times: Int = 50,
-                             _ probe: () async throws -> Value?) async throws -> Value
+    func poll<Value>(_ what: String, times: Int = 50,
+                     _ probe: () async throws -> Value?) async throws -> Value
     {
         for _ in 0 ..< times {
             if let value = try await probe() {
