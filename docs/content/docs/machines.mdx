@@ -118,11 +118,12 @@ description: "What a machine is, macOS and iOS connections, the channel budget a
    ([Finding herdr on a machine](/docs/talking-to-herdr#finding-herdr-on-a-machine)).
    If herdr is missing, show the install command.
 2. `ping`. If the server is not running:
-   - **This Mac:** the app does not start herdr. It shows the command to run
-     in a terminal (`herdr server`, or open herdr), with a Copy button, and
-     polls `ping`. A server that the app started would make the app the
-     "responsible process" for every agent. macOS privacy prompts would then
-     name Herdlight, and the server would share the app's process group.
+   - **This Mac:** a **Start** button, next to the command to run in a
+     terminal. The app starts the server as a one-shot launchd job (D47), so
+     launchd, not the app, is its parent and "responsible process": macOS
+     privacy prompts never name Herdlight, the server has its own process
+     group, and it outlives the app. Picking a stopped session or making a new
+     one starts it the same way; a new server gets one workspace in `$HOME`.
    - **A remote machine:** a **Start herdr** button runs
      `sh -c 'nohup <herdr> --session S server </dev/null >/dev/null 2>&1 &'`
      over SSH and polls `ping` for up to 5 s.

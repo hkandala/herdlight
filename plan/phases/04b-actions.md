@@ -50,3 +50,61 @@ app's own), decisions D11, D39, D41.
 
 - e2e green locally and in CI; screenshots of the confirmation dialogs, zoom, palette.
 - Decisions recorded (D39 amendment, palette shortcut).
+
+## Findings
+
+- **Writes.** One `HostStore.write`: the herdr call, then `refresh()`; a failure is the 4 s notice.
+  `workspace.create` and `tab.create` return the new tab (`Created`); the store selects it in the
+  first snapshot that has it, never by hand. Closing a tab's last pane closes the tab, and the
+  last tab closes the workspace (herdr 0.9.3); the snapshot shows it.
+- **Close pane (D41).** `pane.process_info` lists the foreground process group. Only the shell
+  there = close at once; anything else asks "Close ‹title›? ‹program› is running…". While a new
+  shell starts, its rc files (e.g. `brew shellenv`) are in the foreground too, so a close right
+  after a split may ask once. A failed check asks. Native `.confirmationDialog` (a sheet with
+  Cancel), one per window, driven by `HostStore.closing`.
+- **Zoom (D11).** `HostStore.zoomedPaneID`, in memory. Each split above the zoomed card swaps its
+  `AnyLayout` to a `ZStackLayout`: the zoomed side at full size, the other side hidden at the size
+  it has without zoom (`SplitLayout.natural`, so a hidden card deeper in the tree does not grow
+  with its zoomed parent). Hidden cards leave the accessibility tree through an environment
+  value; `accessibilityHidden` on the hidden side did not reach a card nested in a split. The views keep their identity, so no terminal view changes host; the zoomed PTY resizes
+  to the page and the hidden ones keep theirs (checked with `stty size`: 58×89 → 58×181 → 58×89,
+  the neighbor 58×89 throughout; the e2e test checks a nested neighbor too). A first version drew the zoomed card in its own branch
+  (`if zoomed … else SplitLayout`): SwiftUI kept the split branch's hosts alive, so on restore
+  the terminal view stayed in the zoom branch's host and the split card came back blank at the
+  zoomed PTY size. The zoomed card gets the keyboard. Header button, a double-click on the
+  header (a background, so the header buttons keep their clicks), ⇧⌘↩ (View ▸ Zoom Pane). Esc
+  is not used.
+- **Menu commands** read the window's store through `focusedSceneValue(\.store)`, so ⌘T, ⇧⌘N,
+  ⌘W and ⇧⌘↩ work while a terminal has the keyboard. File ▸ Close is replaced: ⌘W closes the
+  keyboard card (herdr's focused pane of the tab when no terminal has the keyboard), ⇧⌘W the
+  window (design keyboard table). ⌘K is on the title-bar ⌘ button.
+- **Starting a server (D47, amends D39).** `launchctl submit` keeps its job alive: after
+  `herdr session stop` launchd restarted the server within 10 s (`runs = 2`). A plist loaded
+  with `launchctl bootstrap gui/<uid>` (`RunAtLoad`, no `KeepAlive`) works: the server's parent
+  is launchd (ppid 1), it has its own process group, `responsibility_get_pid_responsible_for_pid`
+  gives the server itself (pane shells give the server; a shell from a terminal gives the
+  terminal app), and after `herdr session stop` the job stays loaded with `state = not running`.
+  A label loads once, so the app boots out an old job of that label first. A launchd server
+  gets launchd's small environment; herdr's panes still run login shells (PATH from the
+  profile) and herdr sets `LANG=C.UTF-8`. `scripts/herdr-session.sh down` boots the job out.
+- **Session picker.** Running sessions only; "Show stopped" (a checkbox in the "This Mac"
+  header) adds stopped ones, dimmed, and picking one starts it. Enter picks the first match;
+  with no match it creates the typed name. The New Session row reads "New Session “name”" when
+  the typed text is a valid new name (herdr: ASCII letters, digits, `.`, `_`, `-`), else it makes
+  a two-word name (`lunar-ridge`). A new server gets one workspace in `$HOME`. The "not running"
+  page has a **Start** button.
+- **Palette (D48).** ⌘K or the ⌘ button: tabs, then workspaces, then the other running sessions;
+  filter on the title and a tab's workspace, arrows, Enter, Esc, click outside.
+  `onKeyPress` on the filter field gets the arrows. Rows share `MenuRow` with the session list.
+- **Sidebar.** The bottom bar's first icon is now New Workspace (`workspace.create {cwd: $HOME}`);
+  New Session lives in the picker and ⇧⌘N.
+- **Strip bug seen (not fixed here, phase 5's area):** picking a tab of another workspace in the
+  sidebar selects it, but the new strip opens at the workspace's first page (`scrollPosition` on
+  a strip made with `.id(workspace.id)`). The old split test only passed because XCUITest's
+  `hover()` on an off-screen card scrolled it into view. Tests that click a new tab make it in
+  the selected workspace.
+- **e2e.** Hover a card's header, not its center: XCUITest moves the pointer straight into the
+  terminal view, which takes the mouse moves, so SwiftUI never sees the hover. A container's
+  `accessibilityIdentifier` is copied onto its children (the palette's field lost its id). The
+  close dialogs are `app.sheets`. `scripts/e2e.sh` adds a stopped session (for "Show stopped")
+  and the name New Session makes; both are removed after.
