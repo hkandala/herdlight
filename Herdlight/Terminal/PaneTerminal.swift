@@ -45,6 +45,7 @@
         @ObservationIgnored private var draining: Task<Void, Never>?
         @ObservationIgnored private var tasks: [Task<Void, Never>] = []
         @ObservationIgnored private var run: Task<Void, Never>?
+        @ObservationIgnored private var resizing: Task<Void, Never>?
         @ObservationIgnored private var stream: TerminalStream?
         @ObservationIgnored private var observing = false
         @ObservationIgnored private var shown = false
@@ -78,8 +79,7 @@
             session.receive("\u{1B}[?2004h")
             view.terminal = self
             view.controller = Self.controller
-            // Sizes reach herdr at most every 100 ms while a window or divider moves.
-            view.configuration = TerminalSurfaceOptions(backend: .inMemory(session), resizeThrottleMilliseconds: 100)
+            view.configuration = TerminalSurfaceOptions(backend: .inMemory(session))
             tasks = [
                 Task { for await text in texts {
                     enqueue(.text(text))
@@ -203,12 +203,18 @@
         }
 
         private func closed(_ reason: TerminalStream.Closed, observe: Bool) {
+            // No frame yet: herdr refused the stream at open.
+            let refused = state == .idle
             state = .idle
             switch reason {
             case .held:
-                // Watch, and never take back by itself, unless the user typed or clicked meanwhile
-                // (design D8). A new task: `open` waits for this run to end.
-                let takeover = !pending.isEmpty
+                // Watch. Take over only if the user typed while a refused control opened; a stream
+                // taken over mid-session never takes back by itself (design D8). A new task: `open`
+                // waits for this run to end.
+                let takeover = refused && !pending.isEmpty
+                if !takeover {
+                    pending = []
+                }
                 Task { open(observe: !takeover, takeover: takeover) }
             case .liveUpdate:
                 // ponytail: one retry after 1 s; the design also pings and checks the version.
@@ -227,7 +233,8 @@
 
         // MARK: Size and input
 
-        /// libghostty's grid for the card's size.
+        /// libghostty's grid for the card's size. herdr gets it once the layout settles, 100 ms after
+        /// the last change, so a window drag does not make the app repaint at every step.
         private func resized(_ size: InMemoryTerminalViewport) {
             let first = grid == nil
             grid = size
@@ -235,12 +242,19 @@
                 if shown {
                     open()
                 }
-            } else if state == .watching {
-                // observe cannot resize: watch again at the new size.
-                open(observe: true)
-            } else if state == .live {
-                stream?.resize(cols: Int(size.columns), rows: Int(size.rows),
-                               cellWidth: Int(size.cellWidthPixels), cellHeight: Int(size.cellHeightPixels))
+                return
+            }
+            resizing?.cancel()
+            resizing = Task {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled, let grid else { return }
+                if state == .watching {
+                    // observe cannot resize: watch again at the new size.
+                    open(observe: true)
+                } else if state == .live {
+                    stream?.resize(cols: Int(grid.columns), rows: Int(grid.rows),
+                                   cellWidth: Int(grid.cellWidthPixels), cellHeight: Int(grid.cellHeightPixels))
+                }
             }
         }
 
@@ -248,6 +262,8 @@
         /// meanwhile goes as one call. ponytail: keys (main thread) and libghostty's text (its IO
         /// thread) are ordered only as they arrive here, microseconds apart; enough for typing.
         private func enqueue(_ input: Input) {
+            // A failed card shows why; typing there goes nowhere.
+            guard !state.isFailed else { return }
             switch (pending.last, input) {
             case let (.keys(old)?, .keys(new)):
                 pending[pending.count - 1] = .keys(old + new)
