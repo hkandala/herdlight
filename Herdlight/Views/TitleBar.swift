@@ -2,8 +2,16 @@ import SwiftUI
 
 /// The row in the title bar line: sidebar toggle, session picker, the tabs while the sidebar is hidden, ⌘ and +.
 struct TitleBar: View {
-    @Binding var store: HostStore
+    /// AppKit owns the traffic lights; the row starts after them.
+    static let lights: CGFloat = 78
+    /// The compact toolbar's height, so the row centers on the traffic lights.
+    static let height: CGFloat = 40
+    /// Where the session picker button starts: after the lights and the sidebar toggle.
+    static let picker = lights + 32
+
+    let store: HostStore
     @Binding var sidebar: Bool
+    @Binding var picking: Bool
 
     var body: some View {
         HStack(spacing: 4) {
@@ -12,7 +20,7 @@ struct TitleBar: View {
             }
             .keyboardShortcut("s", modifiers: [.command, .control])
             .accessibilityIdentifier("titlebar.sidebar")
-            SessionPicker(store: $store)
+            SessionPicker(store: store, open: $picking)
             if !sidebar, store.isLive, let workspace = store.selectedWorkspace {
                 TabBar(workspace: workspace)
             }
@@ -22,10 +30,9 @@ struct TitleBar: View {
             // ponytail: no-op until new tabs
             IconButton(symbol: "plus", help: "New Tab") {}
         }
-        // AppKit owns the traffic lights; this clears them.
-        .padding(.leading, 78)
+        .padding(.leading, Self.lights)
         .padding(.trailing, gap)
-        .frame(height: 40)
+        .frame(height: Self.height)
         .contentShape(.rect)
         #if os(macOS)
             // The title bar is hidden, so the row's empty space moves the window.
@@ -64,13 +71,12 @@ private struct TabBar: View {
             HStack(spacing: 8) {
                 IconTile()
                 Text(tab.label).lineLimit(1)
-                Spacer(minLength: 0)
                 StatusGlyph(status: tab.status)
             }
             .font(.system(size: 13))
             .padding(.leading, 5)
             .padding(.trailing, 12)
-            .frame(width: 200, height: 30)
+            .frame(minWidth: 120, maxWidth: 220, minHeight: 30, alignment: .leading)
         }
         .buttonStyle(ChromeStyle(radius: 15))
         .glassEffect(selected ? .regular.interactive() : .identity, in: .capsule)
