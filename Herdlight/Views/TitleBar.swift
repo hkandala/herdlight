@@ -16,6 +16,7 @@ struct TitleBar: View {
     let fullScreen: Bool
     @Binding var sidebar: Bool
     @Binding var picking: Bool
+    @Binding var palette: Bool
 
     var body: some View {
         HStack(spacing: 4) {
@@ -26,13 +27,19 @@ struct TitleBar: View {
             .accessibilityIdentifier("titlebar.sidebar")
             SessionPicker(store: store, open: $picking)
             if !sidebar, store.state == .live, let workspace = store.selectedWorkspace {
-                TabBar(workspace: workspace, page: store.page)
+                TabBar(workspace: workspace, page: store.page, store: store)
             }
             Spacer(minLength: 0)
-            // ponytail: no-op until the command palette
-            IconButton(symbol: "command", help: "Commands") {}
-            // ponytail: no-op until new tabs
-            IconButton(symbol: "plus", help: "New Tab") {}
+            IconButton(symbol: "command", help: "Commands") {
+                picking = false
+                palette.toggle()
+            }
+            .keyboardShortcut("k")
+            .accessibilityIdentifier("titlebar.palette")
+            // ⌘T is the menu's.
+            IconButton(symbol: "plus", help: "New Tab") { Task { await store.newTab() } }
+                .disabled(store.selectedWorkspace == nil || store.writing)
+                .accessibilityIdentifier("titlebar.new-tab")
         }
         .padding(.leading, Self.inset(fullScreen: fullScreen))
         .padding(.trailing, gap)
@@ -50,6 +57,7 @@ struct TitleBar: View {
 private struct TabBar: View {
     let workspace: HostStore.Workspace
     let page: Double
+    let store: HostStore
     @State private var hovered: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Each capsule's frame in the bar, for the marker.
@@ -69,7 +77,7 @@ private struct TabBar: View {
                                 || [tab.id, tabs[index - 1].id].contains(hovered)
                             Divider().frame(height: 16).opacity(quiet ? 0 : 1)
                         }
-                        TabCapsule(tab: tab, workspace: workspace, lit: lit.contains(index))
+                        TabCapsule(tab: tab, workspace: workspace, lit: lit.contains(index), store: store)
                             .onHover { hovered = $0 ? tab.id : hovered == tab.id ? nil : hovered }
                             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("tabs")) } action: {
                                 frames[tab.id] = $0
@@ -116,6 +124,8 @@ private struct TabCapsule: View {
     let workspace: HostStore.Workspace
     /// Its page is in view.
     let lit: Bool
+    let store: HostStore
+    @State private var hovering = false
 
     var body: some View {
         let selected = tab.id == workspace.selectedTabID
@@ -124,7 +134,12 @@ private struct TabCapsule: View {
             HStack(spacing: 8) {
                 IconTile()
                 Text(tab.label).lineLimit(1).foregroundStyle(lit ? .primary : .secondary)
-                StatusGlyph(status: tab.status)
+                // The one status slot: × while hovered (design D42).
+                if hovering {
+                    Color.clear.frame(width: 16, height: 1)
+                } else {
+                    StatusGlyph(status: tab.status)
+                }
             }
             // As in the reference: the tile sits in from the capsule's round end, more than above and below it.
             .padding(.leading, 8)
@@ -136,5 +151,12 @@ private struct TabCapsule: View {
         .accessibilityIdentifier("tab.\(tab.id)")
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityValue(lit ? "in view" : "")
+        .accessibilityAction(named: "Close Tab") { store.closing = .tab(tab.id) }
+        .overlay(alignment: .trailing) {
+            if hovering {
+                CloseTabButton(tab: tab, store: store).padding(.trailing, 6)
+            }
+        }
+        .onHover { hovering = $0 }
     }
 }
