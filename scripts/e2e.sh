@@ -14,14 +14,16 @@ two=hl-e2e-$id-b
 three=hl-e2e-$id-c
 # Made by the app's New Session.
 four=hl-e2e-$id-d
+# Stopped and started again by a test.
+five=hl-e2e-$id-e
 # A session joins the cleanup only once it is up: a failed `up` must not remove a session it did not make.
 made=("$four")
 trap 'for s in "${made[@]}"; do scripts/herdr-session.sh down "$s" || true; done' EXIT
-for s in "$one" "$two" "$three"; do
+for s in "$one" "$two" "$three" "$five"; do
     scripts/herdr-session.sh up "$s"
     made+=("$s")
 done
 herdr session stop "$three" >/dev/null
 
 # The sandboxed test runner cannot reach herdr; the helper serves it on localhost while the tests run.
-python3 scripts/e2e-helper.py "$one" "$two" "$three" "$four" -- "$@"
+python3 scripts/e2e-helper.py "$one" "$two" "$three" "$four" "$five" -- "$@"

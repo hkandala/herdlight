@@ -153,6 +153,26 @@ extension HerdlightUITests {
         XCTAssertFalse(other.contains("hl-43"))
     }
 
+    func testTakenOverCardOffersTakeBack() async throws {
+        XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
+        let (tab, pane) = try await newTab("taken")
+        element("tab.\(tab)").click()
+        try await waitForPrompt(pane)
+        let terminal = try await terminalID(pane)
+        try await waitForControl(terminal) { $0.contains("already has an attached client") }
+
+        // Another client takes the pane (and lets go at once): the card watches and offers it back.
+        try await Self.post("\(one)/takeover", Data(terminal.utf8))
+        let takeBack = element("pane.\(pane).take-back")
+        XCTAssertTrue(takeBack.waitForExistence(timeout: 3))
+        keepScreenshot("in use elsewhere")
+        takeBack.click()
+        XCTAssertTrue(takeBack.waitForNonExistence(timeout: 3))
+        try await waitForControl(terminal) { $0.contains("already has an attached client") }
+        element("terminal.\(pane)").click()
+        try await typeAndRead(pane)
+    }
+
     // MARK: Helpers
 
     /// `stty size` in the pane prints the grid its card shows (the terminal's accessibility value).
@@ -188,7 +208,7 @@ extension HerdlightUITests {
         return try XCTUnwrap((pane?["scroll"] as? [String: Any])?["viewport_rows"] as? Int)
     }
 
-    private func terminalID(_ pane: String) async throws -> String {
+    func terminalID(_ pane: String) async throws -> String {
         let pane = try await Self.call(one, "pane.get", ["pane_id": pane])["pane"] as? [String: Any]
         return try XCTUnwrap(pane?["terminal_id"] as? String)
     }

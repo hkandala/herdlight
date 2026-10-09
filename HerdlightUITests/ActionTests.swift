@@ -305,7 +305,7 @@ extension HerdlightUITests {
 
     /// A new tab in w2 (closed after the test), shown in the sidebar: its id and its pane's. In another workspace
     /// than the selected one, so a click on it also crosses workspaces.
-    private func newTab(_ label: String, closeAfter: Bool = true) async throws -> (tab: String, pane: String) {
+    func newTab(_ label: String, closeAfter: Bool = true) async throws -> (tab: String, pane: String) {
         let created = try await Self.call(one, "tab.create", ["workspace_id": "w2", "label": label, "cwd": "/tmp",
                                                               "focus": false])
         let tab = try XCTUnwrap((created["tab"] as? [String: Any])?["tab_id"] as? String)
@@ -318,7 +318,7 @@ extension HerdlightUITests {
     }
 
     /// Types a command where the keyboard is and waits for its output in the pane.
-    private func typeAndRead(_ pane: String) async throws {
+    func typeAndRead(_ pane: String) async throws {
         app.typeText("echo hl-keys-$((6*7))")
         app.typeKey(.return, modifierFlags: [])
         try await poll("typed keys in \(pane)") { () async throws -> Bool? in
