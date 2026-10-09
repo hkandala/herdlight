@@ -33,8 +33,8 @@ struct SessionList: View {
 
     var body: some View {
         // ⌘1…⌘9 go to the first nine running sessions, numbered before filtering so each keeps its number.
-        let numbers = Dictionary(uniqueKeysWithValues: store.sessions.filter(\.running).prefix(9).enumerated()
-            .map { ($1.name, $0 + 1) })
+        let numbers = Dictionary(store.sessions.filter(\.running).prefix(9).enumerated().map { ($1.name, $0 + 1) },
+                                 uniquingKeysWith: { first, _ in first })
         let sessions = store.sessions.filter { $0.name.matches(filter) }
         VStack(alignment: .leading, spacing: 2) {
             FilterField(prompt: "Filter or create…", text: $filter, identifier: "sessions.filter", autofocus: true)
