@@ -47,7 +47,7 @@ description: "One codebase, dependencies, the strip, the tab bar and tests"
    view, and a container removes it only if it still owns it. Stream lifetime
    follows the HostStore, never whether a view is in a window. Off-screen
    surfaces stop drawing but keep reading their stream (herdr drops a watcher
-   that reads nothing for 30 s). At most about 24 live terminal surfaces, 6 web pages (2 on
+   that reads nothing for 30 s). At most about 24 streaming terminals, 6 web pages (2 on
    iPhone) and 12 plugin VMs, least recently used first out; an evicted card
    keeps its last image. Web page message handlers sit behind a weak proxy.
 3. **libghostty's default key bindings eat the app's shortcuts.** Every
@@ -77,8 +77,9 @@ If [spike S1](/docs/build-order#s1-strip) fails, the strip becomes one AppKit or
   (capsule tabs, the status slot order, the static working glyph, the window
   title). gorex is not a reference for the glass API: it draws everything with
   its own Metal renderer and uses no Apple glass, so spike S2 stays open.
-- Glass only on chrome (tab bar, sidebar, status area, menus). Pane cards,
-  floating cards and pills are opaque.
+- Glass only on the tab marker and menus (D44); the sidebar sits flat on the
+  frosted window, pane cards are translucent on it, and floating cards and
+  pills are opaque.
 
 ## Other details
 

@@ -58,11 +58,16 @@ Sidebar machine pages, iOS gestures, drag and drop.
 - **Why a swipe over a terminal was slow and did not page.** The terminal passed on each
   event that was more sideways than up or down, one by one. A gesture's begin and end
   events carry no movement, so they went to the terminal: the strip saw a gesture with no
-  end and never snapped to a page. The monitor (`SwipeRouter` in `Strip.swift`) picks the
-  axis on a gesture's first moving event and sends the rest of it, momentum included, to
-  the scroll view under the pointer (`enclosingScrollView`; SwiftUI's horizontal
-  `ScrollView` is an `NSScrollView`, `SwiftUI.HostingScrollView`). A wheel picks per event,
-  so Shift+wheel pages too. The terminal now reads only up and down.
+  end and never snapped to a page. The monitor (`SwipeRouter` in `Strip.swift`, installed at launch)
+  picks the axis once a gesture moved 4 pt (from `.began`; until then events go the usual
+  way) and sends the rest of it, momentum and a stopping touch included, to the scroll view
+  under the pointer (`enclosingScrollView`; SwiftUI's horizontal `ScrollView` is an
+  `NSScrollView`, `SwiftUI.HostingScrollView`). The terminal now reads only up and down.
+- **Mouse wheels.** A wheel has no phases; it picks per event. A mouse's line steps would
+  only nudge a paged strip (it snaps back), so over the strip a burst of sideways line steps
+  (events less than 0.3 s apart) turns one page (`HostStore.step`). AppKit turns Shift+wheel
+  into sideways steps itself. The strip marks its scroll view with an invisible
+  `StripAnchor` view so the router knows it.
 - **Wrong tab after a workspace switch.** The strip was rebuilt per workspace
   (`.id(workspace.id)`) with `scrollPosition(id:)` bound to the selection. A new scroll
   view drops its first scroll position (its lazy pages are not laid out yet), so it showed
@@ -70,19 +75,31 @@ Sidebar machine pages, iOS gestures, drag and drop.
   nothing. Now one strip serves every workspace; the page in view is the strip's own state,
   a new workspace or selection scrolls to it (no animation across workspaces), and the
   selection follows the page in view only when the scroll stops.
-- **Marker.** The strip writes its offset in pages to `Workspace.page`; the title-bar tab
+- **Marker.** The strip writes its offset in pages to `HostStore.page` (one strip shows
+  every workspace; a number per workspace went stale after a switch at the same offset); the title-bar tab
   bar draws one glass capsule between the frames of the two capsules around it. Lit tabs
   are `floor(page)...ceil(page)` (the design's formula); the page is rounded to a
   thousandth so a page at rest lights one tab. No unit test: no branches.
 - **Keys.** ⌘1…⌘9, ⇧⌘[ and ⇧⌘] are Window menu items. They work while a terminal has the
   keyboard. While the session list is open they are off, so its own ⌘1…⌘9 pick sessions.
-- **Full screen.** `NSWindow.willEnter/ExitFullScreenNotification` moves the title row to
-  the window edge (the traffic lights are not there).
+  ⌘N finds the workspace when pressed: the menu can be older than a workspace switch.
+- **⌃⌘F.** AppKit's window toggles full screen only for a key no view takes, and libghostty
+  takes every key (it typed `\e[102;5u`). The terminal view toggles full screen for ⌃⌘F
+  itself. Passing ⌘ keys on with `nextResponder?.keyDown` crashed: the window asks the views
+  for key equivalents again, and libghostty's `performKeyEquivalent` calls `keyDown`.
+- **Full screen.** A small view (`FullScreenReader`) reads its own window's style when it
+  joins the window and follows that window's `willEnter/ExitFullScreen` notifications; in
+  full screen the title row starts at the window edge (the traffic lights are not there).
 - **Tests.** XCUITest's `scroll(byDeltaX:)` sends wheel events, which page the strip.
   Synthesized trackpad gestures (CGEvent with scroll phases) page only with enough speed:
-  ~600 pt in 8 events does, 400 pt in 12 snaps back, as a slow real swipe would.
+  ~600 pt in 8 events does, 400 pt in 12 snaps back, as a slow real swipe would. With the
+  4 pt threshold, 600/8, 400/10, 300/4 and 900/30 (pt/events) all page both ways, over a
+  card and over its header; a vertical gesture does not. The phased path (trackpad
+  gestures) is covered by these hand checks only; e2e covers the wheel path.
 - **Open: a window that opens in full screen** (macOS restores it so) shows AppKit's empty
   title-bar window over the title row; `windowToolbarFullScreenVisibility(.onHover)` holds
   only for a window that enters full screen after it opened. Hiding the toolbar in full
-  screen (`.toolbar(.hidden, for: .windowToolbar)`) made the bar show every time. Leaving
-  and entering full screen again fixes it. Not fixed in phase 5.
+  screen (`.toolbar(.hidden, for: .windowToolbar)`) made the bar show every time, and
+  `NSApp.presentationOptions` with `.autoHideToolbar` on entering changed nothing. Leaving
+  and entering full screen again fixes it. Not fixed in phase 5; e2e launches ignore saved
+  window state.
