@@ -33,33 +33,48 @@
         func takeKeyboard() {
             wantsKeyboard = window == nil
             Self.request += 1
-            let request = Self.request
-            // After SwiftUI's update: a first responder set during one (a tab that just arrived) is undone. Only
-            // the latest request wins, so an older one cannot steal the keyboard back.
-            DispatchQueue.main.async { [weak self] in
-                guard let self, request == Self.request else { return }
-                window?.makeFirstResponder(self)
-            }
+            pending = Self.request
+            claimKeyboard()
         }
 
-        /// Counts keyboard requests across terminals.
+        /// The window's first responder now.
+        var isFirstResponder: Bool {
+            window?.firstResponder === self
+        }
+
+        /// Counts keyboard requests across terminals; only the latest wins, so an older one cannot steal the
+        /// keyboard back.
         private static var request = 0
+        /// The request this view acts on.
+        private var pending = 0
+
+        /// After SwiftUI's update: a first responder set during one (a tab that just arrived) is undone.
+        private func claimKeyboard() {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, pending == Self.request, let window else { return }
+                window.makeFirstResponder(self)
+                // Also when it already was the first responder (no becomeFirstResponder then).
+                terminal?.hasKeyboard = window.firstResponder === self
+            }
+        }
 
         /// SwiftUI moves the view to a new host when the layout changes (a split); leaving the
         /// window drops the first responder, so it takes the keyboard back once it is in again.
         override func viewWillMove(toWindow newWindow: NSWindow?) {
             if newWindow == nil, window?.firstResponder === self {
                 wantsKeyboard = true
+                pending = Self.request
             }
             super.viewWillMove(toWindow: newWindow)
         }
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            if wantsKeyboard, let window {
+            // A view that left the window leaves without resignFirstResponder; the flag must not stay on.
+            terminal?.hasKeyboard = window != nil && window?.firstResponder === self
+            if wantsKeyboard, window != nil {
                 wantsKeyboard = false
-                // After SwiftUI's update: focus asked for mid-update is dropped.
-                DispatchQueue.main.async { window.makeFirstResponder(self) }
+                claimKeyboard()
             }
         }
 
