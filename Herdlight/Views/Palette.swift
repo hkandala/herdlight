@@ -18,15 +18,18 @@ struct Palette: View {
     }
 
     var body: some View {
-        let items = items.filter { "\($0.title) \($0.detail)".matches(filter) }
+        let items = filtered
         let index = min(index, items.count - 1)
         VStack(alignment: .leading, spacing: 2) {
             FilterField(prompt: "Jump to a session, workspace or tab", text: $filter, identifier: "palette.filter",
                         autofocus: true)
-                .onSubmit {
-                    if items.indices.contains(index) {
-                        jump(items[index])
+                // Here, not onSubmit: the field keeps the submit action of its first draw (the first row).
+                .onKeyPress(.return) {
+                    let items = filtered
+                    if items.indices.contains(self.index) {
+                        jump(items[self.index])
                     }
+                    return .handled
                 }
                 .onKeyPress(.downArrow) { move(1, items.count) }
                 .onKeyPress(.upArrow) { move(-1, items.count) }
@@ -60,13 +63,18 @@ struct Palette: View {
         }
         .padding(8)
         .frame(width: 480)
-        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+        // A little darker than the session list: it floats over terminal text.
+        .glassEffect(.regular.tint(.black.opacity(0.35)), in: .rect(cornerRadius: 14))
         .shadow(color: .black.opacity(0.35), radius: 20, y: 8)
         .onChange(of: filter) { self.index = 0 }
         .task { await store.loadSessions() }
         #if os(macOS)
             .onExitCommand { open = false }
         #endif
+    }
+
+    private var filtered: [Item] {
+        items.filter { "\($0.title) \($0.detail)".matches(filter) }
     }
 
     /// Tabs first (the usual jump), then workspaces, then the other running sessions.
