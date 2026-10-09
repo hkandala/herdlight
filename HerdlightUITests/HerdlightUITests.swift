@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class HerdlightUITests: XCTestCase {
     var one = ""
-    var two = ""
+    private var two = ""
     let app = XCUIApplication()
     /// The app's first snapshot: login shell, herdr checks and a few herdr runs; slow on CI runners.
     let connect: TimeInterval = 30
@@ -218,15 +218,21 @@ final class HerdlightUITests: XCTestCase {
     nonisolated static func call(_ session: String, _ method: String,
                                  _ params: [String: Any]) async throws -> [String: Any]
     {
-        let helper = try XCTUnwrap(ProcessInfo.processInfo.environment["HL_HELPER"])
-        var request = try URLRequest(url: XCTUnwrap(URL(string: "\(helper)/\(session)")))
-        request.httpMethod = "POST"
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["id": "1", "method": method, "params": params])
-            + Data("\n".utf8)
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let body = try JSONSerialization.data(withJSONObject: ["id": "1", "method": method, "params": params])
+        let (data, status) = try await post(session, body + Data("\n".utf8))
         let text = String(decoding: data, as: UTF8.self)
-        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200, text)
+        XCTAssertEqual(status, 200, text)
         let reply = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any], text)
         return try XCTUnwrap(reply["result"] as? [String: Any], "\(method): \(text)")
+    }
+
+    /// One POST to the e2e helper: `<session>` for an API call, `<session>/control` for a probe.
+    nonisolated static func post(_ path: String, _ body: Data) async throws -> (data: Data, status: Int) {
+        let helper = try XCTUnwrap(ProcessInfo.processInfo.environment["HL_HELPER"])
+        var request = try URLRequest(url: XCTUnwrap(URL(string: "\(helper)/\(path)")))
+        request.httpMethod = "POST"
+        request.httpBody = body
+        let (data, response) = try await URLSession.shared.data(for: request)
+        return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
     }
 }
