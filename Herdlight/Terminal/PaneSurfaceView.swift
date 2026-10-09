@@ -126,11 +126,7 @@
         }
 
         override func scrollWheel(with event: NSEvent) {
-            // Sideways belongs to the strip (phase 5 adds the axis lock).
-            guard abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) else {
-                nextResponder?.scrollWheel(with: event)
-                return
-            }
+            // Sideways gestures never get here: the strip's scroll monitor takes them.
             guard let cell = cell(event), let metrics else { return }
             // Trackpads report points, wheels report lines.
             scrolled += event.hasPreciseScrollingDeltas
