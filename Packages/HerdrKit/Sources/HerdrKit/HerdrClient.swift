@@ -16,6 +16,17 @@ public enum HerdrError: Error, Equatable, Sendable {
     case failed(String)
 }
 
+extension HerdrError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .notFound: "herdr is not installed on this Mac"
+        case let .unsupported(message), let .failed(message): message
+        case .timeout: "herdr did not answer"
+        case let .herdr(code, message): "\(message) (\(code))"
+        }
+    }
+}
+
 /// What `HerdrClient.updates()` delivers.
 public enum Update: Sendable {
     case snapshot(Snapshot)
@@ -97,7 +108,10 @@ public actor HerdrClient {
             await channel.lines.first { _ in true }
         }
         channel.closeInput()
-        guard let reply else { throw await HerdrError.failed(channel.exit().stderr) }
+        guard let reply else {
+            let (status, stderr) = await channel.exit()
+            throw HerdrError.failed("herdr exited \(status): \(stderr.trimmingCharacters(in: .whitespacesAndNewlines))")
+        }
         let decoded = try decode(Reply<Result>.self, reply)
         if let error = decoded.error {
             throw HerdrError.herdr(code: error.code, message: error.message)
