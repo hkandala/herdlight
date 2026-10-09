@@ -1,0 +1,54 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew bundle
+      - run: make lint
+
+  build-test:
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .build/DerivedData/SourcePackages
+          key: spm-${{ hashFiles('**/Package.resolved') }}
+      - run: brew bundle
+      - run: make build test
+
+  e2e:
+    runs-on: xcode-27
+    env:
+      HERDR_VERSION: 0.9.3
+      HERDR_SHA256: 5173a3e0ae42d5d1ab7ebfa5d5e6329f7c3d23f8e1a3677c7ce3231da2884157
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .build/DerivedData/SourcePackages
+          key: spm-${{ hashFiles('**/Package.resolved') }}
+      - run: brew bundle
+      - name: install herdr
+        run: |
+          mkdir -p ~/.local/bin
+          curl -fsSL -o ~/.local/bin/herdr "https://github.com/herdrdev/herdr/releases/download/v$HERDR_VERSION/herdr-macos-aarch64"
+          echo "$HERDR_SHA256  $HOME/.local/bin/herdr" | shasum -a 256 -c
+          chmod +x ~/.local/bin/herdr
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: make e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-xcresult
+          path: .build/DerivedData/e2e.xcresult
