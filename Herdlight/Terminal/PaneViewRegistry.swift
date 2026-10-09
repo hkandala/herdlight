@@ -62,9 +62,9 @@
             terminals[terminalID]?.view.takeKeyboard()
         }
 
-        /// The pane whose terminal has the keyboard.
+        /// The pane whose terminal has the keyboard, from the window itself, so it cannot drift.
         var keyboardPaneID: String? {
-            terminals.values.first(where: \.hasKeyboard)?.paneID
+            terminals.values.first { $0.view.isFirstResponder }?.paneID
         }
 
         /// Releases everything: the session switches or its store stops.
