@@ -34,25 +34,30 @@ func `talks to a throwaway herdr session`() async throws {
     let _: Ignored = try await client.call("workspace.create", ["cwd": "/tmp", "focus": false])
 
     let updates = await client.updates()
-    let snapshot = try await withTimeout(.seconds(10), onTimeout: {}, { () -> Snapshot? in
+    let found = try await withTimeout(.seconds(10), onTimeout: {}, { () -> (Snapshot, Duration)? in
         var reads = 0
+        var created = ContinuousClock.now
         for await case let .snapshot(snapshot) in updates {
             reads += 1
             // The second read follows the open events stream, so the next one comes from an event.
             if reads == 2 {
+                created = .now
                 let _: Ignored = try await client.call(
                     "tab.create",
                     ["workspace_id": "w1", "cwd": "/tmp", "focus": false],
                 )
             }
             if snapshot.tabs.count == 2 {
-                return snapshot
+                return (snapshot, .now - created)
             }
         }
         return nil
     })
-    let tab = try #require(snapshot?.tabs.last)
+    let (snapshot, elapsed) = try #require(found)
+    // Faster than the 1 s reopen backoff, so the event caused the read.
+    #expect(elapsed < .milliseconds(900))
+    let tab = try #require(snapshot.tabs.last)
     #expect(tab.workspaceID == "w1")
-    let pane = try #require(snapshot?.panes.first { $0.tabID == tab.id })
-    #expect(snapshot?.trees[tab.id] == SplitNode.leaf(paneID: pane.id))
+    let pane = try #require(snapshot.panes.first { $0.tabID == tab.id })
+    #expect(snapshot.trees[tab.id] == SplitNode.leaf(paneID: pane.id))
 }
