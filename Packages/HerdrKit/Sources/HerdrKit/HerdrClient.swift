@@ -83,11 +83,9 @@ public actor HerdrClient {
         _ method: String,
         _ params: [String: any Sendable] = [:],
     ) async throws -> Result {
-        let request: [String: Any] = ["id": "1", "method": method, "params": params]
-        guard JSONSerialization.isValidJSONObject(request) else {
+        guard let line = jsonLine(["id": "1", "method": method, "params": params]) else {
             throw HerdrError.failed("\(method): params are not JSON")
         }
-        let line = try String(decoding: JSONSerialization.data(withJSONObject: request), as: UTF8.self)
         let channel = try await exec.run(bridge)
         channel.write(line)
         let reply = try await withTimeout(timeout, onTimeout: channel.terminate) {
@@ -241,9 +239,7 @@ public actor HerdrClient {
             + agentPanes.map { ["type": "pane.agent_status_changed", "pane_id": $0] }
         let params = ["subscriptions": subscriptions]
         // Only strings: serializing cannot fail.
-        let data = (try? JSONSerialization.data(withJSONObject: ["id": "events", "method": "events.subscribe",
-                                                                 "params": params])) ?? Data()
-        let request = String(decoding: data, as: UTF8.self)
+        let request = jsonLine(["id": "events", "method": "events.subscribe", "params": params]) ?? ""
         events = Task { [self] in
             do {
                 let channel = try await exec.run(bridge)
@@ -376,4 +372,12 @@ func withTimeout<T: Sendable>(
             throw error
         }
     }
+}
+
+/// One NDJSON line, keys sorted so tests can compare lines; nil when the object is not JSON.
+func jsonLine(_ object: [String: Any]) -> String? {
+    guard JSONSerialization.isValidJSONObject(object),
+          let data = try? JSONSerialization.data(withJSONObject: object, options: .sortedKeys)
+    else { return nil }
+    return String(decoding: data, as: UTF8.self)
 }

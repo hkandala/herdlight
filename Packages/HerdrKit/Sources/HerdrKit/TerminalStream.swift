@@ -133,11 +133,9 @@ public struct TerminalStream: Sendable {
         channel.closeInput()
     }
 
-    /// Sorted keys, so tests can compare lines.
     private func send(_ command: [String: any Sendable]) {
         // Only strings and numbers: serializing cannot fail.
-        let data = (try? JSONSerialization.data(withJSONObject: command, options: .sortedKeys)) ?? Data()
-        channel.write(String(decoding: data, as: UTF8.self))
+        channel.write(jsonLine(command) ?? "")
     }
 }
 
