@@ -3,7 +3,7 @@ import SwiftUI
 
 extension Color {
     /// Over the frosted window: dark, so the desktop shows through only softly.
-    static let tint = Color.black.opacity(0.3)
+    static let tint = Color.black.opacity(0.4)
     static let card = Color.white.opacity(0.04)
     static let hairline = Color.white.opacity(0.09)
 }

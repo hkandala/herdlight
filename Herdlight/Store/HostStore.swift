@@ -82,14 +82,6 @@ final class HostStore {
         selectedWorkspace.flatMap { workspace in workspace.tabs.first { $0.id == workspace.selectedTabID } }
     }
 
-    var isLive: Bool {
-        if case .live = state {
-            true
-        } else {
-            false
-        }
-    }
-
     /// False only when herdr lists the session as stopped (or not at all).
     var isRunning: Bool {
         sessions.isEmpty || sessions.contains { $0.name == session && $0.running }
