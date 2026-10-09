@@ -68,6 +68,54 @@ mouse and pane size.
 
 Zoom, chat, observe-only iOS mode, the 24-surface LRU (note a `ponytail:` ceiling).
 
+## Findings
+
+Stage A (stream level, against throwaway sessions; no GUI yet).
+
+- **Session resolution.** Phase 2's answer holds: `herdr --session S terminal session
+  control|observe <terminal_id> --cols C --rows R [--takeover]`, no socket variable.
+- **Frames carry no input modes.** After `printf '\e[?1h\e[?2004h\e[>1u\e[?1000h'` in a pane
+  the next frames hold only drawing (`?2026h/l`, `?25h/l`, cursor moves, SGR). herdr draws
+  frames from its own cell buffer (`server/render_stream.rs`), so libghostty never learns the
+  app's cursor-key, paste, kitty or mouse modes.
+- **Key encoding: libghostty's own is wrong for those modes.** With `cat -v` in a pane:
+  DECCKM on → `pane.send_keys up` gives `^[OA`, libghostty would send `^[[A`. Kitty flags on →
+  `shift+enter` gives `^[[13;2u` and `ctrl+c` gives `^[[99;5u`; libghostty would send `\r`
+  and `^C`. `terminal.input` writes bytes to the PTY unchanged (herdr
+  `apply_terminal_attach_input`).
+- **Input path (decision).** herdr-web's split. Keys whose bytes depend on modes go to
+  `pane.send_keys` by herdr name: arrows, Esc, F1–F12, Enter/Tab/Backspace with any modifier,
+  any of them with modifiers, and Ctrl chords (`PaneSurfaceView.herdrKey`). Everything else
+  goes through libghostty as text on `terminal.input`: typing, IME, dead keys, Option
+  characters (macOS behavior), and plain Enter, Tab and Backspace (same bytes in every mode but
+  kitty's report-all flag; kept off the slower path). Home/End/PgUp/PgDn/Delete have no herdr
+  names; libghostty sends them as xterm does. Cmd stays with the menu (`keybind = clear`).
+  All input goes out in order through one queue per card; a bridge call takes about 60 ms here
+  (median of 20, max 170), more than a held key's repeat, so keys that pile up meanwhile go as
+  one `send_keys` call. Every key name the mapping makes is accepted by herdr 0.9.3.
+- **Paste.** A whole `ESC[200~…ESC[201~` on `terminal.input` is unwrapped by herdr and framed
+  again for the app's own paste mode (checked both ways with `cat -v`). The surface gets
+  `ESC[?2004h` once, so libghostty frames every paste (and keeps its file-URL → path handling).
+- **Double replies: none possible at the stream level.** `printf '\e[c\e[6n\e]11;?\a'` in a
+  pane: herdr's own terminal answers (the shell then shows `^[[?62;22c`, as in any terminal);
+  the frames hold only the drawn result, never the queries, so libghostty has nothing to
+  answer. Stage B re-checks with the app attached (the output must match this baseline).
+- **Closed reasons** (herdr 0.9.3, exact): `terminal attach failed: terminal <id> already has
+  an attached client; retry with --takeover`, `terminal attach taken over`, `terminal session
+  control failed: terminal target <id> not found`, `terminal <id> exited`, `detached`, `live
+  update in progress; reconnect after handoff completes`. A failed connect exits 1 with the
+  reason on stderr and no closed line.
+- **A killed controller is released.** SIGKILL a `control` run, and a new `control` without
+  `--takeover` attaches 50 ms later (herdr removes a disconnected client). So the app does not
+  send `terminal.release` on quit: `ProcessExec`'s exit handler kills the children, which frees
+  the panes. Leaving a tab and switching sessions do send `terminal.release`.
+- **Writes.** `ProcessExec` writes stdin on a serial queue per child, so a full pipe never
+  blocks the main actor.
+- **Mouse.** Left and right clicks and drags go to herdr as cells (`terminal.mouse`); herdr
+  drops them when the app has no mouse mode. libghostty gets them too, for local selection and
+  Copy. The wheel goes to `terminal.scroll` (trackpad points ÷ cell height); libghostty keeps
+  no scrollback. Sideways scrolls pass to the strip (phase 5 adds the axis lock).
+
 ## User feedback round (after Stage B hand test)
 
 Fix on the `terminals` branch before merge:
