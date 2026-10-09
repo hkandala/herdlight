@@ -140,7 +140,11 @@ Stage A (stream level, against throwaway sessions; no GUI yet).
 - **Keyboard.** A tab shown for the first time since it was selected gives the keyboard to
   herdr's focused pane in it (`HostStore.showTerminals`); later snapshots leave it where the
   user clicked. The lit card follows the keyboard (`PaneTerminal.hasKeyboard`), not herdr's
-  focus, so the bright card is the one keys go to.
+  focus, so the bright card is the one keys go to. A split rebuilds the card's SwiftUI host, and an NSView
+  that leaves the window loses the first responder, so the view takes the keyboard back when
+  it is in a window again: after a split the keys stay on the card that was split (herdr's
+  `focus:false`). A new surface starts focused in libghostty (a filled cursor); the view
+  resigns it at once unless it has the keyboard. Font: 13 pt.
 - **Checked in the app** (hl-dev-term, synthetic CGEvents): typing, Enter, Backspace, Ctrl+C,
   Up for history, Tab completion, arrows in `less` and `vim`, Shift+Enter / Esc / Option+←
   under kitty flags (`^[[13;2u`, `^[[27u`, `^[[98;3u`), paste in a shell and in `cat -v`,

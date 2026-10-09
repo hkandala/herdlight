@@ -30,6 +30,15 @@
             window?.makeFirstResponder(self)
         }
 
+        /// SwiftUI moves the view to a new host when the layout changes (a split); leaving the
+        /// window drops the first responder, so it takes the keyboard back once it is in again.
+        override func viewWillMove(toWindow newWindow: NSWindow?) {
+            if newWindow == nil, window?.firstResponder === self {
+                wantsKeyboard = true
+            }
+            super.viewWillMove(toWindow: newWindow)
+        }
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             if wantsKeyboard, let window {
@@ -232,10 +241,19 @@
         }
     }
 
-    extension PaneSurfaceView: TerminalSurfaceGridResizeDelegate {
+    extension PaneSurfaceView: TerminalSurfaceGridResizeDelegate, TerminalSurfaceLifecycleDelegate {
         func terminalDidResize(_ size: TerminalGridMetrics) {
             metrics = size
         }
+
+        /// A new surface starts focused (a filled cursor) until it first loses the keyboard.
+        func terminalDidAttachSurface(_: TerminalSurface) {
+            if window?.firstResponder !== self {
+                _ = resignFirstResponder()
+            }
+        }
+
+        func terminalDidDetachSurface() {}
     }
 
     /// Shows a pane's terminal view. The registry owns the view; the newest host adopts it, so a page

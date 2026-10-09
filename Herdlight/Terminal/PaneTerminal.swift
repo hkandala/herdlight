@@ -60,6 +60,7 @@
         /// No padding, so cells map from the view's origin; no scrollback, herdr keeps it.
         private static let controller = TerminalController {
             $0.withCustom("keybind", "clear")
+            $0.withFontSize(13)
             $0.withBackgroundOpacity(0)
             $0.withWindowPaddingX(0)
             $0.withWindowPaddingY(0)
