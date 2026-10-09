@@ -48,14 +48,18 @@ extension HerdlightUITests {
         try await waitForPrompt("w1:p1")
         try await Self.call(one, "pane.send_text", ["pane_id": "w1:p1", "text": "seq 1 500\r"])
         try await waitFor("w1:p1") { $0.contains("\n500\n") }
-        // The wheel goes where the pointer is. Negative is up, toward older lines.
+        // The wheel goes where the pointer is. Which sign is up depends on the Mac's natural
+        // scrolling setting (up for negative here, down on CI), so try both; at the bottom, down
+        // does nothing.
         terminal.hover()
-        terminal.scroll(byDeltaX: 0, deltaY: -100)
         var offset = 0
-        for _ in 0 ..< 20 where offset == 0 {
-            try await Task.sleep(for: .milliseconds(100))
-            let pane = try await Self.call(one, "pane.get", ["pane_id": "w1:p1"])["pane"] as? [String: Any]
-            offset = (pane?["scroll"] as? [String: Any])?["offset_from_bottom"] as? Int ?? 0
+        for delta in [-100.0, 100.0] where offset == 0 {
+            terminal.scroll(byDeltaX: 0, deltaY: delta)
+            for _ in 0 ..< 10 where offset == 0 {
+                try await Task.sleep(for: .milliseconds(100))
+                let pane = try await Self.call(one, "pane.get", ["pane_id": "w1:p1"])["pane"] as? [String: Any]
+                offset = (pane?["scroll"] as? [String: Any])?["offset_from_bottom"] as? Int ?? 0
+            }
         }
         XCTAssertGreaterThan(offset, 0)
     }
