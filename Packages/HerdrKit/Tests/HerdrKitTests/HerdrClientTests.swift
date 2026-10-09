@@ -99,8 +99,25 @@ func eventually(within timeout: Duration = .seconds(3), _ condition: () -> Bool)
     return true
 }
 
-private func client(_ exec: FakeExec) -> HerdrClient {
-    HerdrClient(herdr: "/bin/herdr", session: "s", exec: exec, timeout: .seconds(1))
+private func client(_ exec: FakeExec, debounce: Duration = .milliseconds(100), maxWait: Duration = .milliseconds(500))
+    -> HerdrClient
+{
+    HerdrClient(
+        herdr: "/bin/herdr",
+        session: "s",
+        exec: exec,
+        timeout: .seconds(1),
+        debounce: debounce,
+        maxWait: maxWait,
+    )
+}
+
+/// Starts updates and waits for the opening reads (one before and one after subscribing).
+private func started(_ client: HerdrClient, _ exec: FakeExec) async -> AsyncStream<Update> {
+    let updates = await client.updates()
+    #expect(await eventually { exec[\.subscribes].count == 1 && exec[\.reads] == 2 && exec[\.inFlight] == 0 })
+    exec.state.withLock { $0.reads = 0 }
+    return updates
 }
 
 // MARK: Requests
@@ -129,5 +146,98 @@ private func client(_ exec: FakeExec) -> HerdrClient {
     let old = client(FakeExec { _ in #"{"id":"1","result":{"type":"pong","version":"0.9.2","protocol":21}}"# })
     await #expect(throws: HerdrError.unsupported("herdr 0.9.2 is too old; 0.9.3 or newer needed")) {
         try await old.ping()
+    }
+}
+
+@Test func `subscription lists lifecycle events and one status entry per agent pane`() throws {
+    let request = HerdrClient.subscribeRequest(["w1:p1", "w2:p3"])
+    let object = try #require(JSONSerialization.jsonObject(with: Data(request.utf8)) as? [String: Any])
+    #expect(object["method"] as? String == "events.subscribe")
+    let params = try #require(object["params"] as? [String: [[String: String]]])
+    let subscriptions = try #require(params["subscriptions"])
+    #expect(subscriptions.contains(["type": "layout.updated"]))
+    #expect(!subscriptions.contains { $0["type"]?.hasSuffix(".focused") == true })
+    #expect(subscriptions.filter { $0["type"] == "pane.agent_status_changed" }.compactMap { $0["pane_id"] }
+        == ["w1:p1", "w2:p3"])
+}
+
+// MARK: Pacing
+
+@Test func `a burst of events is debounced into one read`() async throws {
+    let exec = FakeExec()
+    let client = client(exec)
+    let updates = await started(client, exec)
+    let sent = ContinuousClock.now
+    for _ in 0 ..< 3 {
+        exec.event()
+    }
+    #expect(await eventually { exec[\.reads] == 1 })
+    try? await Task.sleep(for: .milliseconds(300))
+    #expect(exec[\.reads] == 1)
+    #expect(try #require(exec[\.readTimes].last) - sent >= .milliseconds(100))
+    withExtendedLifetime(updates) {}
+}
+
+@Test func `a steady flow of events still reads within the max wait`() async {
+    let exec = FakeExec()
+    let client = client(exec, maxWait: .milliseconds(300))
+    let updates = await started(client, exec)
+    for _ in 0 ..< 40 { // 1.2 s of events, 30 ms apart: the debounce alone would never fire
+        exec.event()
+        try? await Task.sleep(for: .milliseconds(30))
+    }
+    #expect(exec[\.reads] >= 1)
+    withExtendedLifetime(updates) {}
+}
+
+@Test func `refresh reads at once, one at a time, with one trailing read`() async {
+    let exec = FakeExec(readDelay: .milliseconds(300))
+    let client = client(exec, debounce: .seconds(10), maxWait: .seconds(10))
+    let updates = await started(client, exec)
+    await client.refresh()
+    #expect(await eventually(within: .seconds(1)) { exec[\.inFlight] == 1 }) // no debounce
+    for _ in 0 ..< 5 {
+        exec.event()
+    }
+    await client.refresh()
+    #expect(await eventually { exec[\.reads] == 2 && exec[\.inFlight] == 0 })
+    try? await Task.sleep(for: .milliseconds(400))
+    #expect(exec[\.reads] == 2)
+    #expect(exec[\.maxInFlight] == 1)
+    withExtendedLifetime(updates) {}
+}
+
+@Test func `events stream reopens on agent changes, errors and exit`() async {
+    let exec = FakeExec()
+    let client = client(exec)
+    let updates = await started(client, exec)
+    #expect(!exec[\.subscribes][0].contains("agent_status_changed"))
+
+    exec.state.withLock { $0.agents = ["w1:p1"] }
+    exec.event()
+    #expect(await eventually { exec[\.subscribes].count == 2 })
+    #expect(exec[\.subscribes][1].contains(#""pane_id":"w1:p1""#))
+
+    exec.event(#"{"id":"events","error":{"code":"events_lost","message":"lagged"}}"#)
+    #expect(await eventually { exec[\.subscribes].count == 3 })
+
+    exec.state.withLock { $0.events }?.finish()
+    #expect(await eventually { exec[\.subscribes].count == 4 })
+    withExtendedLifetime(updates) {}
+}
+
+@Test func `updates deliver snapshots and read errors`() async {
+    let exec = FakeExec()
+    let client = client(exec)
+    var updates = await client.updates().makeAsyncIterator()
+    guard case .snapshot = await updates.next() else {
+        Issue.record("expected a snapshot")
+        return
+    }
+    let broken = HerdrClient(herdr: "/bin/herdr", session: "s", exec: FakeExec { _ in "not json" })
+    var errors = await broken.updates().makeAsyncIterator()
+    guard case .error(.failed) = await errors.next() else {
+        Issue.record("expected an error")
+        return
     }
 }
