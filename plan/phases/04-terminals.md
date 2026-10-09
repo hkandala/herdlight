@@ -156,7 +156,8 @@ Stage A (stream level, against throwaway sessions; no GUI yet).
   drag on the window corner does not resize the window (it does with real events), and CI's
   window already fills its 1024×768 screen, so Window ▸ Zoom changes nothing there. The window
   resize itself was checked by hand. `scroll(byDeltaX:deltaY:)` scrolls where the pointer is
-  (hover first) and up for a negative `deltaY`.
+  (hover first); which sign is up follows the Mac's natural scrolling setting (it differs
+  between this Mac and CI), so the test tries both.
 
 ## User feedback round (after Stage B hand test)
 
