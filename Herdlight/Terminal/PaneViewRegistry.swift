@@ -4,9 +4,9 @@
     import HerdrKit
 
     /// Owns every pane's terminal of one session, keyed by `terminal_id`, so SwiftUI never destroys
-    /// one while the strip scrolls. The selected tab's terminals stream and draw; those of recently
-    /// shown tabs keep streaming without drawing, up to `live` of them, so coming back to a tab
-    /// resizes nothing (design: what streams).
+    /// one while the strip scrolls. The selected tab's terminals stream; those of recently shown tabs
+    /// keep streaming, up to `live` of them, so coming back to a tab resizes nothing (design: what
+    /// streams).
     @MainActor
     final class PaneViewRegistry {
         /// The design's bound on streaming terminals (D46).
@@ -32,9 +32,10 @@
             return terminal
         }
 
-        /// Streams and draws these terminals (terminal id → pane id); the others stop drawing, and
-        /// past the `live` most recently shown they let go. Drops the terminals not in `alive`
-        /// (their panes closed).
+        /// Streams these terminals (terminal id → pane id); past the `live` most recently shown, the
+        /// others let go. Drops the terminals not in `alive` (their panes closed). A surface draws only
+        /// while it is in the window (a page in view or next to it, so a swipe shows the neighbor's last
+        /// image); libghostty stops drawing one that leaves it.
         func show(_ shown: [String: String], alive: Set<String>) {
             for (terminalID, terminal) in terminals where !alive.contains(terminalID) {
                 terminal.close()
@@ -47,9 +48,6 @@
             while recent.count > Self.live, let terminalID = recent.first, shown[terminalID] == nil {
                 recent.removeFirst()
                 terminals[terminalID]?.hide()
-            }
-            for (terminalID, terminal) in terminals {
-                terminal.view.setSurfaceVisible(shown[terminalID] != nil)
             }
             for (terminalID, paneID) in shown {
                 terminal(terminalID, pane: paneID)?.show()
