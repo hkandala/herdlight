@@ -23,8 +23,13 @@
             return terminal
         }
 
-        /// Streams these terminals (terminal id → pane id) and releases every other one.
-        func show(_ shown: [String: String]) {
+        /// Streams these terminals (terminal id → pane id) and releases every other one. Drops the
+        /// terminals not in `alive` (their panes closed).
+        func show(_ shown: [String: String], alive: Set<String>) {
+            for (terminalID, terminal) in terminals where !alive.contains(terminalID) {
+                terminal.close()
+                terminals[terminalID] = nil
+            }
             for (terminalID, terminal) in terminals where shown[terminalID] == nil {
                 terminal.hide()
             }
@@ -37,6 +42,7 @@
         func closeAll() {
             terminals.values.forEach { $0.close() }
             terminals = [:]
+            client = nil
         }
     }
 #endif
