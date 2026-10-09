@@ -57,7 +57,7 @@ final class HostStore {
     private(set) var workspaces: [Workspace] = []
     private(set) var panes: [Pane] = []
     var selectedWorkspaceID: String?
-    /// The last failed write, shown until the next one.
+    /// The last failed write, shown for a few seconds.
     private(set) var notice: String?
     /// A split in flight; the buttons wait for it.
     private(set) var splitting = false
@@ -101,7 +101,6 @@ final class HostStore {
                 case let .snapshot(snapshot):
                     apply(snapshot)
                     state = .live
-                    notice = nil
                     // After the first snapshot, so the picker never delays the layout.
                     if !loadedSessions {
                         loadedSessions = true
@@ -122,14 +121,21 @@ final class HostStore {
     func split(_ paneID: String, _ direction: SplitNode.Direction) async {
         guard let client, !splitting else { return }
         splitting = true
-        defer { splitting = false }
+        notice = nil
         do {
             let _: Created = try await client.call("pane.split", ["target_pane_id": paneID,
                                                                   "direction": direction.rawValue, "focus": false])
-            notice = nil
+            splitting = false
             await client.refresh()
         } catch {
-            notice = error.localizedDescription
+            splitting = false
+            let text = error.localizedDescription
+            notice = text
+            // Shown for a few seconds, unless a newer one replaced it.
+            try? await Task.sleep(for: .seconds(4))
+            if notice == text {
+                notice = nil
+            }
         }
     }
 
