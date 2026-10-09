@@ -22,7 +22,6 @@ resources/inspirations/one-app/
 
 # Xcode and SwiftPM
 .build/
-DerivedData/
 xcuserdata/
 *.xcresult
 .swiftpm/
