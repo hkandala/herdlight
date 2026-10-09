@@ -30,10 +30,11 @@ struct HerdlightApp: App {
         @State private var store = HostStore(session: UserDefaults.standard.string(forKey: "session") ?? "default")
         @State private var sidebar = true
         @State private var picking = false
+        @State private var fullScreen = false
 
         var body: some View {
             VStack(spacing: 0) {
-                TitleBar(store: store, sidebar: $sidebar, picking: $picking)
+                TitleBar(store: store, fullScreen: fullScreen, sidebar: $sidebar, picking: $picking)
                 HStack(spacing: 0) {
                     if sidebar {
                         Sidebar(store: store)
@@ -51,7 +52,7 @@ struct HerdlightApp: App {
                     Color.clear.contentShape(.rect).onTapGesture { picking = false }
                         .overlay(alignment: .topLeading) {
                             SessionList(store: $store, open: $picking)
-                                .padding(.leading, TitleBar.picker)
+                                .padding(.leading, TitleBar.inset(fullScreen: fullScreen) + TitleBar.picker)
                                 .padding(.top, TitleBar.height + 4)
                         }
                 }
@@ -64,6 +65,12 @@ struct HerdlightApp: App {
             .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
             // In full screen the empty toolbar would cover the title row; it shows on hover only.
             .windowToolbarFullScreenVisibility(.onHover)
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { _ in
+                fullScreen = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification)) { _ in
+                fullScreen = false
+            }
             .navigationTitle(store.selectedTab?.label ?? HostStore.name(store.session))
             .preferredColorScheme(.dark)
             // A new store (session switch) cancels the old one's run, which drops its client.
