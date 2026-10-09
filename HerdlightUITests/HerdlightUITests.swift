@@ -164,7 +164,7 @@ final class HerdlightUITests: XCTestCase {
 
     func testSplitButtonAddsAPane() async throws {
         XCTAssertTrue(element("workspace.w2").waitForExistence(timeout: connect))
-        let created = try await Self.call(one, "tab.create", ["workspace_id": "w1", "label": "split", "cwd": "/tmp",
+        let created = try await Self.call(one, "tab.create", ["workspace_id": "w2", "label": "split", "cwd": "/tmp",
                                                               "focus": false])
         let tab = try XCTUnwrap((created["tab"] as? [String: Any])?["tab_id"] as? String)
         addTeardownBlock { [one] in _ = try? await Self.call(one, "tab.close", ["tab_id": tab]) }
