@@ -3,8 +3,8 @@ import SwiftUI
 
 /// The title-bar button with the session and its machine; it opens the session list.
 struct SessionPicker: View {
-    @Binding var store: HostStore
-    @State private var open = false
+    let store: HostStore
+    @Binding var open: Bool
 
     var body: some View {
         Button { open.toggle() } label: {
@@ -20,17 +20,16 @@ struct SessionPicker: View {
         }
         .buttonStyle(ChromeStyle())
         .accessibilityIdentifier("titlebar.session-picker")
-        .popover(isPresented: $open, arrowEdge: .bottom) {
-            SessionList(store: $store, open: $open)
-        }
     }
 }
 
-/// herdr's sessions on this Mac, filtered as you type. Running ones are selectable.
-private struct SessionList: View {
+/// herdr's sessions on this Mac, filtered as you type. Running ones are selectable. A glass panel under the
+/// picker button, not a popover: the reference has no arrow, and SwiftUI's popover always draws one.
+struct SessionList: View {
     @Binding var store: HostStore
     @Binding var open: Bool
     @State private var filter = ""
+    @FocusState private var focused: Bool
 
     var body: some View {
         // Numbered before filtering, so ⌘n stays with its session.
@@ -39,6 +38,7 @@ private struct SessionList: View {
         }
         VStack(alignment: .leading, spacing: 2) {
             FilterField(prompt: "Filter or create…", text: $filter, identifier: "sessions.filter")
+                .focused($focused)
                 .onSubmit {
                     if let first = sessions.first(where: \.element.running) {
                         pick(first.element.name)
@@ -55,7 +55,7 @@ private struct SessionList: View {
                 Button { pick(session.name) } label: {
                     row(current ? "checkmark" : nil, session.name, index < 9 ? "⌘\(index + 1)" : "")
                 }
-                .buttonStyle(ChromeStyle(selected: current))
+                .buttonStyle(ChromeStyle(selected: current, tint: .accentColor))
                 .disabled(!session.running)
                 .keyboardShortcut(index < 9 ? KeyboardShortcut(KeyEquivalent(Character("\(index + 1)"))) : nil)
                 .accessibilityIdentifier("session.\(session.name)")
@@ -71,6 +71,12 @@ private struct SessionList: View {
         }
         .padding(8)
         .frame(width: 270)
+        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+        .shadow(color: .black.opacity(0.35), radius: 16, y: 6)
+        .onAppear { focused = true }
+        #if os(macOS)
+            .onExitCommand { open = false }
+        #endif
     }
 
     private func row(_ symbol: String?, _ title: String, _ shortcut: String) -> some View {

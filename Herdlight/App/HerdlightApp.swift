@@ -27,10 +27,11 @@ struct HerdlightApp: App {
         /// `-session <name>` on the command line lands in UserDefaults.
         @State private var store = HostStore(session: UserDefaults.standard.string(forKey: "session") ?? "default")
         @State private var sidebar = true
+        @State private var picking = false
 
         var body: some View {
             VStack(spacing: 0) {
-                TitleBar(store: $store, sidebar: $sidebar)
+                TitleBar(store: store, sidebar: $sidebar, picking: $picking)
                 HStack(spacing: 0) {
                     if sidebar {
                         Sidebar(store: store)
@@ -39,6 +40,17 @@ struct HerdlightApp: App {
                     }
                     Detail(store: store)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .overlay {
+                if picking {
+                    // A click outside the session list closes it.
+                    Color.clear.contentShape(.rect).onTapGesture { picking = false }
+                        .overlay(alignment: .topLeading) {
+                            SessionList(store: $store, open: $picking)
+                                .padding(.leading, TitleBar.picker)
+                                .padding(.top, TitleBar.height)
+                        }
                 }
             }
             // The title bar row takes the hidden title bar's line.
@@ -59,7 +71,7 @@ struct HerdlightApp: App {
         func makeNSView(context _: Context) -> NSVisualEffectView {
             let view = NSVisualEffectView()
             view.blendingMode = .behindWindow
-            view.material = .underWindowBackground
+            view.material = .hudWindow
             return view
         }
 

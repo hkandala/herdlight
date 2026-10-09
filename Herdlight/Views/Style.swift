@@ -3,8 +3,8 @@ import SwiftUI
 
 extension Color {
     /// Over the frosted window: dark, so the desktop shows through only softly.
-    static let tint = Color.black.opacity(0.4)
-    static let card = Color.black.opacity(0.3)
+    static let tint = Color.black.opacity(0.3)
+    static let card = Color.white.opacity(0.04)
     static let hairline = Color.white.opacity(0.09)
 }
 
@@ -41,26 +41,29 @@ struct IconTile: View {
 struct ChromeStyle: ButtonStyle {
     var selected = false
     var radius: CGFloat = 8
+    /// The selected fill; a raised light pill when nil.
+    var tint: Color?
 
     func makeBody(configuration: Configuration) -> some View {
-        Chrome(configuration: configuration, selected: selected, radius: radius)
+        Chrome(configuration: configuration, selected: selected, radius: radius, tint: tint)
     }
 
     struct Chrome: View {
         let configuration: Configuration
         let selected: Bool
         let radius: CGFloat
+        let tint: Color?
         @State private var hovering = false
         @Environment(\.isEnabled) private var enabled
 
         var body: some View {
             let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-            let fill = selected ? 0.13 : configuration.isPressed ? 0.1 : hovering && enabled ? 0.06 : 0
+            let fill = selected ? 0.16 : configuration.isPressed ? 0.1 : hovering && enabled ? 0.06 : 0
             configuration.label
                 .contentShape(shape)
-                .background(.white.opacity(fill), in: shape)
+                .background(selected ? tint ?? .white.opacity(fill) : .white.opacity(fill), in: shape)
                 .overlay(shape.strokeBorder(Color.hairline.opacity(selected ? 1 : 0)))
-                .shadow(color: .black.opacity(selected ? 0.35 : 0), radius: 3, y: 1)
+                .shadow(color: .black.opacity(selected ? 0.3 : 0), radius: 4, y: 1)
                 .opacity(enabled ? 1 : 0.4)
                 .onHover { hovering = $0 }
         }
