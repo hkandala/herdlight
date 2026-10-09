@@ -21,7 +21,7 @@ The full design, including what comes later, is in [`docs/content/docs/`](docs/c
 ```
 make setup      # brew bundle, and the git hooks (lint on every commit)
 make run        # build and open the app on the default session
-make run SESSION=hl-dev-me   # open it on another session
+make run SESSION=hl-dev-me   # open it on another session (agents: SESSION=hl-dev-* only, see AGENTS.md)
 make lint       # SwiftFormat and SwiftLint, as the hook and CI run them
 make format     # fix what lint can fix
 make build      # the macOS and iOS builds
@@ -56,7 +56,8 @@ HerdrKit knows nothing about SwiftUI or libghostty; the app knows nothing about 
 - **Unit tests** (`make test`) cover logic with branches: decoding, the split tree, pacing, frame parsing. Two
   integration tests start a throwaway herdr session and talk to it.
 - **e2e tests** (`make e2e`) drive the real app with XCUITest. `scripts/e2e.sh` starts throwaway herdr sessions
-  named `hl-e2e-<id>-a` … `-e`, runs the suite, and removes them (and any launchd job the app made for them)
+  `hl-e2e-<id>-a`, `-b`, `-c` (stopped, for "Show stopped") and `-e` (stopped and started by a test); `-d` is
+  the name the New Session test makes. It runs the suite and removes them all (and any launchd job the app made for them)
   even when tests fail. The UI test runner is sandboxed and cannot reach herdr, so `scripts/e2e-helper.py` serves
   herdr calls on localhost for the tests: API requests, a second `control` stream to tell a held pane from a free
   one, a list of the session's streams, and stopping or starting a session. It refuses any session it did not

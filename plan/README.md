@@ -4,10 +4,12 @@
 `README.md` for how to build, run and test.
 
 Deferred past v0 (in the design, not built): remote machines over SSH, the iOS app (the target only builds and
-shows an empty state), plugins and plugin cards, the chat view, floating panes, notifications, the status area
-and pills, drag and drop, divider drag, more machines in the sidebar ("Add Remote Host" is a placeholder), a
-text size setting, the "seen" state for finished agents, IME composition tests, and trackpad gestures in e2e
-(checked by hand).
+shows an empty state), plugins and plugin cards, the chat view, floating panes, notifications, the Dock badge,
+the status area, pills and agent rows in the sidebar, Start an agent, the "seen" state for finished agents,
+drag and drop (with swapping and moving panes), divider drag, keyboard resize, equal splits and divider
+double-click, renaming and reordering tabs and workspaces, more machines in the sidebar ("Add Remote Host" is
+a placeholder), the forced check on wake or network change, the version check after a live update, a text
+size setting, IME composition tests, and trackpad gestures in e2e (checked by hand).
 
 The working plan for the first app code. The design lives in `docs/content/docs/` and wins
 on any conflict, except where this file narrows the scope for v0.
@@ -52,7 +54,7 @@ Build the first, very basic version of the Herdlight app:
 | Topic | Decision |
 |---|---|
 | Transport | The design: `herdr --session S remote-api-bridge` (one call per request, 10 s timeout), events on one long-lived bridge run, terminals via `herdr --session S terminal session control <terminal_id>` |
-| Scope | This Mac only. Read the layout, show it live, type, click, scroll, resize to fit, swipe tabs, pick a session. No divider drag, drag and drop, close/split UI, plugins, chat, floating panes, zoom, remote machines, notifications |
+| Scope | This Mac only. Read the layout, show it live, type, click, scroll, resize to fit, swipe tabs, pick a session. No divider drag, drag and drop, close/split UI, plugins, chat, floating panes, zoom, remote machines, notifications. Widened by phase 4b: close, split and zoom buttons, new tab/workspace/session, the ⌘K palette |
 | iOS | Boilerplate: the same target builds for iOS and shows an empty state |
 | Terminal | Official `libghostty-spm`, exact pin |
 | Project | A committed `Herdlight.xcodeproj` in Xcode's own format (file-system synchronized groups), plus a local Swift package `HerdrKit` |

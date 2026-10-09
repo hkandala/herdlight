@@ -96,5 +96,28 @@ Goal: v0 is solid end to end and documented; CI green; nothing extra.
   right after hiding the sidebar; on CI the strip was still scrolling to t1, so both tabs were lit. It now
   waits for the settled values.
 - **e2e time.** 32 tests in 6 min 18 s locally (`make e2e` 6 min 31 s with the build).
-- **Streams open small.** The first `control` of a card at launch opens at libghostty's first grid
-  (50×17 here) and resizes once the layout settles. Not changed (harmless, one resize per card at launch).
+- **Streams open at the card's size** (review round 1). The first `control` of a card opened at libghostty's
+  first grid, before layout (50×17 here), and resized once the layout settled: two SIGWINCHes per new card,
+  the redraw phase 4 removed. The first grid now goes through the same 100 ms settle as later ones, so the
+  stream opens at the card's real size. e2e: `testCardsAttachAtTheirSize` checks each stream's `--cols C
+  --rows R` (from the helper's `/streams`) against the card's grid.
+- **Blank cards during a swipe** (review round 1). The registry set `setSurfaceVisible(false)` on every
+  terminal outside the selected tab, and the selection changes only when the scroll stops (after the
+  momentum, about 1 s after the page lands). So the incoming page, though still streaming (D46), drew nothing
+  until then. The loop is gone: libghostty already stops drawing a surface that leaves the window (its
+  display link stops in `viewDidMoveToWindow`), and the strip's pages away from the one in view are not in
+  the window. A page in view or next to it draws its last image. Checked with synthesized phased gestures:
+  half a swipe held shows both pages' text; a full swipe lands with text.
+- **Session list scroll** (review round 1). The list sizes itself to its rows (measured) up to 320 pt and
+  scrolls past that; running sessions come before stopped ones; a name takes the free space before its
+  detail does. Checked with a temporary XCUITest against this Mac's 21 sessions: a wheel moved the last row
+  up by 300 pt. Not in the suite: CI has too few sessions to scroll. The palette list sizes the same way.
+- **Palette keys right after ⌘K** (review round 1, not reproduced). The filter field asked for focus once,
+  100 ms after it appeared; it now asks every 50 ms until it holds (up to 1 s). e2e:
+  `testPaletteTakesKeysTypedRightAfterCommandK` (⌘K from a terminal, type at once, the rows filter).
+- **Sidebar toggle** (review round 1, not reproduced). ⌃⌘S three times 80 ms apart, and the button clicked
+  three times 80 ms apart (a triple click), each toggled the sidebar every time over several rounds; two
+  clicks left it as it was.
+- **Cost of a failing live session.** While a session answers `ping` but its snapshot read keeps failing,
+  each 2 s tick costs a `ping`, a `session.snapshot` and a `session list` run (three short herdr processes),
+  where it used to be every 30 s.
