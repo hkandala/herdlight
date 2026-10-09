@@ -61,3 +61,21 @@ func `talks to a throwaway herdr session`() async throws {
     let pane = try #require(snapshot.panes.first { $0.tabID == tab.id })
     #expect(snapshot.trees[tab.id] == SplitNode.leaf(paneID: pane.id))
 }
+
+@Test func `output of fast commands always ends`() async throws {
+    let exec = await ProcessExec()
+    try await withThrowingTaskGroup(of: [String].self) { group in
+        for _ in 0 ..< 200 {
+            group.addTask {
+                let channel = try await exec.run(["sh", "-c", "echo hi"])
+                channel.closeInput()
+                return try await withTimeout(.seconds(5), onTimeout: channel.terminate) {
+                    await channel.lines.reduce(into: []) { $0.append($1) }
+                }
+            }
+        }
+        for try await lines in group {
+            #expect(lines == ["hi"])
+        }
+    }
+}

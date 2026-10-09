@@ -86,7 +86,9 @@ public struct Channel: Sendable {
         /// stalls (seen on macOS 27 with a second bridge run while the events stream is open).
         private static func chunks(_ handle: FileHandle) -> AsyncStream<Data> {
             let (stream, continuation) = AsyncStream<Data>.makeStream()
-            handle.readabilityHandler = { handle in
+            // The handler holds the handle until EOF: once a fast child's Process and Pipe are released,
+            // nothing else does, and EOF never arrived (seen on CI as a 10 s timeout after `sh -c` exited).
+            handle.readabilityHandler = { _ in
                 let data = handle.availableData
                 if data.isEmpty {
                     handle.readabilityHandler = nil
@@ -95,6 +97,7 @@ public struct Channel: Sendable {
                     continuation.yield(data)
                 }
             }
+            continuation.onTermination = { _ in handle.readabilityHandler = nil }
             return stream
         }
 
