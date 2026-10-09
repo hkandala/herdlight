@@ -2,14 +2,18 @@ import SwiftUI
 
 /// The row in the title bar line: sidebar toggle, session picker, the tabs while the sidebar is hidden, ⌘ and +.
 struct TitleBar: View {
-    /// AppKit owns the traffic lights; the row starts after them.
-    static let lights: CGFloat = 78
     /// The compact toolbar's height, so the row centers on the traffic lights.
     static let height: CGFloat = 40
-    /// Where the session picker button starts: after the 28 pt sidebar toggle and the row's 4 pt spacing.
-    static let picker = lights + 32
+    /// The session picker button starts this far into the row: the 28 pt sidebar toggle and the row's 4 pt spacing.
+    static let picker: CGFloat = 32
+
+    /// Where the row starts: after the traffic lights, which AppKit owns; full screen has none.
+    static func inset(fullScreen: Bool) -> CGFloat {
+        fullScreen ? gap : 78
+    }
 
     let store: HostStore
+    let fullScreen: Bool
     @Binding var sidebar: Bool
     @Binding var picking: Bool
 
@@ -30,7 +34,7 @@ struct TitleBar: View {
             // ponytail: no-op until new tabs
             IconButton(symbol: "plus", help: "New Tab") {}
         }
-        .padding(.leading, Self.lights)
+        .padding(.leading, Self.inset(fullScreen: fullScreen))
         .padding(.trailing, gap)
         .frame(height: Self.height)
         .contentShape(.rect)
