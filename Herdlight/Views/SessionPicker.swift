@@ -34,22 +34,17 @@ struct SessionList: View {
         // ⌘1…⌘9 go to the first nine running sessions, numbered before filtering so each keeps its number.
         let numbers = Dictionary(store.sessions.filter(\.running).prefix(9).enumerated().map { ($1.name, $0 + 1) },
                                  uniquingKeysWith: { first, _ in first })
-        let sessions = store.sessions.filter {
-            ($0.running || showStopped || $0.name == store.session) && $0.name.matches(filter)
-        }
-        // The row Enter picks, lit while a filter is typed.
-        let target = filter.isEmpty ? nil : (sessions.first(where: \.running) ?? sessions.first)?.name
-        let typed = filter.trimmingCharacters(in: .whitespaces)
-        // A typed name no session has yet: New Session makes it.
-        let typedNew = Session.isValidName(typed) && !store.sessions.contains { $0.name == typed } ? typed : nil
+        let sessions = shown, target = target, typedNew = typedNew
         VStack(alignment: .leading, spacing: 2) {
             FilterField(prompt: "Filter or create…", text: $filter, identifier: "sessions.filter", autofocus: true)
-                .onSubmit {
-                    if let session = sessions.first(where: { $0.name == target }) {
+                // As in the palette: the handler reads the list as it is now.
+                .onKeyPress(.return) {
+                    if let session = shown.first(where: { $0.name == self.target }) {
                         pick(session)
-                    } else if let typedNew {
-                        create(typedNew)
+                    } else if let name = self.typedNew {
+                        create(name)
                     }
+                    return .handled
                 }
                 .padding(.bottom, 4)
             HStack {
@@ -114,6 +109,22 @@ struct SessionList: View {
         #if os(macOS)
             .onExitCommand { open = false }
         #endif
+    }
+
+    /// The rows: running sessions (stopped ones on request) that pass the filter.
+    private var shown: [Session] {
+        store.sessions.filter { ($0.running || showStopped || $0.name == store.session) && $0.name.matches(filter) }
+    }
+
+    /// The row Enter picks, lit while a filter is typed.
+    private var target: String? {
+        filter.isEmpty ? nil : (shown.first(where: \.running) ?? shown.first)?.name
+    }
+
+    /// A typed name no session has yet: New Session makes it.
+    private var typedNew: String? {
+        let typed = filter.trimmingCharacters(in: .whitespaces)
+        return Session.isValidName(typed) && !store.sessions.contains { $0.name == typed } ? typed : nil
     }
 
     /// Starts a new session and switches to it.
