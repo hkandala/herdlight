@@ -9,7 +9,7 @@
     @MainActor @Observable
     final class PaneTerminal {
         enum State: Equatable {
-            /// No stream: not on the selected tab, released, or the pane is gone.
+            /// No stream: not shown lately (D46), released, or the pane is gone.
             case idle
             case live
             /// Another client controls the pane: watch until the user acts (design D8).
@@ -96,14 +96,14 @@
             ]
         }
 
-        /// The card is on the selected tab: stream it. Also retries a stream that failed.
+        /// The card's tab is shown: stream it. Also retries a stream that failed.
         func show() {
             guard !shown || state.isFailed else { return }
             shown = true
             open()
         }
 
-        /// The card left the selected tab: let go (design: what streams). It keeps its last image.
+        /// The card left the recently shown set: let go (D46). It keeps its last image.
         func hide() {
             shown = false
             pending = []
