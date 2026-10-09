@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0A2120E44437314C4F083E64 /* HerdrKit in Frameworks */ = {isa = PBXBuildFile; productRef = 42A62881E820297033DC0FF9 /* HerdrKit */; };
+		5E1D7A3C9B2F4E6081A3C5D7 /* GhosttyTerminal in Frameworks */ = {isa = PBXBuildFile; platformFilters = (macos, ); productRef = 6F2E8B4DAC305F7192B4D6E8 /* GhosttyTerminal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +45,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0A2120E44437314C4F083E64 /* HerdrKit in Frameworks */,
+				5E1D7A3C9B2F4E6081A3C5D7 /* GhosttyTerminal in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,6 +121,7 @@
 			name = Herdlight;
 			packageProductDependencies = (
 				42A62881E820297033DC0FF9 /* HerdrKit */,
+				6F2E8B4DAC305F7192B4D6E8 /* GhosttyTerminal */,
 			);
 			productName = Herdlight;
 			productReference = 21288B51504EFA0EF1A20CCE /* Herdlight.app */;
@@ -154,6 +157,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				CF6031F84141B56A559E35B9 /* XCLocalSwiftPackageReference "Packages/HerdrKit" */,
+				7A3F9C5EBD41608203C5E7F9 /* XCRemoteSwiftPackageReference "libghostty-spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 108494E918F2B6D742A8C165 /* Products */;
@@ -494,10 +498,26 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		7A3F9C5EBD41608203C5E7F9 /* XCRemoteSwiftPackageReference "libghostty-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Lakr233/libghostty-spm";
+			requirement = {
+				kind = exactVersion;
+				version = 2.2.2026100801;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		42A62881E820297033DC0FF9 /* HerdrKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = HerdrKit;
+		};
+		6F2E8B4DAC305F7192B4D6E8 /* GhosttyTerminal */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7A3F9C5EBD41608203C5E7F9 /* XCRemoteSwiftPackageReference "libghostty-spm" */;
+			productName = GhosttyTerminal;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
