@@ -126,7 +126,9 @@ public struct Channel: Sendable {
             process.standardOutput = stdout
             process.standardError = stderr
             let (ended, endedContinuation) = AsyncStream<Int32>.makeStream()
+            debugLog("spawn \(argv)")
             process.terminationHandler = {
+                debugLog("end \($0.terminationStatus) \(argv)")
                 let pid = $0.processIdentifier
                 children.withLock { _ = $0.remove(pid) }
                 endedContinuation.yield($0.terminationStatus)
@@ -173,3 +175,15 @@ public struct Channel: Sendable {
         }
     }
 #endif
+
+/// Temporary CI debugging, never merged.
+func debugLog(_ msg: String) {
+    let line = Data("\(Date().timeIntervalSince1970) \(msg)\n".utf8)
+    if let handle = FileHandle(forWritingAtPath: "/tmp/hl-exec.log") {
+        handle.seekToEndOfFile()
+        handle.write(line)
+        try? handle.close()
+    } else {
+        FileManager.default.createFile(atPath: "/tmp/hl-exec.log", contents: line)
+    }
+}
