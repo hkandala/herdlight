@@ -26,11 +26,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/cache@v4
-        with:
-          path: .build/DerivedData/SourcePackages
-          key: spm-${{ hashFiles('**/Package.resolved') }}
-      - run: brew update --quiet && brew bundle
+      - run: brew install xcbeautify
       - run: make build test
 
   e2e:
@@ -41,11 +37,7 @@ jobs:
       HERDR_SHA256: 5173a3e0ae42d5d1ab7ebfa5d5e6329f7c3d23f8e1a3677c7ce3231da2884157
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/cache@v4
-        with:
-          path: .build/DerivedData/SourcePackages
-          key: spm-${{ hashFiles('**/Package.resolved') }}
-      - run: brew update --quiet && brew bundle
+      - run: brew install xcbeautify
       - name: install herdr
         run: |
           mkdir -p ~/.local/bin
