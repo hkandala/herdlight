@@ -50,6 +50,11 @@ final class HostStore {
         init(id: String) {
             self.id = id
         }
+
+        /// What the card header shows: the label, else the directory.
+        var title: String {
+            label ?? cwd.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? "terminal"
+        }
     }
 
     /// A close waiting for the user's yes (design D41).
@@ -167,8 +172,11 @@ final class HostStore {
             let tabPanes = panes.filter { $0.tabID == tab.id && $0.terminalID != nil }
             let pane = tabPanes.first { $0.terminalID == keyboardTerminals[tab.id] }
                 ?? tabPanes.first(where: \.focused) ?? tabPanes.first
-            if let terminalID = pane?.terminalID {
+            if let pane, let terminalID = pane.terminalID {
                 keyboardTabID = tab.id
+                // Made now if its card has not drawn yet (a tab just jumped to); it takes the keyboard once it is in
+                // the window.
+                _ = terminals.terminal(terminalID, pane: pane.id)
                 terminals.focus(terminalID)
             }
         }
@@ -278,8 +286,12 @@ extension HostStore {
     /// A new tab in the selected workspace, in the keyboard card's directory.
     func newTab() async {
         guard let workspace = selectedWorkspace else { return }
-        await write("tab.create", ["workspace_id": workspace.id, "cwd": keyboardPane?.cwd ?? NSHomeDirectory(),
-                                   "focus": false])
+        var cwd = keyboardPane?.cwd
+        // Asked now: a `cd` sends no event, so the snapshot's cwd may be old.
+        if let pane = keyboardPane, let fresh = try? await client?.pane(pane.id).cwd {
+            cwd = fresh
+        }
+        await write("tab.create", ["workspace_id": workspace.id, "cwd": cwd ?? NSHomeDirectory(), "focus": false])
     }
 
     func newWorkspace() async {
