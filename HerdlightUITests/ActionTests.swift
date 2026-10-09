@@ -237,6 +237,15 @@ extension HerdlightUITests {
         XCTAssertTrue(filter.waitForNonExistence(timeout: 2))
     }
 
+    func testPaletteTakesKeysTypedRightAfterCommandK() {
+        XCTAssertTrue(element("terminal.w1:p1").waitForExistence(timeout: connect))
+        element("terminal.w1:p1").click()
+        app.typeKey("k", modifierFlags: .command)
+        app.typeText("seco")
+        XCTAssertTrue(element("palette.tab.w1:t1").waitForNonExistence(timeout: 2))
+        XCTAssertTrue(element("palette.tab.w1:t2").exists)
+    }
+
     func testPaletteEnterTakesTheMovedRowAndKeysFollow() async throws {
         XCTAssertTrue(element("terminal.w1:p1").waitForExistence(timeout: connect))
         openPalette()
