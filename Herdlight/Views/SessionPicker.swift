@@ -37,23 +37,28 @@ struct SessionList: View {
         let sessions = store.sessions.filter {
             ($0.running || showStopped || $0.name == store.session) && $0.name.matches(filter)
         }
+        // The row Enter picks, lit while a filter is typed.
+        let target = filter.isEmpty ? nil : (sessions.first(where: \.running) ?? sessions.first)?.name
         let typed = filter.trimmingCharacters(in: .whitespaces)
         // A typed name no session has yet: New Session makes it.
         let typedNew = Session.isValidName(typed) && !store.sessions.contains { $0.name == typed } ? typed : nil
         VStack(alignment: .leading, spacing: 2) {
             FilterField(prompt: "Filter or create…", text: $filter, identifier: "sessions.filter", autofocus: true)
                 .onSubmit {
-                    if let first = sessions.first(where: \.running) ?? sessions.first {
-                        pick(first)
+                    if let session = sessions.first(where: { $0.name == target }) {
+                        pick(session)
                     } else if let typedNew {
                         create(typedNew)
                     }
                 }
                 .padding(.bottom, 4)
             HStack {
-                Label("This Mac", systemImage: "laptopcomputer")
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(.secondary)
+                // No host header over no rows; the toggle stays, it may reveal a match.
+                if !sessions.isEmpty {
+                    Label("This Mac", systemImage: "laptopcomputer")
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
                 Toggle("Show stopped", isOn: $showStopped)
                 #if os(macOS)
@@ -69,14 +74,15 @@ struct SessionList: View {
                 VStack(spacing: 2) {
                     ForEach(sessions, id: \.name) { session in
                         let current = session.name == store.session
+                        let lit = target.map { $0 == session.name } ?? current
                         let number = numbers[session.name]
                         Button { pick(session) } label: {
                             MenuRow(symbol: current ? "checkmark" : nil, title: session.name,
                                     detail: number.map { "⌘\($0)" } ?? (session.running ? "" : "stopped"),
-                                    selected: current)
+                                    selected: lit)
                                 .foregroundStyle(session.running ? .primary : .secondary)
                         }
-                        .buttonStyle(ChromeStyle(selected: current, tint: .accentColor))
+                        .buttonStyle(ChromeStyle(selected: lit, tint: .accentColor))
                         .keyboardShortcut(number.map { KeyboardShortcut(KeyEquivalent(Character("\($0)"))) })
                         .accessibilityIdentifier("session.\(session.name)")
                         .accessibilityAddTraits(current ? .isSelected : [])
