@@ -106,9 +106,6 @@ struct SessionList: View {
         .glassEffect(.regular, in: .rect(cornerRadius: 12))
         .shadow(color: .black.opacity(0.35), radius: 16, y: 6)
         .task { await store.loadSessions() }
-        #if os(macOS)
-            .onExitCommand { open = false }
-        #endif
     }
 
     /// The rows: running sessions (stopped ones on request) that pass the filter.

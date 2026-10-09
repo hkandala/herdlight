@@ -46,7 +46,7 @@ final class HerdlightUITests: XCTestCase {
         XCTAssertTrue(element("workspace.w2").exists)
         XCTAssertTrue(element("tab.w1:t1").exists)
         XCTAssertTrue(element("tab.w1:t2").exists)
-        // At launch no text field has the keyboard (phase 4 gives it to the terminal).
+        // At launch no text field has the keyboard; a terminal has it.
         XCTAssertEqual(app.textFields.matching(NSPredicate(format: "hasKeyboardFocus == true")).count, 0)
         XCTAssertNotEqual(element("sidebar.filter").elementType, .textField)
 

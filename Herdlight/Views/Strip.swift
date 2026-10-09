@@ -164,9 +164,6 @@ struct Strip: View {
     }
 #endif
 
-/// The 8 pt gap between cards is the one fixed size; it is also where dividers go later.
-let gap: CGFloat = 8
-
 /// herdr's split tree: each split divides its rectangle by the ratio, minus the gap. Both children get an exact
 /// size, so no card's content can push its neighbor out of the page. A zoomed card (design D11) fills the page:
 /// each split above it stacks its sides, the zoomed side at full size, the other hidden at its own size. The same
@@ -227,7 +224,7 @@ private extension SplitNode {
     }
 }
 
-/// A frosted card with a header; phase 4 puts the terminal in its body.
+/// A translucent card: a header with the pane's title and buttons, and its terminal.
 private struct PaneCard: View {
     let id: String
     let store: HostStore

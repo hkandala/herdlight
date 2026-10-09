@@ -223,11 +223,11 @@ final class HostStore {
                     // After the first snapshot, so the picker never delays the layout.
                     if !loadedSessions {
                         loadedSessions = true
-                        sessions = await (try? client.sessions()) ?? []
+                        await loadSessions()
                     }
                 case let .error(error):
                     // First, to tell "not running" from other failures without a flash of the other text.
-                    sessions = await (try? client.sessions()) ?? sessions
+                    await loadSessions()
                     state = .failed(error)
                 }
             }

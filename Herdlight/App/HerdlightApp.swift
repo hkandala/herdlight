@@ -61,17 +61,16 @@ struct HerdlightApp: App {
             }
             .overlay {
                 if picking {
-                    // A click outside the session list closes it.
-                    Color.clear.contentShape(.rect).onTapGesture { picking = false }
-                        .overlay(alignment: .topLeading) {
-                            SessionList(store: $store, open: $picking)
-                                .padding(.leading, TitleBar.inset(fullScreen: fullScreen) + TitleBar.picker)
-                                .padding(.top, TitleBar.height + 4)
-                        }
+                    SessionList(store: $store, open: $picking)
+                        .padding(.leading, TitleBar.inset(fullScreen: fullScreen) + TitleBar.picker)
+                        .padding(.top, TitleBar.height + 4)
+                        .floatingPanel(open: $picking, alignment: .topLeading)
                 }
                 if palette {
-                    Color.clear.contentShape(.rect).onTapGesture { palette = false }
-                        .overlay(alignment: .top) { Palette(store: $store, open: $palette).padding(.top, 96) }
+                    Palette(store: $store, open: $palette).padding(.top, 96).floatingPanel(
+                        open: $palette,
+                        alignment: .top,
+                    )
                 }
             }
             .confirmationDialog(dialog?.title ?? "", isPresented: Binding { store.closing != nil } set: {
@@ -196,8 +195,7 @@ struct HerdlightApp: App {
 
         var body: some Commands {
             CommandGroup(after: .windowArrangement) {
-                let workspace = store?.selectedWorkspace
-                let tabs = workspace?.tabs ?? []
+                let tabs = store?.selectedWorkspace?.tabs ?? []
                 Divider()
                 Button("Show Previous Tab") { store?.step(-1) }
                     .keyboardShortcut("[", modifiers: [.command, .shift])

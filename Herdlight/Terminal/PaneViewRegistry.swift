@@ -1,4 +1,5 @@
 #if os(macOS)
+    import AppKit
     import GhosttyTerminal
     import HerdrKit
 
@@ -64,7 +65,7 @@
 
         /// The pane whose terminal has the keyboard, from the window itself, so it cannot drift.
         var keyboardPaneID: String? {
-            terminals.values.first { $0.view.isFirstResponder }?.paneID
+            terminals.values.first { $0.view.window?.firstResponder === $0.view }?.paneID
         }
 
         /// Releases everything: the session switches or its store stops.

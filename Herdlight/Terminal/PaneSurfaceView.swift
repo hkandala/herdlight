@@ -37,11 +37,6 @@
             claimKeyboard()
         }
 
-        /// The window's first responder now.
-        var isFirstResponder: Bool {
-            window?.firstResponder === self
-        }
-
         /// Counts keyboard requests across terminals; only the latest wins, so an older one cannot steal the
         /// keyboard back.
         private static var request = 0
