@@ -83,19 +83,29 @@ Stage A (stream level, against throwaway sessions; no GUI yet).
   `shift+enter` gives `^[[13;2u` and `ctrl+c` gives `^[[99;5u`; libghostty would send `\r`
   and `^C`. `terminal.input` writes bytes to the PTY unchanged (herdr
   `apply_terminal_attach_input`).
-- **Input path (decision).** herdr-web's split. Keys whose bytes depend on modes go to
-  `pane.send_keys` by herdr name: arrows, Esc and F1–F12 (with or without modifiers),
-  Enter/Tab/Backspace with a modifier, and Ctrl chords (`PaneSurfaceView.herdrKey`). Everything else
-  goes through libghostty as text on `terminal.input`: typing, IME, dead keys, Option
-  characters (macOS behavior), and plain Enter, Tab and Backspace (same bytes in every mode but
-  kitty's report-all flag; kept off the slower path). Home/End/PgUp/PgDn/Delete have no herdr
-  names; libghostty sends them as xterm does. Cmd stays with the menu (`keybind = clear`).
-  All input goes out in order through one queue per card; a bridge call takes about 60 ms here
-  (median of 20, max 170), more than a held key's repeat, so keys that pile up meanwhile go as
-  one `send_keys` call. Every key name the mapping makes is accepted by herdr 0.9.3.
+- **Input path (decision).** herdr-web's split. These go to `pane.send_keys` by herdr name
+  (`PaneSurfaceView.herdrKey`):
+  - arrows, Esc and F1–F12, with or without modifiers (Shift+Esc is Esc);
+  - Enter, Tab and Backspace with a modifier;
+  - Ctrl chords, named by the key's US character (key code), so they work on every layout
+    (Ctrl+С on a Russian layout is Ctrl+C). Shift is dropped, as xterm does: Ctrl+Shift+C is
+    Ctrl+C. Trade-off: an app with the kitty keyboard cannot tell the two apart;
+  - macOS line editing that `keybind = clear` took from libghostty: Cmd+←/→/⌫ → Ctrl+A/E/U,
+    Option+←/→ → Alt+B/F.
+
+  Everything else goes through libghostty as text on `terminal.input`: typing, IME, dead keys,
+  Option characters (Ghostty's default), and plain Enter, Tab and Backspace (same bytes in every
+  mode but kitty's report-all flag; kept off the slower path). Home/End/PgUp/PgDn/Delete have no
+  herdr names; libghostty sends them as xterm does. Other Cmd keys stay with the menu.
+  Input goes out in order through one queue per card, only while the stream is live; a bridge
+  call takes about 60 ms here (median of 20, max 170), more than a held key's repeat, so keys
+  that pile up meanwhile go as one `send_keys` call. Every key name the mapping makes is
+  accepted by herdr 0.9.3.
 - **Paste.** A whole `ESC[200~…ESC[201~` on `terminal.input` is unwrapped by herdr and framed
   again for the app's own paste mode (checked both ways with `cat -v`). The surface gets
   `ESC[?2004h` once, so libghostty frames every paste (and keeps its file-URL → path handling).
+  For an app without paste mode herdr writes the text as is, so line breaks arrive as LF where
+  a terminal would send CR. Harmless: shells and the tty treat LF as Enter.
 - **Double replies: none possible at the stream level.** `printf '\e[c\e[6n\e]11;?\a'` in a
   pane: herdr's own terminal answers (the shell then shows `^[[?62;22c`, as in any terminal);
   the frames hold only the drawn result, never the queries, so libghostty has nothing to
@@ -108,12 +118,13 @@ Stage A (stream level, against throwaway sessions; no GUI yet).
 - **A killed controller is released.** SIGKILL a `control` run, and a new `control` without
   `--takeover` attaches 50 ms later (herdr removes a disconnected client). So the app does not
   send `terminal.release` on quit: `ProcessExec`'s exit handler kills the children, which frees
-  the panes. Leaving a tab and switching sessions do send `terminal.release`.
+  the panes (the design page now says so). Leaving a tab and switching sessions do send
+  `terminal.release`; a run that has not answered `detached` within 500 ms is killed.
 - **Writes.** `ProcessExec` writes stdin on a serial queue per child, so a full pipe never
   blocks the main actor.
-- **Mouse.** Left and right clicks and drags go to herdr as cells (`terminal.mouse`); herdr
-  drops them when the app has no mouse mode. libghostty gets them too, for local selection and
-  Copy. The wheel goes to `terminal.scroll` (trackpad points ÷ cell height); libghostty keeps
+- **Mouse.** Left, right and middle clicks and drags go to herdr as cells (`terminal.mouse`);
+  herdr drops them when the app has no mouse mode. libghostty gets left and right too, for local
+  selection and Copy (not middle, which it could paste as input). The wheel goes to `terminal.scroll` (trackpad points ÷ cell height); libghostty keeps
   no scrollback. Sideways scrolls pass to the strip (phase 5 adds the axis lock).
 
 ## User feedback round (after Stage B hand test)
