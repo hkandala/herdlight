@@ -1,23 +1,20 @@
 import HerdrKit
 import SwiftUI
 
-/// The title-bar button with the session and its machine; it opens the session list.
+/// The title-bar button with the session's name; it opens the session list.
 struct SessionPicker: View {
     let store: HostStore
     @Binding var open: Bool
 
     var body: some View {
         Button { open.toggle() } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "macbook").imageScale(.large).foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Image(systemName: "laptopcomputer").fontWeight(.medium).foregroundStyle(.secondary)
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(store.session).fontWeight(.semibold)
-                    Text("This Mac").font(.subheadline).foregroundStyle(.secondary)
-                }
+                Text(store.session).fontWeight(.semibold)
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 3)
+            .frame(height: 28)
         }
         .buttonStyle(ChromeStyle(selected: open))
         .accessibilityIdentifier("titlebar.session-picker")
