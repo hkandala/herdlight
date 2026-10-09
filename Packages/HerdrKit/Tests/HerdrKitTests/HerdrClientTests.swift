@@ -108,6 +108,12 @@ private func started(_ client: HerdrClient, _ exec: FakeExec) async -> AsyncStre
     let updates = await client.updates()
     // At least two: timing on a loaded machine can add a read; the tests count from the reset below.
     #expect(await eventually { exec[\.subscribes].count == 1 && exec[\.reads] >= 2 && exec[\.inFlight] == 0 })
+    // Start-up reads have settled once none came for 150 ms; a late one would count as the test's.
+    var reads = -1
+    while reads != exec[\.reads] {
+        reads = exec[\.reads]
+        try? await Task.sleep(for: .milliseconds(150))
+    }
     exec.state.withLock {
         $0.reads = 0
         $0.readTimes = []
